@@ -580,13 +580,18 @@ class GoogleAuth(ApiAttributeMixin, object):
         print("Authentication successful.")
 
     def _build_http(self):
-        http = httplib2.Http(timeout=self.http_timeout)
-        # 308's are used by several Google APIs (Drive, YouTube)
-        # for Resumable Uploads rather than Permanent Redirects.
-        # This asks httplib2 to exclude 308s from the status codes
-        # it treats as redirects
-        # See also: https://stackoverflow.com/a/59850170/298182
-        http.redirect_codes = http.redirect_codes - {308}
+        try:
+            http = httplib2.Http(timeout=self.http_timeout)
+            # 308's are used by several Google APIs (Drive, YouTube)
+            # for Resumable Uploads rather than Permanent Redirects.
+            # This asks httplib2 to exclude 308s from the status codes
+            # it treats as redirects
+            # See also: https://stackoverflow.com/a/59850170/298182
+            http.redirect_codes = http.redirect_codes - {308}
+        # http.redirect_codes does not exist in previous versions
+        # of httplib2, so pass
+        except AttributeError:
+            pass
         return http
 
     def Authorize(self):
