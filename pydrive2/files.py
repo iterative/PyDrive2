@@ -5,6 +5,7 @@ import json
 from googleapiclient import errors
 from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import DEFAULT_CHUNK_SIZE
 from functools import wraps
 
 from .apiattr import ApiAttribute
@@ -95,6 +96,48 @@ class GoogleDriveFileList(ApiResourceList):
             )
             result.append(tmp_file)
         return result
+
+
+class FakeWriteable(object):
+    def write(self, chunk):
+        self.chunk = chunk
+
+
+class MediaIoReadable(object):
+    def __init__(self, request, chunksize=DEFAULT_CHUNK_SIZE, pre_buffer=True):
+        """File-like wrapper around MediaIoBaseDownload.
+
+    :param pre_buffer: Whether to read one chunk into an internal buffer
+    immediately in order to raise any potential errors.
+    :raises: HttpError
+    """
+        self.done = False
+        self.fd = FakeWriteable()
+        self.downloader = MediaIoBaseDownload(
+            self.fd, request, chunksize=chunksize
+        )
+        self._buffer = None
+        if pre_buffer:
+            self._buffer = self.read()
+
+    def read(self, chunksize=DEFAULT_CHUNK_SIZE):
+        """
+    :returns: str -- chunk or None if done
+    :raises: ApiRequestError
+    """
+        if self._buffer:
+            buffer = self._buffer
+            self._buffer = None
+            return buffer
+        if self.done:
+            return None
+        if chunksize:
+            self.downloader._chunksize = chunksize
+        try:
+            _, self.done = self.downloader.next_chunk()
+        except errors.HttpError as error:
+            raise ApiRequestError(error)
+        return self.fd.chunk
 
 
 class GoogleDriveFile(ApiAttributeMixin, ApiResource):
@@ -260,9 +303,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                     callback(status.resumable_progress, status.total_size)
 
         with open(filename, mode="w+b") as fd:
-            # Ideally would use files.export_media instead if
-            # metadata.get("mimeType").startswith("application/vnd.google-apps.")
-            # but that would first require a slow call to FetchMetadata()
+            # Should use files.export_media instead of files.get_media if
+            # metadata["mimeType"].startswith("application/vnd.google-apps.").
+            # But that would first require a slow call to FetchMetadata().
+            # We prefer to try-except for speed.
             try:
                 download(fd, files.get_media(fileId=file_id))
             except errors.HttpError as error:
@@ -291,6 +335,51 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 ]
                 if boms:
                     self._RemovePrefix(fd, boms[0])
+
+    @LoadAuth
+    def GetContentIOBuffer(self, mimetype=None, chunksize=DEFAULT_CHUNK_SIZE):
+        """Get a file-like object which has a buffered read() method.
+
+    :param mimetype: mimeType of the file.
+    :type mimetype: str
+    :param chunksize: default read() chunksize.
+    :type chunksize: int
+    :returns: MediaIoReadable -- file-like object.
+    :raises: ApiRequestError, FileNotUploadedError
+    """
+        files = self.auth.service.files()
+        file_id = self.metadata.get("id") or self.get("id")
+        if not file_id:
+            raise FileNotUploadedError()
+
+        # Should use files.export_media instead of files.get_media if
+        # metadata["mimeType"].startswith("application/vnd.google-apps.").
+        # But that would first require a slow call to FetchMetadata().
+        # We prefer to try-except for speed.
+        try:
+            request = files.get_media(fileId=file_id)
+            # Ensures thread safety. Similar to other places where we call
+            # `.execute(http=self.http)` to pass a client from the thread
+            # local storage.
+            if self.http:
+                request.http = self.http
+
+            return MediaIoReadable(request, chunksize=chunksize)
+        except errors.HttpError as error:
+            exc = ApiRequestError(error)
+            if (
+                exc.error["code"] != 403
+                or exc.GetField("reason") != "fileNotDownloadable"
+            ):
+                raise exc
+            mimetype = mimetype or "text/plain"
+            try:
+                request = files.export_media(fileId=file_id, mimeType=mimetype)
+                if self.http:
+                    request.http = self.http
+                return MediaIoReadable(request, chunksize=chunksize)
+            except errors.HttpError as error:
+                raise ApiRequestError(error)
 
     @LoadAuth
     def FetchMetadata(self, fields=None, fetch_all=False):
