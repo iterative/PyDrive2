@@ -106,7 +106,13 @@ class IoBuffer(object):
 
 
 class MediaIoReadable(object):
-    def __init__(self, request, chunksize=DEFAULT_CHUNK_SIZE, pre_buffer=True):
+    def __init__(
+        self,
+        request,
+        encoding=None,
+        chunksize=DEFAULT_CHUNK_SIZE,
+        pre_buffer=True,
+    ):
         """File-like wrapper around MediaIoBaseDownload.
 
     :param pre_buffer: Whether to read one chunk into an internal buffer
@@ -114,6 +120,7 @@ class MediaIoReadable(object):
     :raises: HttpError
     """
         self.done = False
+        self.encoding = encoding
         self.fd = IoBuffer()
         self.downloader = MediaIoBaseDownload(
             self.fd, request, chunksize=chunksize
@@ -121,6 +128,9 @@ class MediaIoReadable(object):
         self._buffer = None
         if pre_buffer:
             self._buffer = self.read()
+
+    def decode(self, raw_bytes):
+        return raw_bytes.decode(self.encoding) if self.encoding else raw_bytes
 
     def read(self, chunksize=DEFAULT_CHUNK_SIZE):
         """
@@ -130,7 +140,7 @@ class MediaIoReadable(object):
         if self._buffer:
             buffer = self._buffer
             self._buffer = None
-            return buffer
+            return self.decode(buffer)
         if self.done:
             return None
         if chunksize:
@@ -139,7 +149,7 @@ class MediaIoReadable(object):
             _, self.done = self.downloader.next_chunk()
         except errors.HttpError as error:
             raise ApiRequestError(error)
-        return self.fd.chunk
+        return self.decode(self.fd.chunk)
 
 
 class GoogleDriveFile(ApiAttributeMixin, ApiResource):
@@ -334,11 +344,15 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                     self._RemovePrefix(fd, boms[0])
 
     @LoadAuth
-    def GetContentIOBuffer(self, mimetype=None, chunksize=DEFAULT_CHUNK_SIZE):
+    def GetContentIOBuffer(
+        self, mimetype=None, encoding=None, chunksize=DEFAULT_CHUNK_SIZE
+    ):
         """Get a file-like object which has a buffered read() method.
 
     :param mimetype: mimeType of the file.
     :type mimetype: str
+    :param encoding: The encoding to use when decoding the byte string.
+    :type encoding: str
     :param chunksize: default read() chunksize.
     :type chunksize: int
     :returns: MediaIoReadable -- file-like object.
@@ -355,7 +369,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         # We prefer to try-except for speed.
         try:
             request = self._WrapRequest(files.get_media(fileId=file_id))
-            return MediaIoReadable(request, chunksize=chunksize)
+            return MediaIoReadable(
+                request, encoding=encoding, chunksize=chunksize
+            )
         except errors.HttpError as error:
             exc = ApiRequestError(error)
             if (
@@ -368,7 +384,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 request = self._WrapRequest(
                     files.export_media(fileId=file_id, mimeType=mimetype)
                 )
-                return MediaIoReadable(request, chunksize=chunksize)
+                return MediaIoReadable(
+                    request, encoding=encoding, chunksize=chunksize
+                )
             except errors.HttpError as error:
                 raise ApiRequestError(error)
 
