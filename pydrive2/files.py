@@ -98,7 +98,9 @@ class GoogleDriveFileList(ApiResourceList):
         return result
 
 
-class FakeWriteable(object):
+class IoBuffer(object):
+    """Lightweight retention of one chunk."""
+
     def write(self, chunk):
         self.chunk = chunk
 
@@ -112,7 +114,7 @@ class MediaIoReadable(object):
     :raises: HttpError
     """
         self.done = False
-        self.fd = FakeWriteable()
+        self.fd = IoBuffer()
         self.downloader = MediaIoBaseDownload(
             self.fd, request, chunksize=chunksize
         )
@@ -290,12 +292,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             raise FileNotUploadedError()
 
         def download(fd, request):
-            # Ensures thread safety. Similar to other places where we call
-            # `.execute(http=self.http)` to pass a client from the thread
-            # local storage.
-            if self.http:
-                request.http = self.http
-            downloader = MediaIoBaseDownload(fd, request)
+            downloader = MediaIoBaseDownload(fd, self._WrapRequest(request))
             done = False
             while done is False:
                 status, done = downloader.next_chunk()
@@ -357,13 +354,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         # But that would first require a slow call to FetchMetadata().
         # We prefer to try-except for speed.
         try:
-            request = files.get_media(fileId=file_id)
-            # Ensures thread safety. Similar to other places where we call
-            # `.execute(http=self.http)` to pass a client from the thread
-            # local storage.
-            if self.http:
-                request.http = self.http
-
+            request = self._WrapRequest(files.get_media(fileId=file_id))
             return MediaIoReadable(request, chunksize=chunksize)
         except errors.HttpError as error:
             exc = ApiRequestError(error)
@@ -374,9 +365,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 raise exc
             mimetype = mimetype or "text/plain"
             try:
-                request = files.export_media(fileId=file_id, mimeType=mimetype)
-                if self.http:
-                    request.http = self.http
+                request = self._WrapRequest(
+                    files.export_media(fileId=file_id, mimeType=mimetype)
+                )
                 return MediaIoReadable(request, chunksize=chunksize)
             except errors.HttpError as error:
                 raise ApiRequestError(error)
@@ -534,6 +525,16 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     :rtype: bool
     """
         return self._DeletePermission(permission_id)
+
+    def _WrapRequest(self, request):
+        """Replaces request.http with self.http.
+
+    Ensures thread safety. Similar to other places where we call
+    `.execute(http=self.http)` to pass a client from the thread local storage.
+    """
+        if self.http:
+            request.http = self.http
+        return request
 
     @LoadAuth
     def _FilesInsert(self, param=None):
