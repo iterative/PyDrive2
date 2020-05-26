@@ -101,8 +101,19 @@ class GoogleDriveFileList(ApiResourceList):
 class IoBuffer(object):
     """Lightweight retention of one chunk."""
 
+    def __init__(self, encoding):
+        self.encoding = encoding
+        self.chunk = None
+
     def write(self, chunk):
         self.chunk = chunk
+
+    def read(self):
+        return (
+            self.chunk.decode(self.encoding)
+            if self.chunk and self.encoding
+            else self.chunk
+        )
 
 
 class MediaIoReadable(object):
@@ -120,27 +131,23 @@ class MediaIoReadable(object):
     :raises: HttpError
     """
         self.done = False
-        self.encoding = encoding
-        self.fd = IoBuffer()
+        self._fd = IoBuffer(encoding)
         self.downloader = MediaIoBaseDownload(
-            self.fd, request, chunksize=chunksize
+            self._fd, request, chunksize=chunksize
         )
-        self._buffer = None
+        self._pre_buffer = False
         if pre_buffer:
-            self._buffer = self.read()
-
-    def decode(self, raw_bytes):
-        return raw_bytes.decode(self.encoding) if self.encoding else raw_bytes
+            self.read()
+            self._pre_buffer = True
 
     def read(self, chunksize=DEFAULT_CHUNK_SIZE):
         """
     :returns: str -- chunk or None if done
     :raises: ApiRequestError
     """
-        if self._buffer:
-            buffer = self._buffer
-            self._buffer = None
-            return self.decode(buffer)
+        if self._pre_buffer:
+            self._pre_buffer = False
+            return self._fd.read()
         if self.done:
             return None
         if chunksize:
@@ -149,7 +156,7 @@ class MediaIoReadable(object):
             _, self.done = self.downloader.next_chunk()
         except errors.HttpError as error:
             raise ApiRequestError(error)
-        return self.decode(self.fd.chunk)
+        return self._fd.read()
 
 
 class GoogleDriveFile(ApiAttributeMixin, ApiResource):
