@@ -140,7 +140,7 @@ class MediaIoReadable(object):
             self.read()
             self._pre_buffer = True
 
-    def read(self, chunksize=DEFAULT_CHUNK_SIZE):
+    def read(self):
         """
     :returns: str -- chunk or None if done
     :raises: ApiRequestError
@@ -150,8 +150,6 @@ class MediaIoReadable(object):
             return self._fd.read()
         if self.done:
             return None
-        if chunksize:
-            self.downloader._chunksize = chunksize
         try:
             _, self.done = self.downloader.next_chunk()
         except errors.HttpError as error:
