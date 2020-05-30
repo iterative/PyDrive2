@@ -130,7 +130,7 @@ class MediaIoReadable(object):
     :param pre_buffer: Whether to read one chunk into an internal buffer
     immediately in order to raise any potential errors.
     :param remove_prefix: Bytes prefix to remove from internal pre_buffer.
-    :raises: HttpError
+    :raises: ApiRequestError
     """
         self.done = False
         self._fd = IoBuffer(encoding)
@@ -163,6 +163,9 @@ class MediaIoReadable(object):
         return self._fd.read()
 
     def __iter__(self):
+        """
+    :raises: ApiRequestError
+    """
         while True:
             chunk = self.read()
             if chunk is None:
@@ -392,31 +395,27 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             return MediaIoReadable(
                 request, encoding=encoding, chunksize=chunksize
             )
-        except errors.HttpError as error:
-            exc = ApiRequestError(error)
+        except ApiRequestError as exc:
             if (
                 exc.error["code"] != 403
                 or exc.GetField("reason") != "fileNotDownloadable"
             ):
                 raise exc
             mimetype = mimetype or "text/plain"
-            try:
-                request = self._WrapRequest(
-                    files.export_media(fileId=file_id, mimeType=mimetype)
-                )
-                remove_prefix = (
-                    self._GetBOM(mimetype)
-                    if mimetype == "text/plain" and remove_bom
-                    else b""
-                )
-                return MediaIoReadable(
-                    request,
-                    encoding=encoding,
-                    remove_prefix=remove_prefix,
-                    chunksize=chunksize,
-                )
-            except errors.HttpError as error:
-                raise ApiRequestError(error)
+            request = self._WrapRequest(
+                files.export_media(fileId=file_id, mimeType=mimetype)
+            )
+            remove_prefix = (
+                self._GetBOM(mimetype)
+                if mimetype == "text/plain" and remove_bom
+                else b""
+            )
+            return MediaIoReadable(
+                request,
+                encoding=encoding,
+                remove_prefix=remove_prefix,
+                chunksize=chunksize,
+            )
 
     @LoadAuth
     def FetchMetadata(self, fields=None, fetch_all=False):
