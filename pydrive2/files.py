@@ -23,6 +23,13 @@ MIME_TYPE_TO_BOM = {
 }
 
 
+def GetBom(mimetype):
+    """Based on download mime type (ignores Google Drive mime type)"""
+    for bom in MIME_TYPE_TO_BOM.values():
+        if mimetype in bom:
+            return bom[mimetype]
+
+
 class FileNotUploadedError(RuntimeError):
     """Error trying to access metadata of file that is not uploaded."""
 
@@ -353,11 +360,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
             if mimetype == "text/plain" and remove_bom:
                 fd.seek(0)
-                boms = [
-                    bom[mimetype]
-                    for bom in MIME_TYPE_TO_BOM.values()
-                    if mimetype in bom
-                ]
+                boms = GetBom(mimetype)
                 if boms:
                     self._RemovePrefix(fd, boms[0])
 
@@ -410,11 +413,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 )
                 remove_prefix = b""
                 if mimetype == "text/plain" and remove_bom:
-                    boms = [
-                        bom[mimetype]
-                        for bom in MIME_TYPE_TO_BOM.values()
-                        if mimetype in bom
-                    ]
+                    boms = GetBom(mimetype)
                     if boms:
                         remove_prefix = boms[0]
                 return MediaIoReadable(
