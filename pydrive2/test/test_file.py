@@ -631,16 +631,16 @@ class GoogleDriveFileTest(unittest.TestCase):
             buffer_bom = pydrive_retry(
                 file1.GetContentIOBuffer,
                 mimetype="text/plain",
-                encoding="ascii",
+                encoding="utf-8",
             )
-            buffer_bom = "".join(iter(buffer_bom))
+            buffer_bom = u"".join(iter(buffer_bom))
             buffer_no_bom = pydrive_retry(
                 file1.GetContentIOBuffer,
                 mimetype="text/plain",
                 remove_bom=True,
-                encoding="ascii",
+                encoding="utf-8",
             )
-            buffer_no_bom = "".join(iter(buffer_no_bom))
+            buffer_no_bom = u"".join(iter(buffer_no_bom))
 
             self.assertEqual(content_bom, buffer_bom)
             self.assertNotEqual(content_no_bom, buffer_no_bom)
