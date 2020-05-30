@@ -142,7 +142,7 @@ class MediaIoReadable(object):
 
     def read(self):
         """
-    :returns: str -- chunk or None if done
+    :returns: bytes or str -- chunk (or None if done)
     :raises: ApiRequestError
     """
         if self._pre_buffer:
@@ -155,6 +155,13 @@ class MediaIoReadable(object):
         except errors.HttpError as error:
             raise ApiRequestError(error)
         return self._fd.read()
+
+    def __iter__(self):
+        while True:
+            chunk = self.read()
+            if chunk is None:
+                break
+            yield chunk
 
 
 class GoogleDriveFile(ApiAttributeMixin, ApiResource):
