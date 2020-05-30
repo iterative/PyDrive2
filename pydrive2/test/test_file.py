@@ -634,6 +634,8 @@ class GoogleDriveFileTest(unittest.TestCase):
                 encoding="utf-8",
             )
             buffer_bom = u"".join(iter(buffer_bom))
+            self.assertEqual(content_bom, buffer_bom)
+
             buffer_no_bom = pydrive_retry(
                 file1.GetContentIOBuffer,
                 mimetype="text/plain",
@@ -641,9 +643,7 @@ class GoogleDriveFileTest(unittest.TestCase):
                 encoding="utf-8",
             )
             buffer_no_bom = u"".join(iter(buffer_no_bom))
-
-            self.assertEqual(content_bom, buffer_bom)
-            self.assertNotEqual(content_no_bom, buffer_no_bom)
+            self.assertEqual(content_no_bom, buffer_no_bom)
 
         finally:
             self.cleanup_gfile_conversion_test(
