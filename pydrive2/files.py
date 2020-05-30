@@ -23,13 +23,6 @@ MIME_TYPE_TO_BOM = {
 }
 
 
-def GetBOM(mimetype):
-    """Based on download mime type (ignores Google Drive mime type)"""
-    for bom in MIME_TYPE_TO_BOM.values():
-        if mimetype in bom:
-            return bom[mimetype]
-
-
 class FileNotUploadedError(RuntimeError):
     """Error trying to access metadata of file that is not uploaded."""
 
@@ -128,15 +121,15 @@ class MediaIoReadable(object):
         self,
         request,
         encoding=None,
+        pre_buffer=True,
         remove_prefix=b"",
         chunksize=DEFAULT_CHUNK_SIZE,
-        pre_buffer=True,
     ):
         """File-like wrapper around MediaIoBaseDownload.
 
     :param pre_buffer: Whether to read one chunk into an internal buffer
     immediately in order to raise any potential errors.
-    :param remove_prefix: Bytes prefix to remove from internal pre buffer.
+    :param remove_prefix: Bytes prefix to remove from internal pre_buffer.
     :raises: HttpError
     """
         self.done = False
@@ -360,7 +353,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
             if mimetype == "text/plain" and remove_bom:
                 fd.seek(0)
-                bom = GetBOM(mimetype)
+                bom = self._GetBOM(mimetype)
                 if bom:
                     self._RemovePrefix(fd, bom)
 
@@ -411,11 +404,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 request = self._WrapRequest(
                     files.export_media(fileId=file_id, mimeType=mimetype)
                 )
-                remove_prefix = b""
-                if mimetype == "text/plain" and remove_bom:
-                    bom = GetBOM(mimetype)
-                    if bom:
-                        remove_prefix = bom
+                remove_prefix = (
+                    self._GetBOM(mimetype)
+                    if mimetype == "text/plain" and remove_bom
+                    else b""
+                )
                 return MediaIoReadable(
                     request,
                     encoding=encoding,
@@ -805,6 +798,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 self["permissions"] = permissions
                 self.metadata["permissions"] = permissions
             return True
+
+    @staticmethod
+    def _GetBOM(mimetype):
+        """Based on download mime type (ignores Google Drive mime type)"""
+        for bom in MIME_TYPE_TO_BOM.values():
+            if mimetype in bom:
+                return bom[mimetype]
 
     @staticmethod
     def _RemovePrefix(file_object, prefix, block_size=BLOCK_SIZE):
