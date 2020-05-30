@@ -23,7 +23,7 @@ MIME_TYPE_TO_BOM = {
 }
 
 
-def GetBom(mimetype):
+def GetBOM(mimetype):
     """Based on download mime type (ignores Google Drive mime type)"""
     for bom in MIME_TYPE_TO_BOM.values():
         if mimetype in bom:
@@ -360,9 +360,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
             if mimetype == "text/plain" and remove_bom:
                 fd.seek(0)
-                boms = GetBom(mimetype)
-                if boms:
-                    self._RemovePrefix(fd, boms[0])
+                bom = GetBOM(mimetype)
+                if bom:
+                    self._RemovePrefix(fd, bom)
 
     @LoadAuth
     def GetContentIOBuffer(
@@ -413,9 +413,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 )
                 remove_prefix = b""
                 if mimetype == "text/plain" and remove_bom:
-                    boms = GetBom(mimetype)
-                    if boms:
-                        remove_prefix = boms[0]
+                    bom = GetBOM(mimetype)
+                    if bom:
+                        remove_prefix = bom
                 return MediaIoReadable(
                     request,
                     encoding=encoding,
