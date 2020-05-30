@@ -121,6 +121,7 @@ class MediaIoReadable(object):
         self,
         request,
         encoding=None,
+        remove_prefix=b"",
         chunksize=DEFAULT_CHUNK_SIZE,
         pre_buffer=True,
     ):
@@ -128,6 +129,7 @@ class MediaIoReadable(object):
 
     :param pre_buffer: Whether to read one chunk into an internal buffer
     immediately in order to raise any potential errors.
+    :param remove_prefix: Bytes prefix to remove from internal pre buffer.
     :raises: HttpError
     """
         self.done = False
@@ -138,6 +140,10 @@ class MediaIoReadable(object):
         self._pre_buffer = False
         if pre_buffer:
             self.read()
+            if remove_prefix:
+                chunk = io.BytesIO(self._fd.chunk)
+                GoogleDriveFile._RemovePrefix(chunk, remove_prefix)
+                self._fd.chunk = chunk.getvalue()
             self._pre_buffer = True
 
     def read(self):
@@ -357,7 +363,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
     @LoadAuth
     def GetContentIOBuffer(
-        self, mimetype=None, encoding=None, chunksize=DEFAULT_CHUNK_SIZE
+        self,
+        mimetype=None,
+        encoding=None,
+        remove_bom=False,
+        chunksize=DEFAULT_CHUNK_SIZE,
     ):
         """Get a file-like object which has a buffered read() method.
 
@@ -365,7 +375,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     :type mimetype: str
     :param encoding: The encoding to use when decoding the byte string.
     :type encoding: str
-    :param chunksize: default read() chunksize.
+    :param remove_bom: Whether to remove the byte order marking.
+    :type remove_bom: bool
+    :param chunksize: default read()/iter() chunksize.
     :type chunksize: int
     :returns: MediaIoReadable -- file-like object.
     :raises: ApiRequestError, FileNotUploadedError
@@ -396,8 +408,20 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 request = self._WrapRequest(
                     files.export_media(fileId=file_id, mimeType=mimetype)
                 )
+                remove_prefix = b""
+                if mimetype == "text/plain" and remove_bom:
+                    boms = [
+                        bom[mimetype]
+                        for bom in MIME_TYPE_TO_BOM.values()
+                        if mimetype in bom
+                    ]
+                    if boms:
+                        remove_prefix = boms[0]
                 return MediaIoReadable(
-                    request, encoding=encoding, chunksize=chunksize
+                    request,
+                    encoding=encoding,
+                    remove_prefix=remove_prefix,
+                    chunksize=chunksize,
                 )
             except errors.HttpError as error:
                 raise ApiRequestError(error)
