@@ -280,6 +280,24 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
+    def test_11_Files_Get_Content_Buffer(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile()
+        filename = self.getTempFile()
+        content = "hello world!\ngoodbye, cruel world!"
+        file1["title"] = filename
+        file1.SetContentString(content)
+        pydrive_retry(file1.Upload)  # Files.insert
+
+        buffer1 = pydrive_retry(file1.GetContentIOBuffer)
+        self.assertEqual(file1.metadata["title"], filename)
+        self.assertEqual(b"".join(iter(buffer1)).decode("ascii"), content)
+
+        buffer2 = pydrive_retry(file1.GetContentIOBuffer, encoding="ascii")
+        self.assertEqual("".join(iter(buffer2)), content)
+
+        self.DeleteUploadedFiles(drive, [file1["id"]])
+
     # Tests for Trash/UnTrash/Delete.
     # ===============================
 
