@@ -628,6 +628,23 @@ class GoogleDriveFileTest(unittest.TestCase):
             self.assertNotEqual(content_bom, content_no_bom)
             self.assertTrue(len(content_bom) > len(content_no_bom))
 
+            buffer_bom = pydrive_retry(
+                file1.GetContentIOBuffer,
+                mimetype="text/plain",
+                encoding="ascii",
+            )
+            buffer_bom = "".join(iter(buffer_bom))
+            buffer_no_bom = pydrive_retry(
+                file1.GetContentIOBuffer,
+                mimetype="text/plain",
+                remove_bom=True,
+                encoding="ascii",
+            )
+            buffer_no_bom = "".join(iter(buffer_no_bom))
+
+            self.assertEqual(content_bom, buffer_bom)
+            self.assertNotEqual(content_no_bom, buffer_no_bom)
+
         finally:
             self.cleanup_gfile_conversion_test(
                 file1, file_name, downloaded_file_name
