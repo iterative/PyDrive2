@@ -308,8 +308,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
     @LoadAuth
     def GetContentFile(
-        self, filename, mimetype=None, remove_bom=False, callback=None,
-            chunksize=DEFAULT_CHUNK_SIZE
+        self,
+        filename,
+        mimetype=None,
+        remove_bom=False,
+        callback=None,
+        chunksize=DEFAULT_CHUNK_SIZE,
     ):
         """Save content of this file as a local file.
 
@@ -321,7 +325,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     :type remove_bom: bool
     :param callback: passed two arguments: (total trasferred, file size).
     :type param: callable
-    :param chunksize: chunksize in bytes with which to download (standard 100 MB)
+    :param chunksize: chunksize in bytes (standard 100 MB(1024*1024*100))
     :type chunksize: int
     :raises: ApiRequestError, FileNotUploadedError
     """
@@ -331,8 +335,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             raise FileNotUploadedError()
 
         def download(fd, request):
-            downloader = MediaIoBaseDownload(fd, self._WrapRequest(request),
-                                             chunksize=chunksize)
+            downloader = MediaIoBaseDownload(
+                fd, self._WrapRequest(request), chunksize=chunksize
+            )
             done = False
             while done is False:
                 status, done = downloader.next_chunk()
