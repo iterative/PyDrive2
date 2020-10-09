@@ -355,7 +355,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             # But that would first require a slow call to FetchMetadata().
             # We prefer to try-except for speed.
             try:
-                download(fd, files.get_media(fileId=file_id))
+                download(fd, files.get_media(fileId=file_id, acknowledgeAbuse=True))
             except errors.HttpError as error:
                 exc = ApiRequestError(error)
                 code = exc.error["code"]
