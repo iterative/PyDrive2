@@ -492,13 +492,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     """
     if self.get('mimeType') is None:
       self['mimeType'] = 'application/octet-stream'
-
-    # Resumable downloads are used if the upload content is not empty.
-    self.content.seek(0, os.SEEK_END)
-    size = self.content.tell()
-    self.content.seek(0)
-
-    return MediaIoBaseUpload(self.content, self['mimeType'], resumable=size is not 0)
+      
+    return MediaIoBaseUpload(self.content, self['mimeType'])
 
   @LoadAuth
   def _DownloadFromUrl(self, url):
