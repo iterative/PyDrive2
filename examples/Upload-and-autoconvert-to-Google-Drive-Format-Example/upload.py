@@ -33,23 +33,26 @@ myFilePath = sys.argv[2]
 myFileName = path.basename(sys.argv[2])
 
 # Check if file name already exists in folder.
-file_list = drive.ListFile({
-    'q': '"{}" in parents and title="{}" and trashed=false'.
-        format(parentId, myFileName)
-}).GetList()
+file_list = drive.ListFile(
+    {
+        "q": '"{}" in parents and title="{}" and trashed=false'.format(
+            parentId, myFileName
+        )
+    }
+).GetList()
 
 # If file is found, update it, otherwise create new file.
 if len(file_list) == 1:
     myFile = file_list[0]
 else:
-    myFile = drive.CreateFile({
-        "parents": [{"kind": "drive#fileLink", "id": parentId}]
-    })
+    myFile = drive.CreateFile(
+        {"parents": [{"kind": "drive#fileLink", "id": parentId}]}
+    )
 
 # Upload new file content.
 myFile.SetContentFile(myFilePath)
-myFile['title'] = myFileName
+myFile["title"] = myFileName
 # The `convert` flag indicates to Google Drive whether to convert the
 # uploaded file into a Google Drive native format, i.e. Google Sheet for
 # CSV or Google Document for DOCX.
-myFile.Upload({'convert': True})
+myFile.Upload({"convert": True})
