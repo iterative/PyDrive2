@@ -10,9 +10,10 @@ Drive API requires OAuth2.0 for authentication. *PyDrive* makes your life much e
 3. Select 'Credentials' from the left menu, click 'Create Credentials', select 'OAuth client ID'.
 4. Now, the product name and consent screen need to be set -> click 'Configure consent screen' and follow the instructions. Once finished:
 
- a. Select 'Application type' to be *Desktop app*.
+ a. Select 'Application type' to be *Web application*.
  b. Enter an appropriate name.
- c. Click 'Create'.
+ c. Input *http://localhost:8080/* for 'Authorized redirect URIs'.
+ d. Click 'Create'.
 
 5. Click 'Download JSON' on the right side of Client ID to download **client_secret_<really long ID>.json**.
 
