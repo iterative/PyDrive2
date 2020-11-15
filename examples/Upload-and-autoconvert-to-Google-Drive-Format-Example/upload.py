@@ -9,9 +9,9 @@ example usage: upload.py 0B5XXXXY9KddXXXXXXXA2c3ZXXXX /path/to/my/file
 """
 import sys
 from os import path
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
-from pydrive.settings import LoadSettingsFile
+from pydrive2.auth import GoogleAuth
+from pydrive2.drive import GoogleDrive
+from pydrive2.settings import LoadSettingsFile
 
 # Update this value to the correct location.
 #   e.g. "/usr/local/scripts/pydrive/settings.yaml"
@@ -50,5 +50,6 @@ else:
 myFile.SetContentFile(myFilePath)
 myFile['title'] = myFileName
 # The `convert` flag indicates to Google Drive whether to convert the
-#   uploaded file into a Google Drive native format, i.e. Google Sheet for CSV or Google Document for DOCX.
+# uploaded file into a Google Drive native format, i.e. Google Sheet for
+# CSV or Google Document for DOCX.
 myFile.Upload({'convert': True})
