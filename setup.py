@@ -1,20 +1,36 @@
+import sys
 from setuptools import setup
 
+# Extra dependecies to run tests
+tests_requirements = [
+    "pytest>=4.6.0",
+    "timeout-decorator",
+    "funcy>=1.14",
+    "flake8",
+    "flake8-docstrings",
+]
+
+if sys.version_info >= (3, 6):
+    tests_requirements.append("black==19.10b0")
+
 setup(
-    name='PyDrive',
-    version='1.3.1',
-    author='JunYoung Gwak',
-    author_email='jgwak@dreamylab.com',
-    maintainer='Robin Nabel',
-    maintainer_email='rnabel@ucdavis.edu',
-    packages=['pydrive', 'pydrive.test'],
-    url='https://github.com/googledrive/PyDrive',
-    license='LICENSE',
-    description='Google Drive API made easy.',
-    long_description=open('README.rst').read(),
+    name="PyDrive2",
+    version="1.6.3",
+    author="JunYoung Gwak",
+    author_email="jgwak@dreamylab.com",
+    maintainer="DVC team",
+    maintainer_email="support@dvc.org",
+    packages=["pydrive2", "pydrive2.test"],
+    url="https://github.com/iterative/PyDrive2",
+    license="Apache License 2.0",
+    description="Google Drive API made easy. Maintained fork of PyDrive.",
+    long_description=open("README.rst").read(),
     install_requires=[
-        "google-api-python-client >= 1.2",
+        "google-api-python-client >= 1.12.5",
+        "six >= 1.13.0",
         "oauth2client >= 4.0.0",
         "PyYAML >= 3.0",
+        "pyOpenSSL >= 19.1.0",
     ],
+    extras_require={"tests": tests_requirements},
 )
