@@ -351,17 +351,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             # metadata["mimeType"].startswith("application/vnd.google-apps.").
             # But that would first require a slow call to FetchMetadata().
             # We prefer to try-except for speed.
-            try:
-                download(fd, files.get_media(fileId=file_id))
-            except errors.HttpError as error:
-                exc = ApiRequestError(error)
-                if (
-                    exc.error["code"] != 403
-                    or exc.GetField("reason") != "fileNotDownloadable"
-                ):
-                    raise exc
-                mimetype = mimetype or "text/plain"
-                fd.seek(0)  # just in case `download()` modified `fd`
+
+            # If mimeType is provided we should use that with export_media
+            # immmediately to save an extra API call that the caller knows is
+            # like to fail, otherwise try get_media then export_media
+
+            if mimetype:
                 try:
                     download(
                         fd,
@@ -369,6 +364,25 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                     )
                 except errors.HttpError as error:
                     raise ApiRequestError(error)
+            else:
+                try:
+                    download(fd, files.get_media(fileId=file_id))
+                except errors.HttpError as error:
+                    exc = ApiRequestError(error)
+                    if (
+                        exc.error["code"] != 403
+                        or exc.GetField("reason") != "fileNotDownloadable"
+                    ):
+                        raise exc
+                    mimetype = "text/plain"
+                    fd.seek(0)  # just in case `download()` modified `fd`
+                    try:
+                        download(
+                            fd,
+                            files.export_media(fileId=file_id, mimeType=mimetype),
+                        )
+                    except errors.HttpError as error:
+                        raise ApiRequestError(error)
 
             if mimetype == "text/plain" and remove_bom:
                 fd.seek(0)
