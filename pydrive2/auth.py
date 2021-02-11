@@ -296,14 +296,21 @@ class GoogleAuth(ApiAttributeMixin, object):
         if set(self.SERVICE_CONFIGS_LIST) - set(self.client_config):
             self.LoadServiceConfigSettings()
         scopes = scopes_to_string(self.settings["oauth_scope"])
+        client_service_json = self.client_config.get("client_service_json")
+        if client_service_json:
+            self.credentials = ServiceAccountCredentials.from_json_keyfile_name(
+                filename=client_service_json, scopes=scopes
+            )
+        else:
+            service_email = self.client_config["client_service_email"]
+            file_path = self.client_config["client_pkcs12_file_path"]
+            self.credentials = ServiceAccountCredentials.from_p12_keyfile(
+                service_account_email=service_email,
+                filename=file_path,
+                scopes=scopes,
+            )
+
         user_email = self.client_config.get("client_user_email")
-        service_email = self.client_config["client_service_email"]
-        file_path = self.client_config["client_pkcs12_file_path"]
-        self.credentials = ServiceAccountCredentials.from_p12_keyfile(
-            service_account_email=service_email,
-            filename=file_path,
-            scopes=scopes,
-        )
         if user_email:
             self.credentials = self.credentials.create_delegated(
                 sub=user_email
