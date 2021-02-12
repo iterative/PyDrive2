@@ -161,11 +161,7 @@ class GoogleAuth(ApiAttributeMixin, object):
         "revoke_uri",
         "redirect_uri",
     ]
-    SERVICE_CONFIGS_LIST = [
-        "client_service_email",
-        "client_user_email",
-        "client_pkcs12_file_path",
-    ]
+    SERVICE_CONFIGS_LIST = ["client_service_email", "client_user_email"]
     settings = ApiAttribute("settings")
     client_config = ApiAttribute("client_config")
     flow = ApiAttribute("flow")
@@ -296,7 +292,7 @@ class GoogleAuth(ApiAttributeMixin, object):
         if set(self.SERVICE_CONFIGS_LIST) - set(self.client_config):
             self.LoadServiceConfigSettings()
         scopes = scopes_to_string(self.settings["oauth_scope"])
-        client_service_json = self.client_config.get("client_service_json")
+        client_service_json = self.client_config.get("client_json_file_path")
         if client_service_json:
             self.credentials = ServiceAccountCredentials.from_json_keyfile_name(
                 filename=client_service_json, scopes=scopes
@@ -488,6 +484,18 @@ class GoogleAuth(ApiAttributeMixin, object):
                 err += "\n\nMissing: {} key.".format(config)
                 raise InvalidConfigError(err)
 
+        for file_format in ["json", "pkcs12"]:
+            config = f"client_{file_format}_file_path"
+            value = self.settings["service_config"].get(config)
+            if value:
+                self.client_config[config] = value
+                break
+        else:
+            raise InvalidConfigError(
+                "Either json or pkcs12 file path required "
+                "for service authentication"
+            )
+
     def LoadClientConfigSettings(self):
         """Loads client configuration from settings file.
 
@@ -523,7 +531,7 @@ class GoogleAuth(ApiAttributeMixin, object):
             self.client_config["client_id"],
             self.client_config["client_secret"],
             scopes_to_string(self.settings["oauth_scope"]),
-            **constructor_kwargs
+            **constructor_kwargs,
         )
         if self.settings.get("get_refresh_token"):
             self.flow.params.update(

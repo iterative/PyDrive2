@@ -73,9 +73,16 @@ class GoogleAuthTest(unittest.TestCase):
         self.assertEqual(ga.access_token_expired, False)
         time.sleep(1)
 
-    def test_06_ServiceAuthFromSavedCredentialsFile(self):
+    def test_06_ServiceAuthFromSavedCredentialsP12File(self):
         setup_credentials("credentials/6.dat")
         ga = GoogleAuth(settings_file_path("test_oauth_test_06.yaml"))
+        ga.ServiceAuth()
+        self.assertEqual(ga.access_token_expired, False)
+        time.sleep(1)
+
+    def test_07_ServiceAuthFromSavedCredentialsJsonFile(self):
+        setup_credentials("credentials/7.dat")
+        ga = GoogleAuth(settings_file_path("test_oauth_test_07.yaml"))
         ga.ServiceAuth()
         self.assertEqual(ga.access_token_expired, False)
         time.sleep(1)
