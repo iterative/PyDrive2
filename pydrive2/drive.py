@@ -2,6 +2,7 @@ from .apiattr import ApiAttributeMixin
 from .files import GoogleDriveFile
 from .files import GoogleDriveFileList
 from .auth import LoadAuth
+import auth
 
 
 class GoogleDrive(ApiAttributeMixin, object):
@@ -47,3 +48,12 @@ class GoogleDrive(ApiAttributeMixin, object):
     :returns: A dictionary of Google Drive information like user, usage, quota etc.
     """
         return self.auth.service.about().get().execute(http=self.http)
+
+def copy(source_id,target_folder_id,new_name) -> None:
+    #TODO add typing suggestions to arguments
+    body = {
+        "parents": [{"kind": "drive#fileLink",
+                         "id": target_folder_id}],
+        'title': new_name
+    }
+    return auth.service.files().copy(fileId=source_id, supportsAllDrives=True,body=body).execute()
