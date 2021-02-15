@@ -73,6 +73,7 @@ class GoogleAuthTest(unittest.TestCase):
         self.assertEqual(ga.access_token_expired, False)
         time.sleep(1)
 
+    @pytest.mark.skip(reason="P12 authentication is deprecated")
     def test_06_ServiceAuthFromSavedCredentialsP12File(self):
         setup_credentials("credentials/6.dat")
         ga = GoogleAuth(settings_file_path("test_oauth_test_06.yaml"))
