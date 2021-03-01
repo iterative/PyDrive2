@@ -757,7 +757,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             return True
 
     @LoadAuth
-    @LoadMetadata
     def _FilesUpdate(self, param=None):
         """Update metadata and/or content using Files.Update().
 
@@ -768,7 +767,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         if param is None:
             param = {}
         param["body"] = self.GetChanges()
-        param["fileId"] = self.metadata.get("id")
+        param["fileId"] = self.metadata.get("id") or self.get("id")
 
         # Teamdrive support
         param["supportsAllDrives"] = True
@@ -789,7 +788,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.UpdateMetadata(metadata)
 
     @LoadAuth
-    @LoadMetadata
     def _FilesPatch(self, param=None):
         """Update metadata using Files.Patch().
 
@@ -800,7 +798,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         if param is None:
             param = {}
         param["body"] = self.GetChanges()
-        param["fileId"] = self.metadata.get("id")
+        param["fileId"] = self.metadata.get("id") or self.get("id")
 
         # Teamdrive support
         param["supportsAllDrives"] = True
