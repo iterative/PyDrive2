@@ -757,7 +757,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.UpdateMetadata(metadata)
 
     @LoadAuth
-    @LoadMetadata
     def _FilesPatch(self, param=None):
         """Update metadata using Files.Patch().
 
