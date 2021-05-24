@@ -103,8 +103,8 @@ def LoadSettingsFile(filename=SETTINGS_FILE):
   :raises: SettingsError
   """
     try:
-        stream = open(filename, "r")
-        data = load(stream, Loader=Loader)
+        with open(filename, "r") as stream:
+            data = load(stream, Loader=Loader)
     except (YAMLError, IOError) as e:
         raise SettingsError(e)
     return data
