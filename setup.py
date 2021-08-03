@@ -32,5 +32,8 @@ setup(
         "PyYAML >= 3.0",
         "pyOpenSSL >= 19.1.0",
     ],
-    extras_require={"tests": tests_requirements},
+    extras_require={
+        "fs": ["fsspec == 2021.07.0; tqdm >= 4.0.0;"],
+        "tests": tests_requirements,
+    },
 )
