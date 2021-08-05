@@ -1,7 +1,3 @@
-.. image:: https://travis-ci.com/iterative/pydrive2.svg?branch=master
-  :target: https://travis-ci.com/iterative/pydrive2
-  :alt: Travis
-
 PyDrive2
 --------
 
