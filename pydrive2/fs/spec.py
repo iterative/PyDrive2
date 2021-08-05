@@ -228,6 +228,7 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             return True
 
+    @_gdrive_retry
     def info(self, path):
         bucket, base = self.split_path(path)
         item_id = self._get_item_id(path)
