@@ -12,7 +12,7 @@ from funcy.py3 import cat
 from tqdm.utils import CallbackIOWrapper
 
 from pydrive2.drive import GoogleDrive
-from pydrive2.fs_utils import IterStream
+from pydrive2.fs.utils import IterStream
 
 logger = logging.getLogger(__name__)
 
