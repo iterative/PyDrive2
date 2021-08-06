@@ -1,0 +1,28 @@
+on: push
+
+name: Publish
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@master
+
+    - uses: actions/setup-python@v1
+      with:
+        python-version: '3.8'
+
+    - name: Install pypa/build
+      run: python -m pip install build
+
+    - name: Build the package
+      run: |
+        python -m build --sdist --wheel \
+        --outdir dist/ .
+
+    - name: Publish
+      if: startsWith(github.ref, 'refs/tags')
+      uses: pypa/gh-action-pypi-publish@master
+      with:
+        password: ${{ secrets.PYPI_TOKEN }}
