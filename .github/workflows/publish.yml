@@ -3,7 +3,7 @@ on: push
 name: Publish
 
 jobs:
-  pulish:
+  publish:
     runs-on: ubuntu-latest
 
     steps:
