@@ -7,7 +7,7 @@ on:
       - '*'
 
 name: Tests
-
+concurrency: test
 jobs:
   test:
     runs-on: ${{ matrix.os }}
@@ -15,9 +15,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # temporarily reduced to just linux + py36
-        os: [ubuntu-18.04]
-        pyv: ["3.6"]
+        os: [ubuntu-18.04, macos-10.15, windows-2019]
+        pyv: ["3.6", "3.7", "3.8", "3.9"]
+
+    concurrency: test
 
     steps:
     - uses: actions/checkout@v2
