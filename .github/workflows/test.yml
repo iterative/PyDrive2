@@ -7,7 +7,6 @@ on:
       - '*'
 
 name: Tests
-concurrency: test
 jobs:
   test:
     runs-on: ${{ matrix.os }}
