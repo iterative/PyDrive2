@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-18.04, macos-10.15, windows-2019]
         pyv: ["3.6", "3.7", "3.8", "3.9"]
 
-    concurrency: test
+    concurrency: test  # run jobs one by one
 
     steps:
     - uses: actions/checkout@v2
