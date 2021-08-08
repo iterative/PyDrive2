@@ -12,6 +12,7 @@ from oauth2client.client import FlowExchangeError
 from oauth2client.client import AccessTokenRefreshError
 from oauth2client.client import OAuth2WebServerFlow
 from oauth2client.client import OOB_CALLBACK_URN
+from oauth2client.client import Credentials
 from oauth2client.file import Storage
 from oauth2client.tools import ClientRedirectHandler
 from oauth2client.tools import ClientRedirectServer
@@ -312,10 +313,40 @@ class GoogleAuth(ApiAttributeMixin, object):
                 sub=user_email
             )
 
-    def LoadCredentials(self, backend=None):
+    def LoadCredentials(self, backend=None, credentials_dict=None):
         """Loads credentials or create empty credentials if it doesn't exist.
 
     :param backend: target backend to save credential to.
+    :type backend: str.
+    :raises: InvalidConfigError
+
+    :param credentials_dict: Filled credentials dictionary.
+
+        credentials_dict = {
+            "access_token": None,
+            "client_id": None,
+            "client_secret": None,
+            "refresh_token": None,
+            "token_expiry": None,
+            "token_uri": "https://accounts.google.com/o/oauth2/token",
+            "user_agent": None,
+            "revoke_uri": "https://oauth2.googleapis.com/revoke",
+            "id_token": None,
+            "id_token_jwt": None,
+            "token_response": {
+                "access_token": None,
+                "expires_in": 3599,
+                "refresh_token": None,
+                "scope": "https://www.googleapis.com/auth/drive",
+                "token_type": "Bearer"
+            },
+            "scopes": ["https://www.googleapis.com/auth/drive"],
+            "token_info_uri": "https://oauth2.googleapis.com/tokeninfo",
+            "invalid": False,
+            "_class": "OAuth2Credentials",
+            "_module": "oauth2client.client"
+        }
+
     :type backend: str.
     :raises: InvalidConfigError
     """
@@ -325,6 +356,8 @@ class GoogleAuth(ApiAttributeMixin, object):
                 raise InvalidConfigError("Please specify credential backend")
         if backend == "file":
             self.LoadCredentialsFile()
+        if backend == "server":
+            self.LoadCredentialsFromServer(credentials_dict)
         else:
             raise InvalidConfigError("Unknown save_credentials_backend")
 
@@ -350,6 +383,22 @@ class GoogleAuth(ApiAttributeMixin, object):
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
             )
+
+    def LoadCredentialsFromServer(self, credentials_dict):
+        """Loads credentials from server or create empty credentials if it doesn't exist.
+
+    Loads credentials from credentials_dict passed and converts it into a Credentials object.
+
+    :param credentials_dict: Filled credentials dictionary.
+    :type credentials_dict: str.
+    :raises: InvalidCredentialsError
+    """
+        if credentials_dict is None:
+            raise InvalidCredentialsError(
+                "Please pass credentials dictionary if credentials backend is set as server"
+            )        
+        credentials = Credentials.new_from_json(credentials_dict)
+        self.credentials = credentials
 
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
