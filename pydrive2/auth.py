@@ -313,16 +313,16 @@ class GoogleAuth(ApiAttributeMixin, object):
                 sub=user_email
             )
 
-    def LoadCredentials(self, backend=None, credentials_dict=None):
+    def LoadCredentials(self, backend=None, credentials_json=None):
         """Loads credentials or create empty credentials if it doesn't exist.
 
     :param backend: target backend to save credential to.
     :type backend: str.
     :raises: InvalidConfigError
 
-    :param credentials_dict: Filled credentials dictionary.
+    :param credentials_json: Filled credentials in json.
 
-        credentials_dict = {
+        credentials_json = {
             "access_token": None,
             "client_id": None,
             "client_secret": None,
@@ -357,7 +357,7 @@ class GoogleAuth(ApiAttributeMixin, object):
         if backend == "file":
             self.LoadCredentialsFile()
         if backend == "server":
-            self.LoadCredentialsFromServer(credentials_dict)
+            self.LoadCredentialsFromServer(credentials_json)
         else:
             raise InvalidConfigError("Unknown save_credentials_backend")
 
@@ -384,20 +384,20 @@ class GoogleAuth(ApiAttributeMixin, object):
                 "Credentials file cannot be symbolic link"
             )
 
-    def LoadCredentialsFromServer(self, credentials_dict):
+    def LoadCredentialsFromServer(self, credentials_json):
         """Loads credentials from server or create empty credentials if it doesn't exist.
 
-    Loads credentials from credentials_dict passed and converts it into a Credentials object.
+    Loads credentials from credentials_json passed and converts it into a Credentials object
 
-    :param credentials_dict: Filled credentials dictionary.
-    :type credentials_dict: str.
+    :param credentials_json: Filled credentials in json.
+    :type credentials_json: str.
     :raises: InvalidCredentialsError
     """
-        if credentials_dict is None:
+        if credentials_json is None:
             raise InvalidCredentialsError(
                 "Please pass credentials dictionary if credentials backend is set as server"
             )        
-        credentials = Credentials.new_from_json(credentials_dict)
+        credentials = Credentials.new_from_json(credentials_json)
         self.credentials = credentials
 
     def SaveCredentials(self, backend=None):
