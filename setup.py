@@ -20,7 +20,7 @@ setup(
     author_email="jgwak@dreamylab.com",
     maintainer="DVC team",
     maintainer_email="support@dvc.org",
-    packages=["pydrive2", "pydrive2.test"],
+    packages=["pydrive2", "pydrive2.test", "pydrive2.fs"],
     url="https://github.com/iterative/PyDrive2",
     license="Apache License 2.0",
     description="Google Drive API made easy. Maintained fork of PyDrive.",
