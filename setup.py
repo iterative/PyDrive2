@@ -33,7 +33,7 @@ setup(
         "pyOpenSSL >= 19.1.0",
     ],
     extras_require={
-        "fsspec": ["fsspec == 2021.07.0", "tqdm >= 4.0.0"],
+        "fsspec": ["fsspec == 2021.07.0", "tqdm >= 4.0.0", "funcy >= 1.14"],
         "tests": tests_requirements,
     },
 )
