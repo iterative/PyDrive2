@@ -326,7 +326,7 @@ class GDriveFileSystem(AbstractFileSystem):
                 )
 
         if detail:
-            return contents
+            return {content["name"]: content for content in contents}
         else:
             return [content["name"] for content in contents]
 

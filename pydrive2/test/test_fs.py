@@ -133,15 +133,10 @@ def test_find(fs, remote_dir):
 
     assert set(fs.find(remote_dir)) == set(files)
 
-    contents = fs.find(remote_dir, detail=True)
-    matches = [fs.info(file) for file in files]
-
-    def by_name(details):
-        return details["name"]
-
-    contents.sort(key=by_name)
-    matches.sort(key=by_name)
-    assert contents == matches
+    find_results = fs.find(remote_dir, detail=True)
+    info_results = [fs.info(file) for file in files]
+    info_results = {content["name"]: content for content in info_results}
+    assert find_results == info_results
 
 
 def test_exceptions(fs, tmpdir, remote_dir):
