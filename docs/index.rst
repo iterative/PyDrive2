@@ -30,6 +30,9 @@ To install the current development version from GitHub, use:
 
     $ pip install git+https://github.com/iterative/PyDrive2.git#egg=PyDrive2
 
+
+.. _`google-api-python-client`: https://github.com/google/google-api-python-client
+
 Table of Contents
 =================
 
@@ -42,12 +45,7 @@ Table of Contents
    filelist
    pydrive2
 
-
-.. _`google-api-python-client`: https://github.com/google/google-api-python-client
-
 Indices and tables
 ==================
 
 * :ref:`genindex`
-* :ref:`search`
-
