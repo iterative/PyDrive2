@@ -23,7 +23,7 @@ setup(
     packages=["pydrive2", "pydrive2.test", "pydrive2.fs"],
     url="https://github.com/iterative/PyDrive2",
     project_urls={
-        "Documentation": "https://iterative.github.io/PyDrive2/docs/build/html",
+        "Documentation": "https://docs.iterative.ai/PyDrive2",
         "Changelog": "https://github.com/iterative/PyDrive2/releases",
     },
     license="Apache License 2.0",
