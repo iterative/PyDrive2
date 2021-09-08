@@ -11,9 +11,10 @@ PyDrive2 is a wrapper library of `google-api-python-client`_ that simplifies man
 Project Info
 ============
 
-- Homepage: `https://pypi.python.org/pypi/PyDrive2 <https://pypi.python.org/pypi/PyDrive2>`_
-- Documentation: `Official documentation on GitHub pages <https://iterative.github.io/PyDrive2/docs/build/html/index.html>`_
-- Github: `https://github.com/gsuitedevs/PyDrive2 <https://github.com/iterative/PyDrive2>`_
+- Package: `https://pypi.python.org/pypi/PyDrive2 <https://pypi.python.org/pypi/PyDrive2>`_
+- Documentation: `https://docs.iterative.ai/PyDrive2 <https://docs.iterative.ai/PyDrive2>`_
+- Source: `https://github.com/iterative/PyDrive2 <https://github.com/iterative/PyDrive2>`_
+- Changelog: `https://github.com/iterative/PyDrive2/releases <https://github.com/iterative/PyDrive2/releases>`_
 
 How to install
 ==============
@@ -30,6 +31,9 @@ To install the current development version from GitHub, use:
 
     $ pip install git+https://github.com/iterative/PyDrive2.git#egg=PyDrive2
 
+
+.. _`google-api-python-client`: https://github.com/google/google-api-python-client
+
 Table of Contents
 =================
 
@@ -41,13 +45,4 @@ Table of Contents
    filemanagement
    filelist
    pydrive2
-
-
-.. _`google-api-python-client`: https://github.com/google/google-api-python-client
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`search`
-
+   genindex
