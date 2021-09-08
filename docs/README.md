@@ -2,14 +2,19 @@ This document outlines how to rebuild the documentation.
 
 ## Setup
 
-Install Sphinx: `pip install sphinx` or `apt-get install python-sphinx`.
-Then:
+- Install Sphinx: `pip install sphinx` or `apt-get install python-sphinx`
+- Install theme: `pip install furo`
+- Build site: `sphinx-build docs dist/site -b dirhtml -a`
+
+Updating GitHub Pages:
 
 ```bash
-pip install furo  # theme
-python setup.py build_sphinx --source-dir=sphinx --build-dir=dist/sphinx -b dirhtml --all-files
-rm -rf docs/
-mv dist/sphinx/dirhtml docs
+cd dist/site
+git init
+git add .
+git commit -m "update pages"
+git branch -M gh-pages
+git push -f git@github.com:iterative/PyDrive2 gh-pages
 ```
 
 ## Contributing
