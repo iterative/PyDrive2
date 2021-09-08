@@ -45,8 +45,4 @@ Table of Contents
    filemanagement
    filelist
    pydrive2
-
-Indices and tables
-==================
-
-* :ref:`genindex`
+   genindex
