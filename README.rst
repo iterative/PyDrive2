@@ -114,3 +114,11 @@ Concurrent access made easy
 ---------------------------
 
 All API functions made to be thread-safe.
+
+Contributors
+------------
+
+Thanks to all our contributors!
+
+.. image:: https://contrib.rocks/image?repo=iterative/PyDrive2
+   :target: https://github.com/iterative/PyDrive2/graphs/contributors
