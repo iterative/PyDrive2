@@ -11,9 +11,10 @@ project.
 Project Info
 ------------
 
-- Homepage: `https://pypi.python.org/pypi/PyDrive2 <https://pypi.python.org/pypi/PyDrive2>`_
-- Documentation: `Official documentation on GitHub pages <https://iterative.github.io/PyDrive2/docs/build/html/index.html>`_
-- GitHub: `https://github.com/iterative/PyDrive2 <https://github.com/iterative/PyDrive2>`_
+- Package: `https://pypi.python.org/pypi/PyDrive2 <https://pypi.python.org/pypi/PyDrive2>`_
+- Documentation: `Official documentation on GitHub pages <https://iterative.github.io/PyDrive2/docs/build/html>`_
+- Source: `https://github.com/iterative/PyDrive2 <https://github.com/iterative/PyDrive2>`_
+- Changelog: `https://github.com/iterative/PyDrive2/releases <https://github.com/iterative/PyDrive2/releases>`_
 - `Running tests </pydrive2/test/README.rst>`_
 
 Features of PyDrive2

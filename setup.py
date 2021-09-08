@@ -22,9 +22,14 @@ setup(
     maintainer_email="support@dvc.org",
     packages=["pydrive2", "pydrive2.test", "pydrive2.fs"],
     url="https://github.com/iterative/PyDrive2",
+    project_urls={
+        "Documentation": "https://iterative.github.io/PyDrive2/docs/build/html",
+        "Changelog": "https://github.com/iterative/PyDrive2/releases",
+    },
     license="Apache License 2.0",
     description="Google Drive API made easy. Maintained fork of PyDrive.",
     long_description=open("README.rst").read(),
+    long_description_content_type="text/x-rst",
     install_requires=[
         "google-api-python-client >= 1.12.5",
         "six >= 1.13.0",
