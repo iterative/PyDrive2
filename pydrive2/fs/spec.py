@@ -364,21 +364,30 @@ class GDriveFileSystem(AbstractFileSystem):
             buffer = io.BytesIO(stream.read())
             self.upload_fobj(buffer, rpath)
 
-    def get_file(self, lpath, rpath, callback=None, **kwargs):
+    def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
-        return self.gdrive_get_file(item_id, rpath, callback)
+        return self.gdrive_get_file(
+            item_id, rpath, callback=callback, block_size=block_size
+        )
 
     @_gdrive_retry
-    def gdrive_get_file(self, item_id, rpath, callback):
+    def gdrive_get_file(self, item_id, rpath, callback=None, block_size=None):
         param = {"id": item_id}
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
 
         extra_args = {}
+        if block_size:
+            extra_args["chunksize"] = block_size
+
         if callback:
+
+            def cb(value, _):
+                callback.absolute_update(value)
+
             gdrive_file.FetchMetadata(fields="fileSize")
             callback.set_size(int(gdrive_file.get("fileSize")))
-            extra_args["callback"] = callback.update
+            extra_args["callback"] = cb
 
         gdrive_file.GetContentFile(rpath, **extra_args)
 
