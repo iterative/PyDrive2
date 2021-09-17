@@ -4,7 +4,7 @@ import uuid
 from concurrent import futures
 
 import pytest
-
+import fsspec
 from pydrive2.auth import GoogleAuth
 from pydrive2.fs import GDriveFileSystem
 from pydrive2.test.test_util import settings_file_path, setup_credentials
@@ -210,3 +210,21 @@ def test_get_file(fs, tmpdir, remote_dir):
     fs.put_file(src_file, remote_dir + "/a.txt")
     fs.get_file(remote_dir + "/a.txt", dest_file)
     assert dest_file.read() == "data"
+
+
+def test_get_file_callback(fs, tmpdir, remote_dir):
+    src_file = tmpdir / "a.txt"
+    dest_file = tmpdir / "b.txt"
+
+    with open(src_file, "wb") as file:
+        file.write(b"data" * 10)
+
+    fs.put_file(src_file, remote_dir + "/a.txt")
+    callback = fsspec.Callback()
+    fs.get_file(
+        remote_dir + "/a.txt", dest_file, callback=callback, block_size=10
+    )
+    assert dest_file.read() == "data" * 10
+
+    assert callback.size == 40
+    assert callback.value == 40
