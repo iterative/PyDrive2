@@ -204,7 +204,7 @@ class GoogleAuth(ApiAttributeMixin, object):
         return self.credentials.access_token_expired
 
     @CheckAuth
-    def LocalWebserverAuth(self, host_name="localhost", port_numbers=None):
+    def LocalWebserverAuth(self, host_name="localhost", port_numbers=None, launch_browser=True):
         """Authenticate and authorize from user by creating local web server and
     retrieving authentication code.
 
@@ -215,6 +215,8 @@ class GoogleAuth(ApiAttributeMixin, object):
     :type host_name: str.
     :param port_numbers: list of port numbers to be tried to used.
     :type port_numbers: list.
+    :param launch_browser: should browser be launched automatically
+    :type launch_browser: bool
     :returns: str -- code returned from local web server
     :raises: AuthenticationRejected, AuthenticationError
     """
@@ -250,8 +252,11 @@ class GoogleAuth(ApiAttributeMixin, object):
             raise AuthenticationError()
         self.flow.redirect_uri = oauth_callback
         authorize_url = self.GetAuthUrl()
-        webbrowser.open(authorize_url, new=1, autoraise=True)
-        print("Your browser has been opened to visit:")
+        if launch_browser:
+            webbrowser.open(authorize_url, new=1, autoraise=True)
+            print("Your browser has been opened to visit:")
+        else:
+            print("Open your browser to visit:")
         print()
         print("    " + authorize_url)
         print()
