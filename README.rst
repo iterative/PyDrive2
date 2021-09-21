@@ -1,8 +1,16 @@
-|CI|
+|CI| |Conda| |PyPI|
 
 .. |CI| image:: https://github.com/iterative/PyDrive2/workflows/Tests/badge.svg?branch=master
    :target: https://github.com/iterative/PyDrive2/actions
    :alt: GHA Tests
+
+.. |Conda| image:: https://img.shields.io/conda/v/conda-forge/PyDrive2.svg?label=conda&logo=conda-forge
+   :target: https://anaconda.org/conda-forge/PyDrive2
+   :alt: Conda-forge
+
+.. |PyPI| image:: https://img.shields.io/pypi/v/PyDrive2.svg?label=pip&logo=PyPI&logoColor=white
+   :target: https://pypi.org/project/PyDrive2
+   :alt: PyPI
 
 PyDrive2
 --------
