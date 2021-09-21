@@ -1,3 +1,9 @@
+|CI|
+
+.. |CI| image:: https://github.com/iterative/dvc/workflows/test/badge.svg?branch=master
+   :target: https://github.com/iterative/dvc/actions
+   :alt: GHA Tests
+
 PyDrive2
 --------
 
