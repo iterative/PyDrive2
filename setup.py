@@ -15,7 +15,7 @@ if sys.version_info >= (3, 6):
 
 setup(
     name="PyDrive2",
-    version="1.9.4",
+    version="1.10.0",
     author="JunYoung Gwak",
     author_email="jgwak@dreamylab.com",
     maintainer="DVC team",
