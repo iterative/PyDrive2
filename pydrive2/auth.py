@@ -204,7 +204,9 @@ class GoogleAuth(ApiAttributeMixin, object):
         return self.credentials.access_token_expired
 
     @CheckAuth
-    def LocalWebserverAuth(self, host_name="localhost", port_numbers=None, launch_browser=True):
+    def LocalWebserverAuth(
+        self, host_name="localhost", port_numbers=None, launch_browser=True
+    ):
         """Authenticate and authorize from user by creating local web server and
     retrieving authentication code.
 
