@@ -1,7 +1,7 @@
 |CI|
 
-.. |CI| image:: https://github.com/iterative/dvc/workflows/test/badge.svg?branch=master
-   :target: https://github.com/iterative/dvc/actions
+.. |CI| image:: https://github.com/iterative/PyDrive2/workflows/test/badge.svg?branch=master
+   :target: https://github.com/iterative/PyDrive2/actions
    :alt: GHA Tests
 
 PyDrive2
