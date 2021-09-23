@@ -1,0 +1,295 @@
+<!doctype html>
+<html class="no-js">
+  <head><meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+<link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="pydrive2 package" href="../pydrive2/" /><link rel="prev" title="File management made easy" href="../filemanagement/" />
+
+    <meta name="generator" content="sphinx-4.2.0, furo 2021.09.22"/>
+        <title>File listing made easy - PyDrive2 1.7.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=150e365fa939648e89c22f6d7d13c72a1657915a" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=16fb25fabf47304eee183a5e9af80b1ba98259b1" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #eeffcc;
+  --color-code-foreground: black;
+  
+  }
+  body[data-theme="dark"] {
+    --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+  }
+  @media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+  }
+</style></head>
+  <body>
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path stroke="none" d="M0 0h24v24H0z" />
+      <line x1="4" y1="6" x2="20" y2="6" />
+      <line x1="10" y1="12" x2="20" y2="12" />
+      <line x1="6" y1="18" x2="20" y2="18" />
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-half" viewBox="0 0 24 24">
+    <title>Auto light/dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-shadow">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M13 12h5" />
+      <path d="M13 15h4" />
+      <path d="M13 18h1" />
+      <path d="M13 9h4" />
+      <path d="M13 6h1" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
+<label class="overlay sidebar-overlay" for="__navigation">
+  <div class="visually-hidden">Hide navigation sidebar</div>
+</label>
+<label class="overlay toc-overlay" for="__toc">
+  <div class="visually-hidden">Hide table of contents sidebar</div>
+</label>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <div class="visually-hidden">Toggle site navigation sidebar</div>
+        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../"><div class="brand">PyDrive2 1.7.0 documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle">
+          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+          <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <div class="visually-hidden">Toggle table of contents sidebar</div>
+        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
+  
+  
+  <span class="sidebar-brand-text">PyDrive2 1.7.0 documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search/" role="search">
+  <input class="sidebar-search" placeholder=Search name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../oauth/">OAuth made easy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../filemanagement/">File management made easy</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">File listing made easy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">pydrive2 package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../genindex/">Index</a></li>
+</ul>
+
+</div>
+</div>
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <div class="content-icon-container">
+          <div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle">
+              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+              <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <div class="visually-hidden">Toggle table of contents sidebar</div>
+            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+          </label>
+        </div>
+        <article role="main">
+          <section id="file-listing-made-easy">
+<h1>File listing made easy<a class="headerlink" href="#file-listing-made-easy" title="Permalink to this headline">¶</a></h1>
+<p><em>PyDrive</em> handles paginations and parses response as list of <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>.</p>
+<section id="get-all-files-which-matches-the-query">
+<h2>Get all files which matches the query<a class="headerlink" href="#get-all-files-which-matches-the-query" title="Permalink to this headline">¶</a></h2>
+<p>Create <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFileList">GoogleDriveFileList</a> instance with <a class="reference external" href="https://developers.google.com/drive/v2/reference/files/list#request">parameters of Files.list()</a> as <code class="docutils literal notranslate"><span class="pre">dict</span></code>. Call <a class="reference external" href="./pydrive2.html#pydrive2.apiattr.ApiResourceList.GetList">GetList()</a> and you will get all files that matches your query as a list of <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+
+<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span> <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance</span>
+
+<span class="c1"># Auto-iterate through all files in the root folder.</span>
+<span class="n">file_list</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">'q'</span><span class="p">:</span> <span class="s2">"'root' in parents and trashed=false"</span><span class="p">})</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
+  <span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
+</pre></div>
+</div>
+<p>You can update metadata or content of these <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instances if you need it.</p>
+</section>
+<section id="paginate-and-iterate-through-files">
+<h2>Paginate and iterate through files<a class="headerlink" href="#paginate-and-iterate-through-files" title="Permalink to this headline">¶</a></h2>
+<p><em>PyDrive</em> provides Pythonic way of paginating and iterating through list of files. All you have to do is to limit number of results with <code class="docutils literal notranslate"><span class="pre">maxResults</span></code> parameter and build <code class="docutils literal notranslate"><span class="pre">for</span></code> loop retrieving file list from API each iteration.</p>
+<p>Sample code continues from above:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Paginate file lists by specifying number of max results</span>
+<span class="k">for</span> <span class="n">file_list</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">'q'</span><span class="p">:</span> <span class="s1">'trashed=true'</span><span class="p">,</span> <span class="s1">'maxResults'</span><span class="p">:</span> <span class="mi">10</span><span class="p">}):</span>
+  <span class="nb">print</span><span class="p">(</span><span class="s1">'Received </span><span class="si">%s</span><span class="s1"> files from Files.list()'</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">))</span> <span class="c1"># &lt;= 10</span>
+  <span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
+      <span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          <a class="next-page" href="../pydrive2/">
+              <div class="page-info">
+                <div class="context">
+                  <span>Next</span>
+                </div>
+                <div class="title">pydrive2 package</div>
+              </div>
+              <svg><use href="#svg-arrow-right"></use></svg>
+            </a>
+          <a class="prev-page" href="../filemanagement/">
+              <svg><use href="#svg-arrow-right"></use></svg>
+              <div class="page-info">
+                <div class="context">
+                  <span>Previous</span>
+                </div>
+                
+                <div class="title">File management made easy</div>
+                
+              </div>
+            </a>
+        </div>
+
+        <div class="related-information">
+              Copyright &#169; 2020, JunYoung Gwak, Scott Blevins, Robin Nabel, Google Inc, Iterative Inc |
+            Built with <a href="https://www.sphinx-doc.org/">Sphinx</a>
+              and
+              <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+              <a href="https://github.com/pradyunsg/furo">Furo theme</a>. |
+            <a class="muted-link" href="../_sources/filelist.rst.txt"
+               rel="nofollow">
+              Show Source
+            </a>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            Contents
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">File listing made easy</a><ul>
+<li><a class="reference internal" href="#get-all-files-which-matches-the-query">Get all files which matches the query</a></li>
+<li><a class="reference internal" href="#paginate-and-iterate-through-files">Paginate and iterate through files</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/scripts/main.js"></script>
+    </body>
+</html>
