@@ -141,5 +141,5 @@ Here is a sample code for your customized authentication flow
     code = AskUserToVisitLinkAndGiveCode(auth_url) # Your customized authentication flow
     gauth.Auth(code) # Authorize and build service from the code
 
-.. _`GetAuthUrl()`: ./pydrive2.html#pydrive2.auth.GoogleAuth.GetAuthUrl
-.. _`Auth(code)`: ./pydrive2.html#pydrive2.auth.GoogleAuth.Auth
+.. _`GetAuthUrl()`: /pydrive2/#pydrive2.auth.GoogleAuth.GetAuthUrl
+.. _`Auth(code)`: /pydrive2/#pydrive2.auth.GoogleAuth.Auth

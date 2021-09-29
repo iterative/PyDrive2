@@ -141,5 +141,5 @@ here ``folder_list`` is the list of folders that is present
 
 You will see title and id of all the files and folders in root folder of your Google Drive. For more details, refer to the documentation: `File listing made easy`_
 
-.. _`GoogleDriveFile`: ./pydrive2.html#pydrive2.files.GoogleDriveFile
-.. _`File listing made easy`: ./filelist.html
+.. _`GoogleDriveFile`: /pydrive2/#pydrive2.files.GoogleDriveFile
+.. _`File listing made easy`: /filelist/
