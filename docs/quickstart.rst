@@ -32,7 +32,7 @@ Create *quickstart.py* file and copy and paste the following code.
 Run this code with *python quickstart.py* and you will see a web browser asking you for authentication. Click *Accept* and you are done with authentication. For more details, take a look at documentation: `OAuth made easy`_
 
 .. _`APIs Console`: https://console.developers.google.com/iam-admin/projects
-.. _`OAuth made easy`: ./oauth.html
+.. _`OAuth made easy`: /oauth/
 
 Creating and Updating Files
 ---------------------------
@@ -53,9 +53,9 @@ There are many methods to create and update file metadata and contents. With *Py
 This code will create a new file with title *Hello.txt* and its content *Hello World!*. You can see and open this
  file from `Google Drive`_ if you want. For more details, take a look at documentation: `File management made easy`_
 
-.. _`Upload()`: ./pydrive2.html#pydrive2.files.GoogleDriveFile.Upload
+.. _`Upload()`: /pydrive2/#pydrive2.files.GoogleDriveFile.Upload
 .. _`Google Drive`: https://drive.google.com
-.. _`File management made easy`: ./filemanagement.html
+.. _`File management made easy`: /filemanagement/
 
 Listing Files
 -------------

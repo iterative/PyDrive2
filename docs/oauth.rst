@@ -31,10 +31,10 @@ local webserver to automatically receive authentication code from user and
 authorizes by itself. You can also use `CommandLineAuth()`_ which manually
 takes code from user at command line.
 
-.. _quickstart: ./quickstart.html#authentication
-.. _`LocalWebserverAuth()`: ./pydrive2.html#pydrive2.auth.GoogleAuth.LocalWebserverAuth
-.. _`GoogleAuth`: ./pydrive2.html#pydrive2.auth.GoogleAuth
-.. _`CommandLineAuth()`: ./pydrive2.html#pydrive.auth.GoogleAuth.CommandLineAuth
+.. _quickstart: /quickstart/#authentication
+.. _`LocalWebserverAuth()`: /pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth
+.. _`GoogleAuth`: /pydrive2/#pydrive2.auth.GoogleAuth
+.. _`CommandLineAuth()`: /pydrive2/#pydrive.auth.GoogleAuth.CommandLineAuth
 
 Automatic and custom authentication with *settings.yaml*
 --------------------------------------------------------
