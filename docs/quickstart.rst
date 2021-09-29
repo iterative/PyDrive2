@@ -1,8 +1,9 @@
 Quickstart
 =============================
 
-Authentication
---------------
+Authentication via OAuth2.0
+---------------------------
+
 Drive API requires OAuth2.0 for authentication. *PyDrive2* makes your life much easier by handling complex authentication steps for you.
 
 1. Go to `APIs Console`_ and make your own project.
@@ -29,10 +30,46 @@ Create *quickstart.py* file and copy and paste the following code.
     gauth = GoogleAuth()
     gauth.LocalWebserverAuth() # Creates local webserver and auto handles authentication.
 
-Run this code with *python quickstart.py* and you will see a web browser asking you for authentication. Click *Accept* and you are done with authentication. For more details, take a look at documentation: `OAuth made easy`_
+Run this code with *python quickstart.py* and you will see a web browser asking you for authentication. 
+Click *Accept* and you are done with authentication. For more details, take a look at documentation: `OAuth made easy`_
 
 .. _`APIs Console`: https://console.developers.google.com/iam-admin/projects
 .. _`OAuth made easy`: ./oauth.html
+
+Authentication via service accounts
+-----------------------------------
+
+Alternatively to OAuth2.0 client authentication *PyDrive2* can use Google Service Accounts for authentication.
+This type of authentication is useful when developing a servers side application which doesn't interact with endusers.
+
+1. create a service account in the Google Cloud Console
+2. download a json files with account credentials and name it 'client_secrets.json'.
+3. run following code:
+
+.. code-block:: python
+
+    from pydrive2.auth import GoogleAuth
+    from pydrive2.drive import GoogleDrive
+    from oauth2client.service_account import ServiceAccountCredentials
+
+    scope = ["https://www.googleapis.com/auth/drive"]
+    gauth = GoogleAuth()
+    gauth.auth_method = 'service'
+    gauth.credentials = ServiceAccountCredentials.from_json_keyfile_name('client_secrets.json', scope)
+    drive = GoogleDrive(gauth)
+
+    about = drive.GetAbout()
+
+    print('Current user name:{}'.format(about['name']))
+    print('Root folder ID:{}'.format(about['rootFolderId']))
+    print('Total quota (bytes):{}'.format(about['quotaBytesTotal']))
+    print('Used quota (bytes):{}'.format(about['quotaBytesUsed']))
+
+
+    file_list = drive.ListFile().GetList()
+    for file1 in file_list:
+      print('title: %s, id: %s' % (file1['title'], file1['id']))
+
 
 Creating and Updating Files
 ---------------------------
