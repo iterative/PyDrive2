@@ -191,11 +191,11 @@
 <h1>File management made easy<a class="headerlink" href="#file-management-made-easy" title="Permalink to this headline">¶</a></h1>
 <p>There are many methods to create and update file metadata and contents.
 With <em>PyDrive</em>, you don’t have to care about any of these different API methods.
-Manipulate file metadata and contents from <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object and call
-<a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile.Upload">Upload()</a>. <em>PyDrive</em> will make the optimal API call for you.</p>
+Manipulate file metadata and contents from <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object and call
+<a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile.Upload">Upload()</a>. <em>PyDrive</em> will make the optimal API call for you.</p>
 <section id="upload-a-new-file">
 <h2>Upload a new file<a class="headerlink" href="#upload-a-new-file" title="Permalink to this headline">¶</a></h2>
-<p>Here is a sample code to upload a file. <code class="docutils literal notranslate"><span class="pre">gauth</span></code> is an authenticated <a class="reference external" href="./pydrive2.html#pydrive2.auth.GoogleAuth">GoogleAuth</a> object.</p>
+<p>Here is a sample code to upload a file. <code class="docutils literal notranslate"><span class="pre">gauth</span></code> is an authenticated <a class="reference external" href="/pydrive2/#pydrive2.auth.GoogleAuth">GoogleAuth</a> object.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
 
 <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance.</span>
@@ -209,7 +209,7 @@ Manipulate file metadata and contents from <a class="reference external" href=".
 </pre></div>
 </div>
 <p>Now, you will have a file ‘Hello.txt’ uploaded to your Google Drive. You can open it from web interface to check its content, ‘Hello World!’.</p>
-<p>Note that <a class="reference external" href="./pydrive2.html#pydrive2.drive.GoogleDrive.CreateFile">CreateFile()</a> will create <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instance but not actually upload a file to Google Drive. You can initialize <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object by itself. However, it is not recommended to do so in order to keep authentication consistent.</p>
+<p>Note that <a class="reference external" href="/pydrive2/#pydrive2.drive.GoogleDrive.CreateFile">CreateFile()</a> will create <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instance but not actually upload a file to Google Drive. You can initialize <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object by itself. However, it is not recommended to do so in order to keep authentication consistent.</p>
 </section>
 <section id="delete-trash-and-un-trash-files">
 <h2>Delete, Trash and un-Trash files<a class="headerlink" href="#delete-trash-and-un-trash-files" title="Permalink to this headline">¶</a></h2>
@@ -229,7 +229,7 @@ Manipulate file metadata and contents from <a class="reference external" href=".
 </section>
 <section id="update-file-metadata">
 <h2>Update file metadata<a class="headerlink" href="#update-file-metadata" title="Permalink to this headline">¶</a></h2>
-<p>You can manipulate file metadata from a <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object just as you manipulate a <code class="docutils literal notranslate"><span class="pre">dict</span></code>.
+<p>You can manipulate file metadata from a <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object just as you manipulate a <code class="docutils literal notranslate"><span class="pre">dict</span></code>.
 The format of file metadata can be found in the Google Drive API documentation: <a class="reference external" href="https://developers.google.com/drive/v2/reference/files#resource-representations">Files resource</a>.</p>
 <p>Sample code continues from <a class="reference internal" href="#upload-a-new-file">Upload a new file</a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'HelloWorld.txt'</span> <span class="c1"># Change title of the file.</span>
@@ -242,7 +242,7 @@ The format of file metadata can be found in the Google Drive API documentation: 
 <section id="download-file-metadata-from-file-id">
 <h2>Download file metadata from file ID<a class="headerlink" href="#download-file-metadata-from-file-id" title="Permalink to this headline">¶</a></h2>
 <p>You might want to get file metadata from file ID. In that case, just initialize
-<a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> with file ID and access metadata from <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>
+<a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> with file ID and access metadata from <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>
 just as you access <code class="docutils literal notranslate"><span class="pre">dict</span></code>.</p>
 <p>Sample code continues from above:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create GoogleDriveFile instance with file id of file1.</span>
@@ -338,8 +338,8 @@ one permission at a time by providing the permission’s ID.</p>
 <section id="upload-and-update-file-content">
 <h2>Upload and update file content<a class="headerlink" href="#upload-and-update-file-content" title="Permalink to this headline">¶</a></h2>
 <p>Managing file content is as easy as managing file metadata. You can set file
-content with either <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile.SetContentFile">SetContentFile(filename)</a> or <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile.SetContentString">SetContentString(content)</a>
-and call <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile.Upload">Upload()</a> just as you did to upload or update file metadata.</p>
+content with either <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile">SetContentFile(filename)</a> or <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentString">SetContentString(content)</a>
+and call <a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile.Upload">Upload()</a> just as you did to upload or update file metadata.</p>
 <p>Sample code continues from <a class="reference internal" href="#download-file-metadata-from-file-id">Download file metadata from file ID</a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file4</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'title'</span><span class="p">:</span><span class="s1">'appdata.json'</span><span class="p">,</span> <span class="s1">'mimeType'</span><span class="p">:</span><span class="s1">'application/json'</span><span class="p">})</span>
 <span class="n">file4</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">'{"firstname": "John", "lastname": "Smith"}'</span><span class="p">)</span>
@@ -368,7 +368,7 @@ like so:</p>
 <section id="download-file-content">
 <h2>Download file content<a class="headerlink" href="#download-file-content" title="Permalink to this headline">¶</a></h2>
 <p>Just as you uploaded file content, you can download it using
-<a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile.GetContentFile">GetContentFile(filename)</a> or <a class="reference external" href="./pydrive2.html#pydrive2.files.GoogleDriveFile.GetContentString">GetContentString()</a>.</p>
+<a class="reference external" href="/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentFile">GetContentFile(filename)</a> or <a class="reference external" href="./pydrive2/#pydrive2.files.GoogleDriveFile.GetContentString">GetContentString()</a>.</p>
 <p>Sample code continues from above:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialize GoogleDriveFile instance with file id.</span>
 <span class="n">file6</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="n">file5</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]})</span>

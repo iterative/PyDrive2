@@ -240,14 +240,14 @@ is downloaded. Just set the `remove_bom` parameter in `GetContentString()` or
 repository for an example.
 
 
-.. _`GoogleDriveFile`: ./pydrive2.html#pydrive2.files.GoogleDriveFile
-.. _`Upload()`: ./pydrive2.html#pydrive2.files.GoogleDriveFile.Upload
-.. _`GoogleAuth`: ./pydrive2.html#pydrive2.auth.GoogleAuth
-.. _`CreateFile()`: ./pydrive2.html#pydrive2.drive.GoogleDrive.CreateFile
+.. _`GoogleDriveFile`: /pydrive2/#pydrive2.files.GoogleDriveFile
+.. _`Upload()`: /pydrive2/#pydrive2.files.GoogleDriveFile.Upload
+.. _`GoogleAuth`: /pydrive2/#pydrive2.auth.GoogleAuth
+.. _`CreateFile()`: /pydrive2/#pydrive2.drive.GoogleDrive.CreateFile
 .. _`Files resource`: https://developers.google.com/drive/v2/reference/files#resource-representations
-.. _`SetContentFile(filename)`: ./pydrive2.html#pydrive2.files.GoogleDriveFile.SetContentFile
-.. _`SetContentString(content)`: ./pydrive2.html#pydrive2.files.GoogleDriveFile.SetContentString
-.. _`GetContentFile(filename)`: ./pydrive2.html#pydrive2.files.GoogleDriveFile.GetContentFile
-.. _`GetContentString()`: ./pydrive2.html#pydrive2.files.GoogleDriveFile.GetContentString
+.. _`SetContentFile(filename)`: /pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile
+.. _`SetContentString(content)`: /pydrive2/#pydrive2.files.GoogleDriveFile.SetContentString
+.. _`GetContentFile(filename)`: /pydrive2/#pydrive2.files.GoogleDriveFile.GetContentFile
+.. _`GetContentString()`: ./pydrive2/#pydrive2.files.GoogleDriveFile.GetContentString
 .. _`official documentation`: https://developers.google.com/drive/v2/reference/files#resource-representations
 .. _`known`: https://productforums.google.com/forum/#!topic/docs/BJLimQDGtjQ
