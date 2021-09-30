@@ -31,10 +31,10 @@ local webserver to automatically receive authentication code from user and
 authorizes by itself. You can also use `CommandLineAuth()`_ which manually
 takes code from user at command line.
 
-.. _quickstart: /quickstart/#authentication
-.. _`LocalWebserverAuth()`: /pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth
-.. _`GoogleAuth`: /pydrive2/#pydrive2.auth.GoogleAuth
-.. _`CommandLineAuth()`: /pydrive2/#pydrive.auth.GoogleAuth.CommandLineAuth
+.. _quickstart: /PyDrive2/quickstart/#authentication
+.. _`LocalWebserverAuth()`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth
+.. _`GoogleAuth`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth
+.. _`CommandLineAuth()`: /PyDrive2/pydrive2/#pydrive.auth.GoogleAuth.CommandLineAuth
 
 Automatic and custom authentication with *settings.yaml*
 --------------------------------------------------------
@@ -141,5 +141,5 @@ Here is a sample code for your customized authentication flow
     code = AskUserToVisitLinkAndGiveCode(auth_url) # Your customized authentication flow
     gauth.Auth(code) # Authorize and build service from the code
 
-.. _`GetAuthUrl()`: /pydrive2/#pydrive2.auth.GoogleAuth.GetAuthUrl
-.. _`Auth(code)`: /pydrive2/#pydrive2.auth.GoogleAuth.Auth
+.. _`GetAuthUrl()`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.GetAuthUrl
+.. _`Auth(code)`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.Auth
