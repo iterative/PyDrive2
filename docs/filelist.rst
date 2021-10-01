@@ -37,7 +37,7 @@ Sample code continues from above:
           print('title: %s, id: %s' % (file1['title'], file1['id']))
 
 
-.. _`GoogleDriveFile`: ./pydrive2.html#pydrive2.files.GoogleDriveFile
-.. _`GoogleDriveFileList`: ./pydrive2.html#pydrive2.files.GoogleDriveFileList
+.. _`GoogleDriveFile`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile
+.. _`GoogleDriveFileList`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFileList
 .. _`parameters of Files.list()`: https://developers.google.com/drive/v2/reference/files/list#request
-.. _`GetList()`: ./pydrive2.html#pydrive2.apiattr.ApiResourceList.GetList
+.. _`GetList()`: /PyDrive2/pydrive2/#pydrive2.apiattr.ApiResourceList.GetList
