@@ -209,10 +209,10 @@
 </pre></div>
 </div>
 <p>To make this code work, you need to download the application configurations file
-from APIs Console. Take a look at <a class="reference external" href="./quickstart.html#authentication">quickstart</a> for detailed instructions.</p>
-<p><a class="reference external" href="./pydrive2.html#pydrive2.auth.GoogleAuth.LocalWebserverAuth">LocalWebserverAuth()</a> is a built-in method of <a class="reference external" href="./pydrive2.html#pydrive2.auth.GoogleAuth">GoogleAuth</a> which sets up
+from APIs Console. Take a look at <a class="reference external" href="/PyDrive2/quickstart/#authentication">quickstart</a> for detailed instructions.</p>
+<p><a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth">LocalWebserverAuth()</a> is a built-in method of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth">GoogleAuth</a> which sets up
 local webserver to automatically receive authentication code from user and
-authorizes by itself. You can also use <a class="reference external" href="./pydrive2.html#pydrive.auth.GoogleAuth.CommandLineAuth">CommandLineAuth()</a> which manually
+authorizes by itself. You can also use <a class="reference external" href="/PyDrive2/pydrive2/#pydrive.auth.GoogleAuth.CommandLineAuth">CommandLineAuth()</a> which manually
 takes code from user at command line.</p>
 </section>
 <section id="automatic-and-custom-authentication-with-settings-yaml">
@@ -325,9 +325,9 @@ behavior.</p>
 want to integrate your existing website with Drive API. In that case, you can
 customize authentication flow as follwing:</p>
 <ol class="arabic simple">
-<li><p>Get authentication Url from <a class="reference external" href="./pydrive2.html#pydrive2.auth.GoogleAuth.GetAuthUrl">GetAuthUrl()</a>.</p></li>
+<li><p>Get authentication Url from <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.GetAuthUrl">GetAuthUrl()</a>.</p></li>
 <li><p>Ask users to visit the authentication Url and grant access to your application. Retrieve authentication code manually by user or automatically by building your own oauth2callback.</p></li>
-<li><p>Call <a class="reference external" href="./pydrive2.html#pydrive2.auth.GoogleAuth.Auth">Auth(code)</a> with the authentication code you retrieved from step 2.</p></li>
+<li><p>Call <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.Auth">Auth(code)</a> with the authentication code you retrieved from step 2.</p></li>
 </ol>
 <p>Your <em>settings.yaml</em> will work for your customized authentication flow, too.</p>
 <p>Here is a sample code for your customized authentication flow</p>
