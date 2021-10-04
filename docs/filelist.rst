@@ -8,7 +8,7 @@ Get all files which matches the query
 
 Create `GoogleDriveFileList`_ instance with `parameters of Files.list()`_ as ``dict``. 
 Call `GetList()`_ and you will get all files that matches your query as a list of `GoogleDriveFile`_.
-The syntax and possible option of the query ('q') parameter can be found in `search for files` Google documentation.
+The syntax and possible option of the query ``q`` parameter can be found in `search for files` Google documentation.
 
 .. code-block:: python
 
@@ -27,8 +27,8 @@ Paginate and iterate through files
 ----------------------------------
 
 *PyDrive* provides Pythonic way of paginating and iterating through list of files. 
-All you have to do is to limit number of results with ``maxResults`` parameter and build ``for`` loop retrieving
-file list from API each iteration.
+Here is an example how to do this, ``maxResults`` below defines how many 
+files it retrieves at once and we wrap it into a ``for`` loop to iterate:
 
 Sample code continues from above:
 
