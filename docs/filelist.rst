@@ -6,7 +6,9 @@ File listing made easy
 Get all files which matches the query
 -------------------------------------
 
-Create `GoogleDriveFileList`_ instance with `parameters of Files.list()`_ as ``dict``. Call `GetList()`_ and you will get all files that matches your query as a list of `GoogleDriveFile`_.
+Create `GoogleDriveFileList`_ instance with `parameters of Files.list()`_ as ``dict``. 
+Call `GetList()`_ and you will get all files that matches your query as a list of `GoogleDriveFile`_.
+The syntax and possible option of the query ``q`` parameter can be found in `search for files` Google documentation.
 
 .. code-block:: python
 
@@ -24,7 +26,9 @@ You can update metadata or content of these `GoogleDriveFile`_ instances if you 
 Paginate and iterate through files
 ----------------------------------
 
-*PyDrive* provides Pythonic way of paginating and iterating through list of files. All you have to do is to limit number of results with ``maxResults`` parameter and build ``for`` loop retrieving file list from API each iteration.
+*PyDrive* provides Pythonic way of paginating and iterating through list of files. 
+Here is an example how to do this, ``maxResults`` below defines how many 
+files it retrieves at once and we wrap it into a ``for`` loop to iterate:
 
 Sample code continues from above:
 
@@ -41,3 +45,4 @@ Sample code continues from above:
 .. _`GoogleDriveFileList`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFileList
 .. _`parameters of Files.list()`: https://developers.google.com/drive/v2/reference/files/list#request
 .. _`GetList()`: /PyDrive2/pydrive2/#pydrive2.apiattr.ApiResourceList.GetList
+.. _`search for files`: https://developers.google.com/drive/api/v2/search-files
