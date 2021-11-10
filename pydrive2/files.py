@@ -306,7 +306,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     :type mimetype: str
     :param remove_bom: Whether to remove the byte order marking.
     :type remove_bom: bool
-    :param callback: passed two arguments: (total trasferred, file size).
+    :param callback: passed two arguments: (total transferred, file size).
     :type param: callable
     :param chunksize: chunksize in bytes (standard 100 MB(1024*1024*100))
     :type chunksize: int
