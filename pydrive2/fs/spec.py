@@ -44,7 +44,7 @@ def _gdrive_retry(func):
     # 16 tries, start at 0.5s, multiply by golden ratio, cap at 20s
     return retry(
         16,
-        timeout=lambda a: min(0.5 * 1.618 ** a, 20),
+        timeout=lambda a: min(0.5 * 1.618**a, 20),
         filter_errors=should_retry,
     )(func)
 

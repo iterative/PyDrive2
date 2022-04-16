@@ -142,10 +142,10 @@ def CheckAuth(decoratee):
 class GoogleAuth(ApiAttributeMixin, object):
     """Wrapper class for oauth2client library in google-api-python-client.
 
-  Loads all settings and credentials from one 'settings.yaml' file
-  and performs common OAuth2.0 related functionality such as authentication
-  and authorization.
-  """
+    Loads all settings and credentials from one 'settings.yaml' file
+    and performs common OAuth2.0 related functionality such as authentication
+    and authorization.
+    """
 
     DEFAULT_SETTINGS = {
         "client_config_backend": "file",
@@ -173,12 +173,12 @@ class GoogleAuth(ApiAttributeMixin, object):
     def __init__(self, settings_file="settings.yaml", http_timeout=None):
         """Create an instance of GoogleAuth.
 
-    This constructor just sets the path of settings file.
-    It does not actually read the file.
+        This constructor just sets the path of settings file.
+        It does not actually read the file.
 
-    :param settings_file: path of settings file. 'settings.yaml' by default.
-    :type settings_file: str.
-    """
+        :param settings_file: path of settings file. 'settings.yaml' by default.
+        :type settings_file: str.
+        """
         self.http_timeout = http_timeout
         ApiAttributeMixin.__init__(self)
         self.thread_local = threading.local()
@@ -197,8 +197,8 @@ class GoogleAuth(ApiAttributeMixin, object):
     def access_token_expired(self):
         """Checks if access token doesn't exist or is expired.
 
-    :returns: bool -- True if access token doesn't exist or is expired.
-    """
+        :returns: bool -- True if access token doesn't exist or is expired.
+        """
         if self.credentials is None:
             return True
         return self.credentials.access_token_expired
@@ -208,20 +208,20 @@ class GoogleAuth(ApiAttributeMixin, object):
         self, host_name="localhost", port_numbers=None, launch_browser=True
     ):
         """Authenticate and authorize from user by creating local web server and
-    retrieving authentication code.
+        retrieving authentication code.
 
-    This function is not for web server application. It creates local web server
-    for user from standalone application.
+        This function is not for web server application. It creates local web server
+        for user from standalone application.
 
-    :param host_name: host name of the local web server.
-    :type host_name: str.
-    :param port_numbers: list of port numbers to be tried to used.
-    :type port_numbers: list.
-    :param launch_browser: should browser be launched automatically
-    :type launch_browser: bool
-    :returns: str -- code returned from local web server
-    :raises: AuthenticationRejected, AuthenticationError
-    """
+        :param host_name: host name of the local web server.
+        :type host_name: str.
+        :param port_numbers: list of port numbers to be tried to used.
+        :type port_numbers: list.
+        :param launch_browser: should browser be launched automatically
+        :type launch_browser: bool
+        :returns: str -- code returned from local web server
+        :raises: AuthenticationRejected, AuthenticationError
+        """
         if port_numbers is None:
             port_numbers = [
                 8080,
@@ -278,10 +278,10 @@ class GoogleAuth(ApiAttributeMixin, object):
     @CheckAuth
     def CommandLineAuth(self):
         """Authenticate and authorize from user by printing authentication url
-    retrieving authentication code from command-line.
+        retrieving authentication code from command-line.
 
-    :returns: str -- code returned from commandline.
-    """
+        :returns: str -- code returned from commandline.
+        """
         self.flow.redirect_uri = OOB_CALLBACK_URN
         authorize_url = self.GetAuthUrl()
         print("Go to the following link in your browser:")
@@ -293,16 +293,18 @@ class GoogleAuth(ApiAttributeMixin, object):
     @CheckServiceAuth
     def ServiceAuth(self):
         """Authenticate and authorize using P12 private key, client id
-    and client email for a Service account.
-    :raises: AuthError, InvalidConfigError
-    """
+        and client email for a Service account.
+        :raises: AuthError, InvalidConfigError
+        """
         if set(self.SERVICE_CONFIGS_LIST) - set(self.client_config):
             self.LoadServiceConfigSettings()
         scopes = scopes_to_string(self.settings["oauth_scope"])
         client_service_json = self.client_config.get("client_json_file_path")
         if client_service_json:
-            self.credentials = ServiceAccountCredentials.from_json_keyfile_name(
-                filename=client_service_json, scopes=scopes
+            self.credentials = (
+                ServiceAccountCredentials.from_json_keyfile_name(
+                    filename=client_service_json, scopes=scopes
+                )
             )
         else:
             service_email = self.client_config["client_service_email"]
@@ -322,10 +324,10 @@ class GoogleAuth(ApiAttributeMixin, object):
     def LoadCredentials(self, backend=None):
         """Loads credentials or create empty credentials if it doesn't exist.
 
-    :param backend: target backend to save credential to.
-    :type backend: str.
-    :raises: InvalidConfigError
-    """
+        :param backend: target backend to save credential to.
+        :type backend: str.
+        :raises: InvalidConfigError
+        """
         if backend is None:
             backend = self.settings.get("save_credentials_backend")
             if backend is None:
@@ -338,12 +340,12 @@ class GoogleAuth(ApiAttributeMixin, object):
     def LoadCredentialsFile(self, credentials_file=None):
         """Loads credentials or create empty credentials if it doesn't exist.
 
-    Loads credentials file from path in settings if not specified.
+        Loads credentials file from path in settings if not specified.
 
-    :param credentials_file: path of credentials file to read.
-    :type credentials_file: str.
-    :raises: InvalidConfigError, InvalidCredentialsError
-    """
+        :param credentials_file: path of credentials file to read.
+        :type credentials_file: str.
+        :raises: InvalidConfigError, InvalidCredentialsError
+        """
         if credentials_file is None:
             credentials_file = self.settings.get("save_credentials_file")
             if credentials_file is None:
@@ -361,13 +363,13 @@ class GoogleAuth(ApiAttributeMixin, object):
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
 
-    If you have any specific credentials backend in mind, don't use this
-    function and use the corresponding function you want.
+        If you have any specific credentials backend in mind, don't use this
+        function and use the corresponding function you want.
 
-    :param backend: backend to save credentials.
-    :type backend: str.
-    :raises: InvalidConfigError
-    """
+        :param backend: backend to save credentials.
+        :type backend: str.
+        :raises: InvalidConfigError
+        """
         if backend is None:
             backend = self.settings.get("save_credentials_backend")
             if backend is None:
@@ -380,10 +382,10 @@ class GoogleAuth(ApiAttributeMixin, object):
     def SaveCredentialsFile(self, credentials_file=None):
         """Saves credentials to the file in JSON format.
 
-    :param credentials_file: destination to save file to.
-    :type credentials_file: str.
-    :raises: InvalidConfigError, InvalidCredentialsError
-    """
+        :param credentials_file: destination to save file to.
+        :type credentials_file: str.
+        :raises: InvalidConfigError, InvalidCredentialsError
+        """
         if self.credentials is None:
             raise InvalidCredentialsError("No credentials to save")
         if credentials_file is None:
@@ -404,13 +406,13 @@ class GoogleAuth(ApiAttributeMixin, object):
     def LoadClientConfig(self, backend=None):
         """Loads client configuration according to specified backend.
 
-    If you have any specific backend to load client configuration from in mind,
-    don't use this function and use the corresponding function you want.
+        If you have any specific backend to load client configuration from in mind,
+        don't use this function and use the corresponding function you want.
 
-    :param backend: backend to load client configuration from.
-    :type backend: str.
-    :raises: InvalidConfigError
-    """
+        :param backend: backend to load client configuration from.
+        :type backend: str.
+        :raises: InvalidConfigError
+        """
         if backend is None:
             backend = self.settings.get("client_config_backend")
             if backend is None:
@@ -429,12 +431,12 @@ class GoogleAuth(ApiAttributeMixin, object):
     def LoadClientConfigFile(self, client_config_file=None):
         """Loads client configuration file downloaded from APIs console.
 
-    Loads client config file from path in settings if not specified.
+        Loads client config file from path in settings if not specified.
 
-    :param client_config_file: path of client config file to read.
-    :type client_config_file: str.
-    :raises: InvalidConfigError
-    """
+        :param client_config_file: path of client config file to read.
+        :type client_config_file: str.
+        :raises: InvalidConfigError
+        """
         if client_config_file is None:
             client_config_file = self.settings["client_config_file"]
         try:
@@ -479,8 +481,8 @@ class GoogleAuth(ApiAttributeMixin, object):
 
     def LoadServiceConfigSettings(self):
         """Loads client configuration from settings file.
-    :raises: InvalidConfigError
-    """
+        :raises: InvalidConfigError
+        """
         for file_format in ["json", "pkcs12"]:
             config = f"client_{file_format}_file_path"
             value = self.settings["service_config"].get(config)
@@ -509,8 +511,8 @@ class GoogleAuth(ApiAttributeMixin, object):
     def LoadClientConfigSettings(self):
         """Loads client configuration from settings file.
 
-    :raises: InvalidConfigError
-    """
+        :raises: InvalidConfigError
+        """
         for config in self.CLIENT_CONFIGS_LIST:
             try:
                 self.client_config[config] = self.settings["client_config"][
@@ -524,8 +526,8 @@ class GoogleAuth(ApiAttributeMixin, object):
     def GetFlow(self):
         """Gets Flow object from client configuration.
 
-    :raises: InvalidConfigError
-    """
+        :raises: InvalidConfigError
+        """
         if not all(
             config in self.client_config for config in self.CLIENT_CONFIGS_LIST
         ):
@@ -552,8 +554,8 @@ class GoogleAuth(ApiAttributeMixin, object):
     def Refresh(self):
         """Refreshes the access_token.
 
-    :raises: RefreshError
-    """
+        :raises: RefreshError
+        """
         if self.credentials is None:
             raise RefreshError("No credential to refresh.")
         if (
@@ -574,8 +576,8 @@ class GoogleAuth(ApiAttributeMixin, object):
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.
 
-    :returns: str -- Authentication url.
-    """
+        :returns: str -- Authentication url.
+        """
         if self.flow is None:
             self.GetFlow()
         return self.flow.step1_get_authorize_url()
@@ -583,20 +585,20 @@ class GoogleAuth(ApiAttributeMixin, object):
     def Auth(self, code):
         """Authenticate, authorize, and build service.
 
-    :param code: Code for authentication.
-    :type code: str.
-    :raises: AuthenticationError
-    """
+        :param code: Code for authentication.
+        :type code: str.
+        :raises: AuthenticationError
+        """
         self.Authenticate(code)
         self.Authorize()
 
     def Authenticate(self, code):
         """Authenticates given authentication code back from user.
 
-    :param code: Code for authentication.
-    :type code: str.
-    :raises: AuthenticationError
-    """
+        :param code: Code for authentication.
+        :type code: str.
+        :raises: AuthenticationError
+        """
         if self.flow is None:
             self.GetFlow()
         try:
@@ -623,8 +625,8 @@ class GoogleAuth(ApiAttributeMixin, object):
     def Authorize(self):
         """Authorizes and builds service.
 
-    :raises: AuthenticationError
-    """
+        :raises: AuthenticationError
+        """
         if self.access_token_expired:
             raise AuthenticationError(
                 "No valid credentials provided to authorize"
@@ -639,10 +641,10 @@ class GoogleAuth(ApiAttributeMixin, object):
 
     def Get_Http_Object(self):
         """Create and authorize an httplib2.Http object. Necessary for
-    thread-safety.
-    :return: The http object to be used in each call.
-    :rtype: httplib2.Http
-    """
+        thread-safety.
+        :return: The http object to be used in each call.
+        :rtype: httplib2.Http
+        """
         http = self._build_http()
         http = self.credentials.authorize(http)
         return http

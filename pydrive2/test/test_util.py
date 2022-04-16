@@ -43,7 +43,7 @@ class PyDriveRetriableError(Exception):
 
 
 # 15 tries, start at 0.5s, multiply by golden ratio, cap at 20s
-@retry(15, PyDriveRetriableError, timeout=lambda a: min(0.5 * 1.618 ** a, 20))
+@retry(15, PyDriveRetriableError, timeout=lambda a: min(0.5 * 1.618**a, 20))
 def pydrive_retry(call, *args, **kwargs):
     try:
         result = call(*args, **kwargs)
