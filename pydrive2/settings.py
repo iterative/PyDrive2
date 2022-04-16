@@ -98,10 +98,10 @@ class InvalidConfigError(IOError):
 def LoadSettingsFile(filename=SETTINGS_FILE):
     """Loads settings file in yaml format given file name.
 
-  :param filename: path for settings file. 'settings.yaml' by default.
-  :type filename: str.
-  :raises: SettingsError
-  """
+    :param filename: path for settings file. 'settings.yaml' by default.
+    :type filename: str.
+    :raises: SettingsError
+    """
     try:
         with open(filename, "r") as stream:
             data = load(stream, Loader=Loader)
@@ -113,22 +113,22 @@ def LoadSettingsFile(filename=SETTINGS_FILE):
 def ValidateSettings(data):
     """Validates if current settings is valid.
 
-  :param data: dictionary containing all settings.
-  :type data: dict.
-  :raises: InvalidConfigError
-  """
+    :param data: dictionary containing all settings.
+    :type data: dict.
+    :raises: InvalidConfigError
+    """
     _ValidateSettingsStruct(data, SETTINGS_STRUCT)
 
 
 def _ValidateSettingsStruct(data, struct):
     """Validates if provided data fits provided structure.
 
-  :param data: dictionary containing settings.
-  :type data: dict.
-  :param struct: dictionary containing structure information of settings.
-  :type struct: dict.
-  :raises: InvalidConfigError
-  """
+    :param data: dictionary containing settings.
+    :type data: dict.
+    :param struct: dictionary containing structure information of settings.
+    :type struct: dict.
+    :raises: InvalidConfigError
+    """
     # Validate required elements of the setting.
     for key in struct:
         if struct[key]["required"]:
@@ -138,14 +138,14 @@ def _ValidateSettingsStruct(data, struct):
 def _ValidateSettingsElement(data, struct, key):
     """Validates if provided element of settings data fits provided structure.
 
-  :param data: dictionary containing settings.
-  :type data: dict.
-  :param struct: dictionary containing structure information of settings.
-  :type struct: dict.
-  :param key: key of the settings element to validate.
-  :type key: str.
-  :raises: InvalidConfigError
-  """
+    :param data: dictionary containing settings.
+    :type data: dict.
+    :param struct: dictionary containing structure information of settings.
+    :type struct: dict.
+    :param key: key of the settings element to validate.
+    :type key: str.
+    :raises: InvalidConfigError
+    """
     # Check if data exists. If not, check if default value exists.
     value = data.get(key)
     data_type = struct[key]["type"]

@@ -18,7 +18,7 @@ BLOCK_SIZE = 1024
 # Usage: MIME_TYPE_TO_BOM['<Google Drive mime type>']['<download mimetype>'].
 MIME_TYPE_TO_BOM = {
     "application/vnd.google-apps.document": {
-        "text/plain": u"\ufeff".encode("utf8")
+        "text/plain": "\ufeff".encode("utf8")
     }
 }
 
@@ -48,8 +48,8 @@ class FileNotDownloadableError(RuntimeError):
 def LoadMetadata(decoratee):
     """Decorator to check if the file has metadata and fetches it if not.
 
-  :raises: ApiRequestError, FileNotUploadedError
-  """
+    :raises: ApiRequestError, FileNotUploadedError
+    """
 
     @wraps(decoratee)
     def _decorated(self, *args, **kwargs):
@@ -63,8 +63,8 @@ def LoadMetadata(decoratee):
 class GoogleDriveFileList(ApiResourceList):
     """Google Drive FileList instance.
 
-  Equivalent to Files.list() in Drive APIs.
-  """
+    Equivalent to Files.list() in Drive APIs.
+    """
 
     def __init__(self, auth=None, param=None):
         """Create an instance of GoogleDriveFileList."""
@@ -74,8 +74,8 @@ class GoogleDriveFileList(ApiResourceList):
     def _GetList(self):
         """Overwritten method which actually makes API call to list files.
 
-    :returns: list -- list of pydrive2.files.GoogleDriveFile.
-    """
+        :returns: list -- list of pydrive2.files.GoogleDriveFile.
+        """
         # Teamdrive support
         self["supportsAllDrives"] = True
         self["includeItemsFromAllDrives"] = True
@@ -127,11 +127,11 @@ class MediaIoReadable(object):
     ):
         """File-like wrapper around MediaIoBaseDownload.
 
-    :param pre_buffer: Whether to read one chunk into an internal buffer
-    immediately in order to raise any potential errors.
-    :param remove_prefix: Bytes prefix to remove from internal pre_buffer.
-    :raises: ApiRequestError
-    """
+        :param pre_buffer: Whether to read one chunk into an internal buffer
+        immediately in order to raise any potential errors.
+        :param remove_prefix: Bytes prefix to remove from internal pre_buffer.
+        :raises: ApiRequestError
+        """
         self.done = False
         self._fd = IoBuffer(encoding)
         self.downloader = MediaIoBaseDownload(
@@ -149,9 +149,9 @@ class MediaIoReadable(object):
 
     def read(self):
         """
-    :returns: bytes or str -- chunk (or None if done)
-    :raises: ApiRequestError
-    """
+        :returns: bytes or str -- chunk (or None if done)
+        :raises: ApiRequestError
+        """
         if self._pre_buffer:
             self._pre_buffer = False
             return self._fd.read()
@@ -166,8 +166,8 @@ class MediaIoReadable(object):
 
     def __iter__(self):
         """
-    :raises: ApiRequestError
-    """
+        :raises: ApiRequestError
+        """
         while True:
             chunk = self.read()
             if chunk is None:
@@ -181,9 +181,9 @@ class MediaIoReadable(object):
 class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     """Google Drive File instance.
 
-  Inherits ApiResource which inherits dict.
-  Can access and modify metadata like dictionary.
-  """
+    Inherits ApiResource which inherits dict.
+    Can access and modify metadata like dictionary.
+    """
 
     content = ApiAttribute("content")
     uploaded = ApiAttribute("uploaded")
@@ -192,13 +192,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def __init__(self, auth=None, metadata=None, uploaded=False):
         """Create an instance of GoogleDriveFile.
 
-    :param auth: authorized GoogleAuth instance.
-    :type auth: pydrive2.auth.GoogleAuth
-    :param metadata: file resource to initialize GoogleDriveFile with.
-    :type metadata: dict.
-    :param uploaded: True if this file is confirmed to be uploaded.
-    :type uploaded: bool.
-    """
+        :param auth: authorized GoogleAuth instance.
+        :type auth: pydrive2.auth.GoogleAuth
+        :param metadata: file resource to initialize GoogleDriveFile with.
+        :type metadata: dict.
+        :param uploaded: True if this file is confirmed to be uploaded.
+        :type uploaded: bool.
+        """
         ApiAttributeMixin.__init__(self)
         ApiResource.__init__(self)
         self.metadata = {}
@@ -214,14 +214,14 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def __getitem__(self, key):
         """Overwrites manner of accessing Files resource.
 
-    If this file instance is not uploaded and id is specified,
-    it will try to look for metadata with Files.get().
+        If this file instance is not uploaded and id is specified,
+        it will try to look for metadata with Files.get().
 
-    :param key: key of dictionary query.
-    :type key: str.
-    :returns: value of Files resource
-    :raises: KeyError, FileNotUploadedError
-    """
+        :param key: key of dictionary query.
+        :type key: str.
+        :returns: value of Files resource
+        :raises: KeyError, FileNotUploadedError
+        """
         try:
             return dict.__getitem__(self, key)
         except KeyError as e:
@@ -236,14 +236,14 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def SetContentString(self, content, encoding="utf-8"):
         """Set content of this file to be a string.
 
-    Creates io.BytesIO instance of utf-8 encoded string.
-    Sets mimeType to be 'text/plain' if not specified.
+        Creates io.BytesIO instance of utf-8 encoded string.
+        Sets mimeType to be 'text/plain' if not specified.
 
-    :param encoding: The encoding to use when setting the content of this file.
-    :type encoding: str
-    :param content: content of the file in string.
-    :type content: str
-    """
+        :param encoding: The encoding to use when setting the content of this file.
+        :type encoding: str
+        :param content: content of the file in string.
+        :type content: str
+        """
         self.content = io.BytesIO(content.encode(encoding))
         if self.get("mimeType") is None:
             self["mimeType"] = "text/plain"
@@ -251,13 +251,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def SetContentFile(self, filename):
         """Set content of this file from a file.
 
-    Opens the file specified by this method.
-    Will be read, uploaded, and closed by Upload() method.
-    Sets metadata 'title' and 'mimeType' automatically if not specified.
+        Opens the file specified by this method.
+        Will be read, uploaded, and closed by Upload() method.
+        Sets metadata 'title' and 'mimeType' automatically if not specified.
 
-    :param filename: name of the file to be uploaded.
-    :type filename: str.
-    """
+        :param filename: name of the file to be uploaded.
+        :type filename: str.
+        """
         self.content = open(filename, "rb")
         if self.get("title") is None:
             self["title"] = filename
@@ -269,18 +269,18 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     ):
         """Get content of this file as a string.
 
-    :param mimetype: The mimetype of the content string.
-    :type mimetype: str
+        :param mimetype: The mimetype of the content string.
+        :type mimetype: str
 
-    :param encoding: The encoding to use when decoding the byte string.
-    :type encoding: str
+        :param encoding: The encoding to use when decoding the byte string.
+        :type encoding: str
 
-    :param remove_bom: Whether to strip a known BOM.
-    :type remove_bom: bool
+        :param remove_bom: Whether to strip a known BOM.
+        :type remove_bom: bool
 
-    :returns: str -- utf-8 decoded content of the file
-    :raises: ApiRequestError, FileNotUploadedError, FileNotDownloadableError
-    """
+        :returns: str -- utf-8 decoded content of the file
+        :raises: ApiRequestError, FileNotUploadedError, FileNotDownloadableError
+        """
         if (
             self.content is None
             or type(self.content) is not io.BytesIO
@@ -300,18 +300,18 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     ):
         """Save content of this file as a local file.
 
-    :param filename: name of the file to write to.
-    :type filename: str
-    :param mimetype: mimeType of the file.
-    :type mimetype: str
-    :param remove_bom: Whether to remove the byte order marking.
-    :type remove_bom: bool
-    :param callback: passed two arguments: (total transferred, file size).
-    :type param: callable
-    :param chunksize: chunksize in bytes (standard 100 MB(1024*1024*100))
-    :type chunksize: int
-    :raises: ApiRequestError, FileNotUploadedError
-    """
+        :param filename: name of the file to write to.
+        :type filename: str
+        :param mimetype: mimeType of the file.
+        :type mimetype: str
+        :param remove_bom: Whether to remove the byte order marking.
+        :type remove_bom: bool
+        :param callback: passed two arguments: (total transferred, file size).
+        :type param: callable
+        :param chunksize: chunksize in bytes (standard 100 MB(1024*1024*100))
+        :type chunksize: int
+        :raises: ApiRequestError, FileNotUploadedError
+        """
         files = self.auth.service.files()
         file_id = self.metadata.get("id") or self.get("id")
         if not file_id:
@@ -367,17 +367,17 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     ):
         """Get a file-like object which has a buffered read() method.
 
-    :param mimetype: mimeType of the file.
-    :type mimetype: str
-    :param encoding: The encoding to use when decoding the byte string.
-    :type encoding: str
-    :param remove_bom: Whether to remove the byte order marking.
-    :type remove_bom: bool
-    :param chunksize: default read()/iter() chunksize.
-    :type chunksize: int
-    :returns: MediaIoReadable -- file-like object.
-    :raises: ApiRequestError, FileNotUploadedError
-    """
+        :param mimetype: mimeType of the file.
+        :type mimetype: str
+        :param encoding: The encoding to use when decoding the byte string.
+        :type encoding: str
+        :param remove_bom: Whether to remove the byte order marking.
+        :type remove_bom: bool
+        :param chunksize: default read()/iter() chunksize.
+        :type chunksize: int
+        :returns: MediaIoReadable -- file-like object.
+        :raises: ApiRequestError, FileNotUploadedError
+        """
         files = self.auth.service.files()
         file_id = self.metadata.get("id") or self.get("id")
         if not file_id:
@@ -418,15 +418,15 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def FetchMetadata(self, fields=None, fetch_all=False):
         """Download file's metadata from id using Files.get().
 
-    :param fields: The fields to include, as one string, each entry separated
-                   by commas, e.g. 'fields,labels'.
-    :type fields: str
+        :param fields: The fields to include, as one string, each entry separated
+                       by commas, e.g. 'fields,labels'.
+        :type fields: str
 
-    :param fetch_all: Whether to fetch all fields.
-    :type fetch_all: bool
+        :param fetch_all: Whether to fetch all fields.
+        :type fetch_all: bool
 
-    :raises: ApiRequestError, FileNotUploadedError
-    """
+        :raises: ApiRequestError, FileNotUploadedError
+        """
         file_id = self.metadata.get("id") or self.get("id")
 
         if fetch_all:
@@ -456,8 +456,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def FetchContent(self, mimetype=None, remove_bom=False):
         """Download file's content from download_url.
 
-    :raises: ApiRequestError, FileNotUploadedError, FileNotDownloadableError
-    """
+        :raises: ApiRequestError, FileNotUploadedError, FileNotDownloadableError
+        """
         download_url = self.metadata.get("downloadUrl")
         export_links = self.metadata.get("exportLinks")
         if download_url:
@@ -484,10 +484,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def Upload(self, param=None):
         """Upload/update file by choosing the most efficient method.
 
-    :param param: additional parameter to upload file.
-    :type param: dict.
-    :raises: ApiRequestError
-    """
+        :param param: additional parameter to upload file.
+        :type param: dict.
+        :raises: ApiRequestError
+        """
         if self.uploaded or self.get("id") is not None:
             if self.dirty["content"]:
                 self._FilesUpdate(param=param)
@@ -499,41 +499,41 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def Trash(self, param=None):
         """Move a file to the trash.
 
-    :raises: ApiRequestError
-    """
+        :raises: ApiRequestError
+        """
         self._FilesTrash(param=param)
 
     def UnTrash(self, param=None):
         """Move a file out of the trash.
-    :param param: Additional parameter to file.
-    :type param: dict.
-    :raises: ApiRequestError
-    """
+        :param param: Additional parameter to file.
+        :type param: dict.
+        :raises: ApiRequestError
+        """
         self._FilesUnTrash(param=param)
 
     def Delete(self, param=None):
         """Hard-delete a file.
 
-    :param param: additional parameter to file.
-    :type param: dict.
-    :raises: ApiRequestError
-    """
+        :param param: additional parameter to file.
+        :type param: dict.
+        :raises: ApiRequestError
+        """
         self._FilesDelete(param=param)
 
     def InsertPermission(self, new_permission, param=None):
         """Insert a new permission. Re-fetches all permissions after call.
 
-    :param new_permission: The new permission to insert, please see the
-                           official Google Drive API guide on permissions.insert
-                           for details.
-    :type new_permission: object
+        :param new_permission: The new permission to insert, please see the
+                               official Google Drive API guide on permissions.insert
+                               for details.
+        :type new_permission: object
 
-    :param param: addition parameters to pass
-    :type param: dict
+        :param param: addition parameters to pass
+        :type param: dict
 
-    :return: The permission object.
-    :rtype: object
-    """
+        :return: The permission object.
+        :rtype: object
+        """
         if param is None:
             param = {}
         param["fileId"] = self.metadata.get("id") or self["id"]
@@ -558,12 +558,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def GetPermissions(self):
         """Get file's or shared drive's permissions.
 
-    For files in a shared drive, at most 100 results will be returned.
-    It doesn't paginate and collect all results.
+        For files in a shared drive, at most 100 results will be returned.
+        It doesn't paginate and collect all results.
 
-    :return: A list of the permission objects.
-    :rtype: object[]
-    """
+        :return: A list of the permission objects.
+        :rtype: object[]
+        """
         file_id = self.metadata.get("id") or self.get("id")
 
         # We can't do FetchMetada call (which would nicely update
@@ -588,19 +588,19 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def DeletePermission(self, permission_id):
         """Deletes the permission specified by the permission_id.
 
-    :param permission_id: The permission id.
-    :type permission_id: str
-    :return: True if it succeeds.
-    :rtype: bool
-    """
+        :param permission_id: The permission id.
+        :type permission_id: str
+        :return: True if it succeeds.
+        :rtype: bool
+        """
         return self._DeletePermission(permission_id)
 
     def _WrapRequest(self, request):
         """Replaces request.http with self.http.
 
-    Ensures thread safety. Similar to other places where we call
-    `.execute(http=self.http)` to pass a client from the thread local storage.
-    """
+        Ensures thread safety. Similar to other places where we call
+        `.execute(http=self.http)` to pass a client from the thread local storage.
+        """
         if self.http:
             request.http = self.http
         return request
@@ -609,10 +609,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def _FilesInsert(self, param=None):
         """Upload a new file using Files.insert().
 
-    :param param: additional parameter to upload file.
-    :type param: dict.
-    :raises: ApiRequestError
-    """
+        :param param: additional parameter to upload file.
+        :type param: dict.
+        :raises: ApiRequestError
+        """
         if param is None:
             param = {}
         param["body"] = self.GetChanges()
@@ -638,10 +638,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     @LoadAuth
     def _FilesUnTrash(self, param=None):
         """Un-delete (Trash) a file using Files.UnTrash().
-    :param param: additional parameter to file.
-    :type param: dict.
-    :raises: ApiRequestError
-    """
+        :param param: additional parameter to file.
+        :type param: dict.
+        :raises: ApiRequestError
+        """
         if param is None:
             param = {}
         param["fileId"] = self.metadata.get("id") or self["id"]
@@ -655,17 +655,17 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             raise ApiRequestError(error)
         else:
             if self.metadata:
-                self.metadata[u"labels"][u"trashed"] = False
+                self.metadata["labels"]["trashed"] = False
             return True
 
     @LoadAuth
     def _FilesTrash(self, param=None):
         """Soft-delete (Trash) a file using Files.Trash().
 
-    :param param: additional parameter to file.
-    :type param: dict.
-    :raises: ApiRequestError
-    """
+        :param param: additional parameter to file.
+        :type param: dict.
+        :raises: ApiRequestError
+        """
         if param is None:
             param = {}
         param["fileId"] = self.metadata.get("id") or self["id"]
@@ -679,18 +679,18 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             raise ApiRequestError(error)
         else:
             if self.metadata:
-                self.metadata[u"labels"][u"trashed"] = True
+                self.metadata["labels"]["trashed"] = True
             return True
 
     @LoadAuth
     def _FilesDelete(self, param=None):
         """Delete a file using Files.Delete()
-    (WARNING: deleting permanently deletes the file!)
+        (WARNING: deleting permanently deletes the file!)
 
-    :param param: additional parameter to file.
-    :type param: dict.
-    :raises: ApiRequestError
-    """
+        :param param: additional parameter to file.
+        :type param: dict.
+        :raises: ApiRequestError
+        """
         if param is None:
             param = {}
         param["fileId"] = self.metadata.get("id") or self["id"]
@@ -710,10 +710,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def _FilesUpdate(self, param=None):
         """Update metadata and/or content using Files.Update().
 
-    :param param: additional parameter to upload file.
-    :type param: dict.
-    :raises: ApiRequestError, FileNotUploadedError
-    """
+        :param param: additional parameter to upload file.
+        :type param: dict.
+        :raises: ApiRequestError, FileNotUploadedError
+        """
         if param is None:
             param = {}
         param["body"] = self.GetChanges()
@@ -742,10 +742,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def _FilesPatch(self, param=None):
         """Update metadata using Files.Patch().
 
-    :param param: additional parameter to upload file.
-    :type param: dict.
-    :raises: ApiRequestError, FileNotUploadedError
-    """
+        :param param: additional parameter to upload file.
+        :type param: dict.
+        :raises: ApiRequestError, FileNotUploadedError
+        """
         if param is None:
             param = {}
         param["body"] = self.GetChanges()
@@ -768,10 +768,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def _BuildMediaBody(self):
         """Build MediaIoBaseUpload to get prepared to upload content of the file.
 
-    Sets mimeType as 'application/octet-stream' if not specified.
+        Sets mimeType as 'application/octet-stream' if not specified.
 
-    :returns: MediaIoBaseUpload -- instance that will be used to upload content.
-    """
+        :returns: MediaIoBaseUpload -- instance that will be used to upload content.
+        """
         if self.get("mimeType") is None:
             self["mimeType"] = "application/octet-stream"
         return MediaIoBaseUpload(
@@ -782,11 +782,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def _DownloadFromUrl(self, url):
         """Download file from url using provided credential.
 
-    :param url: link of the file to download.
-    :type url: str.
-    :returns: str -- content of downloaded file in string.
-    :raises: ApiRequestError
-    """
+        :param url: link of the file to download.
+        :type url: str.
+        :returns: str -- content of downloaded file in string.
+        :raises: ApiRequestError
+        """
         resp, content = self.http.request(url)
         if resp.status != 200:
             raise ApiRequestError(errors.HttpError(resp, content, uri=url))
@@ -796,12 +796,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def _DeletePermission(self, permission_id):
         """Deletes the permission remotely, and from the file object itself.
 
-    :param permission_id: The ID of the permission.
-    :type permission_id: str
+        :param permission_id: The ID of the permission.
+        :type permission_id: str
 
-    :return: The permission
-    :rtype: object
-    """
+        :return: The permission
+        :rtype: object
+        """
         file_id = self.metadata.get("id") or self["id"]
         try:
             self.auth.service.permissions().delete(
@@ -832,13 +832,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     @staticmethod
     def _RemovePrefix(file_object, prefix, block_size=BLOCK_SIZE):
         """Deletes passed prefix by shifting content of passed file object by to
-    the left. Operation is in-place.
+        the left. Operation is in-place.
 
-    Args:
-      file_object (obj): The file object to manipulate.
-      prefix (str): The prefix to insert.
-      block_size (int): The size of the blocks which are moved one at a time.
-    """
+        Args:
+          file_object (obj): The file object to manipulate.
+          prefix (str): The prefix to insert.
+          block_size (int): The size of the blocks which are moved one at a time.
+        """
         prefix_length = len(prefix)
         # Detect if prefix exists in file.
         content_start = file_object.read(prefix_length)
@@ -872,12 +872,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     @staticmethod
     def _InsertPrefix(file_object, prefix, block_size=BLOCK_SIZE):
         """Inserts the passed prefix in the beginning of the file, operation is
-    in-place.
+        in-place.
 
-    Args:
-      file_object (obj): The file object to manipulate.
-      prefix (str): The prefix to insert.
-    """
+        Args:
+          file_object (obj): The file object to manipulate.
+          prefix (str): The prefix to insert.
+        """
         # Read the first two blocks.
         first_block = file_object.read(block_size)
         second_block = file_object.read(block_size)

@@ -29,9 +29,9 @@ from pydrive2.test.test_util import (
 
 class GoogleDriveFileTest(unittest.TestCase):
     """Tests basic file operations of files.GoogleDriveFile.
-  Upload and download of contents and metadata, and thread-safety checks.
-  Equivalent to Files.insert, Files.update, Files.patch in Google Drive API.
-  """
+    Upload and download of contents and metadata, and thread-safety checks.
+    Equivalent to Files.insert, Files.update, Files.patch in Google Drive API.
+    """
 
     @classmethod
     def setup_class(cls):
@@ -71,7 +71,7 @@ class GoogleDriveFileTest(unittest.TestCase):
     def test_02_Files_Insert_Unicode(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
-        filename = self.getTempFile(u"첫번째 파일")
+        filename = self.getTempFile("첫번째 파일")
         file1["title"] = filename
         pydrive_retry(file1.Upload)  # Files.insert
 
@@ -108,8 +108,8 @@ class GoogleDriveFileTest(unittest.TestCase):
     def test_04_Files_Insert_Content_Unicode_String(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
-        filename = self.getTempFile(u"두번째 파일")
-        content = u"안녕 세상아!"
+        filename = self.getTempFile("두번째 파일")
+        content = "안녕 세상아!"
         file1["title"] = filename
         file1.SetContentString(content)
         pydrive_retry(file1.Upload)  # Files.insert
@@ -341,18 +341,18 @@ class GoogleDriveFileTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
-        self.assertFalse(file1.metadata[u"labels"][u"trashed"])
+        self.assertFalse(file1.metadata["labels"]["trashed"])
 
         # Download to verify non-trashed state on GDrive.
         file2 = drive.CreateFile({"id": file1["id"]})
         pydrive_retry(file2.FetchMetadata)
-        self.assertFalse(file2.metadata[u"labels"][u"trashed"])
+        self.assertFalse(file2.metadata["labels"]["trashed"])
 
         pydrive_retry(file1.Trash)
-        self.assertTrue(file1.metadata[u"labels"][u"trashed"])
+        self.assertTrue(file1.metadata["labels"]["trashed"])
 
         pydrive_retry(file2.FetchMetadata)
-        self.assertTrue(file2.metadata[u"labels"][u"trashed"])
+        self.assertTrue(file2.metadata["labels"]["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -360,7 +360,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
-        self.assertFalse(file1.metadata[u"labels"][u"trashed"])
+        self.assertFalse(file1.metadata["labels"]["trashed"])
 
         # Trash file by ID.
         file2 = drive.CreateFile({"id": file1["id"]})
@@ -368,7 +368,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         # Verify trashed by downloading metadata.
         pydrive_retry(file1.FetchMetadata)
-        self.assertTrue(file1.metadata[u"labels"][u"trashed"])
+        self.assertTrue(file1.metadata["labels"]["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -377,20 +377,20 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
         pydrive_retry(file1.Trash)
-        self.assertTrue(file1.metadata[u"labels"][u"trashed"])
+        self.assertTrue(file1.metadata["labels"]["trashed"])
 
         # Verify that file is trashed by downloading metadata.
         file2 = drive.CreateFile({"id": file1["id"]})
         pydrive_retry(file2.FetchMetadata)
-        self.assertTrue(file2.metadata[u"labels"][u"trashed"])
+        self.assertTrue(file2.metadata["labels"]["trashed"])
 
         # Un-trash the file, and assert local metadata is updated correctly.
         pydrive_retry(file1.UnTrash)
-        self.assertFalse(file1.metadata[u"labels"][u"trashed"])
+        self.assertFalse(file1.metadata["labels"]["trashed"])
 
         # Re-fetch the metadata, and assert file un-trashed on GDrive.
         pydrive_retry(file2.FetchMetadata)
-        self.assertFalse(file2.metadata[u"labels"][u"trashed"])
+        self.assertFalse(file2.metadata["labels"]["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -399,13 +399,13 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
         pydrive_retry(file1.Trash)
-        self.assertTrue(file1.metadata[u"labels"][u"trashed"])
+        self.assertTrue(file1.metadata["labels"]["trashed"])
 
         file2 = drive.CreateFile({"id": file1["id"]})
         pydrive_retry(file2.UnTrash)  # UnTrash without fetching metadata.
 
         pydrive_retry(file1.FetchMetadata)
-        self.assertFalse(file1.metadata[u"labels"][u"trashed"])
+        self.assertFalse(file1.metadata["labels"]["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -654,7 +654,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
     def test_Gfile_Conversion_Add_Remove_BOM(self):
         """Tests whether you can switch between the BOM appended and removed
-    version on the fly."""
+        version on the fly."""
         (
             file1,
             file_name,
@@ -680,7 +680,7 @@ class GoogleDriveFileTest(unittest.TestCase):
                 mimetype="text/plain",
                 encoding="utf-8",
             )
-            buffer_bom = u"".join(iter(buffer_bom))
+            buffer_bom = "".join(iter(buffer_bom))
             self.assertEqual(content_bom, buffer_bom)
 
             buffer_no_bom = pydrive_retry(
@@ -689,7 +689,7 @@ class GoogleDriveFileTest(unittest.TestCase):
                 remove_bom=True,
                 encoding="utf-8",
             )
-            buffer_no_bom = u"".join(iter(buffer_no_bom))
+            buffer_no_bom = "".join(iter(buffer_no_bom))
             self.assertEqual(content_no_bom, buffer_no_bom)
 
         finally:
@@ -701,33 +701,33 @@ class GoogleDriveFileTest(unittest.TestCase):
         # Create BytesIO.
         file_obj = BytesIO("abc".encode("utf8"))
         original_length = len(file_obj.getvalue())
-        char_to_insert = u"\ufeff".encode("utf8")
+        char_to_insert = "\ufeff".encode("utf8")
 
         # Insert the prefix.
         GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
         modified_length = len(file_obj.getvalue())
         self.assertGreater(modified_length, original_length)
-        self.assertEqual(file_obj.getvalue(), u"\ufeffabc".encode("utf8"))
+        self.assertEqual(file_obj.getvalue(), "\ufeffabc".encode("utf8"))
 
     def test_InsertPrefixLarge(self):
         # Create BytesIO.
         test_content = "abc" * 800
         file_obj = BytesIO(test_content.encode("utf-8"))
         original_length = len(file_obj.getvalue())
-        char_to_insert = u"\ufeff".encode("utf8")
+        char_to_insert = "\ufeff".encode("utf8")
 
         # Insert the prefix.
         GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
         modified_length = len(file_obj.getvalue())
         self.assertGreater(modified_length, original_length)
-        expected_content = u"\ufeff" + test_content
+        expected_content = "\ufeff" + test_content
         self.assertEqual(file_obj.getvalue(), expected_content.encode("utf8"))
 
     def test_RemovePrefix(self):
         # Create BytesIO.
-        file_obj = BytesIO(u"\ufeffabc".encode("utf8"))
+        file_obj = BytesIO("\ufeffabc".encode("utf8"))
         original_length = len(file_obj.getvalue())
-        char_to_remove = u"\ufeff".encode("utf8")
+        char_to_remove = "\ufeff".encode("utf8")
 
         # Insert the prefix.
         GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)
@@ -737,10 +737,10 @@ class GoogleDriveFileTest(unittest.TestCase):
 
     def test_RemovePrefixLarge(self):
         # Create BytesIO.
-        test_content = u"\ufeff" + u"abc" * 800
+        test_content = "\ufeff" + "abc" * 800
         file_obj = BytesIO(test_content.encode("utf8"))
         original_length = len(file_obj.getvalue())
-        char_to_remove = u"\ufeff".encode("utf8")
+        char_to_remove = "\ufeff".encode("utf8")
 
         # Insert the prefix.
         GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)

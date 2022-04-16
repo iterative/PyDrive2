@@ -15,8 +15,8 @@ from pydrive2.test.test_util import (
 
 class GoogleDriveFileListTest(unittest.TestCase):
     """Tests operations of files.GoogleDriveFileList class.
-  Equivalent to Files.list in Google Drive API.
-  """
+    Equivalent to Files.list in Google Drive API.
+    """
 
     @classmethod
     def setup_class(cls):

@@ -7,9 +7,9 @@ class ApiAttribute(object):
     def __init__(self, name):
         """Create an instance of ApiAttribute.
 
-    :param name: name of this attribute.
-    :type name: str.
-    """
+        :param name: name of this attribute.
+        :type name: str.
+        """
         self.name = name
 
     def __get__(self, obj, type=None):
@@ -45,10 +45,10 @@ class ApiAttributeMixin(object):
 class ApiResource(dict):
     """Super class of all api resources.
 
-  Inherits and behaves as a python dictionary to handle api resources.
-  Save clean copy of metadata in self.metadata as a dictionary.
-  Provides changed metadata elements to efficiently update api resources.
-  """
+    Inherits and behaves as a python dictionary to handle api resources.
+    Save clean copy of metadata in self.metadata as a dictionary.
+    Provides changed metadata elements to efficiently update api resources.
+    """
 
     auth = ApiAttribute("auth")
 
@@ -61,19 +61,19 @@ class ApiResource(dict):
     def __getitem__(self, key):
         """Overwritten method of dictionary.
 
-    :param key: key of the query.
-    :type key: str.
-    :returns: value of the query.
-    """
+        :param key: key of the query.
+        :type key: str.
+        :returns: value of the query.
+        """
         return dict.__getitem__(self, key)
 
     def __setitem__(self, key, val):
         """Overwritten method of dictionary.
 
-    :param key: key of the query.
-    :type key: str.
-    :param val: value of the query.
-    """
+        :param key: key of the query.
+        :type key: str.
+        :param val: value of the query.
+        """
         dict.__setitem__(self, key, val)
 
     def __repr__(self):
@@ -95,8 +95,8 @@ class ApiResource(dict):
     def GetChanges(self):
         """Returns changed metadata elements to update api resources efficiently.
 
-    :returns: dict -- changed metadata elements.
-    """
+        :returns: dict -- changed metadata elements.
+        """
         dirty = {}
         for key in self:
             if self.metadata.get(key) is None:
@@ -109,19 +109,19 @@ class ApiResource(dict):
 class ApiResourceList(ApiAttributeMixin, ApiResource, Iterator):
     """Abstract class of all api list resources.
 
-  Inherits ApiResource and builds iterator to list any API resource.
-  """
+    Inherits ApiResource and builds iterator to list any API resource.
+    """
 
     metadata = ApiAttribute("metadata")
 
     def __init__(self, auth=None, metadata=None):
         """Create an instance of ApiResourceList.
 
-    :param auth: authorized GoogleAuth instance.
-    :type auth: GoogleAuth.
-    :param metadata: parameter to send to list command.
-    :type metadata: dict.
-    """
+        :param auth: authorized GoogleAuth instance.
+        :type auth: GoogleAuth.
+        :param metadata: parameter to send to list command.
+        :type metadata: dict.
+        """
         ApiAttributeMixin.__init__(self)
         ApiResource.__init__(self)
         self.auth = auth
@@ -132,19 +132,19 @@ class ApiResourceList(ApiAttributeMixin, ApiResource, Iterator):
     def __iter__(self):
         """Returns iterator object.
 
-    :returns: ApiResourceList -- self
-    """
+        :returns: ApiResourceList -- self
+        """
         return self
 
     def __next__(self):
         """Make API call to list resources and return them.
 
-    Auto updates 'pageToken' every time it makes API call and
-    raises StopIteration when it reached the end of iteration.
+        Auto updates 'pageToken' every time it makes API call and
+        raises StopIteration when it reached the end of iteration.
 
-    :returns: list -- list of API resources.
-    :raises: StopIteration
-    """
+        :returns: list -- list of API resources.
+        :raises: StopIteration
+        """
         if "pageToken" in self and self["pageToken"] is None:
             raise StopIteration
         result = self._GetList()
@@ -154,12 +154,12 @@ class ApiResourceList(ApiAttributeMixin, ApiResource, Iterator):
     def GetList(self):
         """Get list of API resources.
 
-    If 'maxResults' is not specified, it will automatically iterate through
-    every resources available. Otherwise, it will make API call once and
-    update 'pageToken'.
+        If 'maxResults' is not specified, it will automatically iterate through
+        every resources available. Otherwise, it will make API call once and
+        update 'pageToken'.
 
-    :returns: list -- list of API resources.
-    """
+        :returns: list -- list of API resources.
+        """
         if self.get("maxResults") is None:
             self["maxResults"] = 1000
             result = []
@@ -173,10 +173,10 @@ class ApiResourceList(ApiAttributeMixin, ApiResource, Iterator):
     def _GetList(self):
         """Helper function which actually makes API call.
 
-    Should be overwritten.
+        Should be overwritten.
 
-    :raises: NotImplementedError
-    """
+        :raises: NotImplementedError
+        """
         raise NotImplementedError
 
     def Reset(self):

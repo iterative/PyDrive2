@@ -10,8 +10,7 @@ from pydrive2.test.test_util import (
 
 
 class ApiAttributeTest(unittest.TestCase):
-    """Test ApiAttr functions.
-    """
+    """Test ApiAttr functions."""
 
     @classmethod
     def setup_class(cls):
