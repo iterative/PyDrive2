@@ -1,0 +1,10 @@
+client_config_backend: service
+service_config:
+  client_json_file_path: /tmp/pydrive2/credentials.json
+
+save_credentials: True
+save_credentials_backend: file
+save_credentials_file: credentials/9.dat
+
+oauth_scope:
+  - https://www.googleapis.com/auth/drive

@@ -8,6 +8,7 @@ from pydrive2.test.test_util import (
     delete_file,
     settings_file_path,
 )
+from oauth2client.file import Storage
 
 
 def setup_module(module):
@@ -97,6 +98,31 @@ def test_07_ServiceAuthFromSavedCredentialsJsonFile():
     ga.ServiceAuth()
     assert not ga.access_token_expired
     time.sleep(1)
+
+
+def test_08_ServiceAuthFromJsonFileNoCredentialsSaving():
+    # Test that no credentials are saved and API is still functional
+    # We are testing that there are no exceptions at least
+    ga = GoogleAuth(settings_file_path("test_oauth_test_08.yaml"))
+    assert not ga.settings["save_credentials"]
+    ga.ServiceAuth()
+    time.sleep(1)
+
+
+def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
+    # Test fix for https://github.com/iterative/PyDrive2/issues/163
+    # Make sure that Load and Save credentials by default reuse the
+    # same Storage (since it defined lock which make it TS)
+    ga = GoogleAuth(settings_file_path("test_oauth_test_09.yaml"))
+    credentials_file = ga.settings["save_credentials_file"]
+    # Delete old credentials file
+    delete_file(credentials_file)
+    assert not os.path.exists(credentials_file)
+    spy = mocker.spy(Storage, "__init__")
+    ga.ServiceAuth()
+    ga.LoadCredentials()
+    ga.SaveCredentials()
+    assert spy.call_count == 0
 
 
 def CheckCredentialsFile(credentials, no_file=False):
