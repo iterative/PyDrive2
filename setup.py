@@ -8,6 +8,7 @@ tests_requirements = [
     "funcy>=1.14",
     "flake8",
     "flake8-docstrings",
+    "pytest-mock",
 ]
 
 if sys.version_info >= (3, 6):
