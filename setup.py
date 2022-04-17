@@ -11,7 +11,7 @@ tests_requirements = [
 ]
 
 if sys.version_info >= (3, 6):
-    tests_requirements.append("black==19.10b0")
+    tests_requirements.append("black==22.3.0")
 
 setup(
     name="PyDrive2",
