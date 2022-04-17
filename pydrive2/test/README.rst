@@ -22,15 +22,10 @@ Run tests locally
       sidebar, and select **Service Accounts**. Click **+ CREATE SERVICE
       ACCOUNT**, on the next screen, enter **Service account name** e.g. "PyDrive
       tests", and click **Create**. Select **Continue** at the next **Service
-      account permissions** page, click at **+ CREATE KEY**, select **P12** and
-      **Create**. Save generated :code:`.p12` key file at your local disk.
-    - Copy downloaded :code:`p.12` file to :code:`pydrive2/test` directory.
-      Edit files :code:`pydrive2/test/settings/local/default.yaml` and
-      :code:`pydrive2/test/settings/local/test_oauth_test_06.yaml` by replacing
-      **your-service-account-email** with email of your new created service account
-      and by replacing **your-file-path.p12** with name of copied :code:`.p12` key
-      file, for example :code:`pydrive-test-270414-581c887879a3.p12`. Value for
-      **client_user_email** should be left blank.
+      account permissions** page, click at **+ CREATE KEY**, select **JSON** and
+      **Create**. Save generated :code:`.json` key file at your local disk.
+    - Copy downloaded :code:`json` file to :code:`/tmp/pydrive2/credentials.json`
+      directory.
 
 3. Optional. If you would like to use your own an OAuth client ID follow the steps:
     - Under `Google API Console <https://console.developers.google.com>`_ select
@@ -63,7 +58,7 @@ Run tests locally
 
 ::
 
-    pip install -e .[tests]
+    pip install -e .[tests,fsspec]
 
 
 5. Run tests:
