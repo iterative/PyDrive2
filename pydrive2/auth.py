@@ -103,6 +103,7 @@ def CheckServiceAuth(decoratee):
         elif self.access_token_expired:
             self.Refresh()
             dirty = True
+        self.credentials.set_store(self._default_storage)
         if dirty and save_credentials:
             self.SaveCredentials()
 
@@ -133,6 +134,7 @@ def CheckAuth(decoratee):
                 dirty = True
         if code is not None:
             self.Auth(code)
+        self.credentials.set_store(self._default_storage)
         if dirty and save_credentials:
             self.SaveCredentials()
 
@@ -192,6 +194,9 @@ class GoogleAuth(ApiAttributeMixin, object):
                 self.settings = self.DEFAULT_SETTINGS
             else:
                 ValidateSettings(self.settings)
+        self._storages = self._InitializeStoragesFromSettings()
+        # Only one (`file`) backend is supported now
+        self._default_storage = self._storages["file"]
 
     @property
     def access_token_expired(self):
@@ -321,6 +326,23 @@ class GoogleAuth(ApiAttributeMixin, object):
                 sub=user_email
             )
 
+    def _InitializeStoragesFromSettings(self):
+        result = {"file": None}
+        backend = self.settings.get("save_credentials_backend")
+        save_credentials = self.settings.get("save_credentials")
+        if backend == "file":
+            credentials_file = self.settings.get("save_credentials_file")
+            if credentials_file is None:
+                raise InvalidConfigError(
+                    "Please specify credentials file to read"
+                )
+            result[backend] = Storage(credentials_file)
+        elif save_credentials:
+            raise InvalidConfigError(
+                "Unknown save_credentials_backend: %s" % backend
+            )
+        return result
+
     def LoadCredentials(self, backend=None):
         """Loads credentials or create empty credentials if it doesn't exist.
 
@@ -347,18 +369,25 @@ class GoogleAuth(ApiAttributeMixin, object):
         :raises: InvalidConfigError, InvalidCredentialsError
         """
         if credentials_file is None:
-            credentials_file = self.settings.get("save_credentials_file")
-            if credentials_file is None:
+            self._default_storage = self._storages["file"]
+            if self._default_storage is None:
                 raise InvalidConfigError(
-                    "Please specify credentials file to read"
+                    "Backend `file` is not configured, specify "
+                    "credentials file to read in the settings "
+                    "file or pass an explicit value"
                 )
+        else:
+            self._default_storage = Storage(credentials_file)
+
         try:
-            storage = Storage(credentials_file)
-            self.credentials = storage.get()
+            self.credentials = self._default_storage.get()
         except IOError:
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
             )
+
+        if self.credentials:
+            self.credentials.set_store(self._default_storage)
 
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
@@ -388,16 +417,20 @@ class GoogleAuth(ApiAttributeMixin, object):
         """
         if self.credentials is None:
             raise InvalidCredentialsError("No credentials to save")
+
         if credentials_file is None:
-            credentials_file = self.settings.get("save_credentials_file")
-            if credentials_file is None:
+            storage = self._storages["file"]
+            if storage is None:
                 raise InvalidConfigError(
-                    "Please specify credentials file to read"
+                    "Backend `file` is not configured, specify "
+                    "credentials file to read in the settings "
+                    "file or pass an explicit value"
                 )
-        try:
+        else:
             storage = Storage(credentials_file)
+
+        try:
             storage.put(self.credentials)
-            self.credentials.set_store(storage)
         except IOError:
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
