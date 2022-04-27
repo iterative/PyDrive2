@@ -103,9 +103,9 @@ def LoadSettingsFile(filename=SETTINGS_FILE):
     :raises: SettingsError
     """
     try:
-        with open(filename, "r") as stream:
+        with open(filename) as stream:
             data = load(stream, Loader=Loader)
-    except (YAMLError, IOError) as e:
+    except (YAMLError, OSError) as e:
         raise SettingsError(e)
     return data
 
@@ -158,9 +158,7 @@ def _ValidateSettingsElement(data, struct, key):
             data[key] = default
     # If data exists, Check type of the data
     elif type(value) is not data_type:
-        raise InvalidConfigError(
-            "Setting %s should be type %s" % (key, data_type)
-        )
+        raise InvalidConfigError(f"Setting {key} should be type {data_type}")
     # If type of this data is dict, check if structure of the data is valid.
     if data_type is dict:
         _ValidateSettingsStruct(data[key], struct[key]["struct"])

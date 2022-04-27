@@ -1,7 +1,4 @@
-from six import Iterator, iteritems
-
-
-class ApiAttribute(object):
+class ApiAttribute:
     """A data descriptor that sets and returns values."""
 
     def __init__(self, name):
@@ -32,7 +29,7 @@ class ApiAttribute(object):
             del obj.dirty[self.name]
 
 
-class ApiAttributeMixin(object):
+class ApiAttributeMixin:
     """Mixin to initialize required global variables to use ApiAttribute."""
 
     def __init__(self):
@@ -54,7 +51,7 @@ class ApiResource(dict):
 
     def __init__(self, *args, **kwargs):
         """Create an instance of ApiResource."""
-        super(ApiResource, self).__init__()
+        super().__init__()
         self.update(*args, **kwargs)
         self.metadata = dict(self)
 
@@ -79,11 +76,11 @@ class ApiResource(dict):
     def __repr__(self):
         """Overwritten method of dictionary."""
         dict_representation = dict.__repr__(self)
-        return "%s(%s)" % (type(self).__name__, dict_representation)
+        return f"{type(self).__name__}({dict_representation})"
 
     def update(self, *args, **kwargs):
         """Overwritten method of dictionary."""
-        for k, v in iteritems(dict(*args, **kwargs)):
+        for k, v in dict(*args, **kwargs).items():
             self[k] = v
 
     def UpdateMetadata(self, metadata=None):
@@ -106,7 +103,7 @@ class ApiResource(dict):
         return dirty
 
 
-class ApiResourceList(ApiAttributeMixin, ApiResource, Iterator):
+class ApiResourceList(ApiAttributeMixin, ApiResource):
     """Abstract class of all api list resources.
 
     Inherits ApiResource and builds iterator to list any API resource.

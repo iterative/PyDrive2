@@ -1,8 +1,6 @@
-import socket
 import webbrowser
 import httplib2
 import oauth2client.clientsecrets as clientsecrets
-from six.moves import input
 import threading
 
 from googleapiclient.discovery import build
@@ -141,7 +139,7 @@ def CheckAuth(decoratee):
     return _decorated
 
 
-class GoogleAuth(ApiAttributeMixin, object):
+class GoogleAuth(ApiAttributeMixin):
     """Wrapper class for oauth2client library in google-api-python-client.
 
     Loads all settings and credentials from one 'settings.yaml' file
@@ -241,13 +239,13 @@ class GoogleAuth(ApiAttributeMixin, object):
                 httpd = ClientRedirectServer(
                     (host_name, port), ClientRedirectHandler
                 )
-            except socket.error:
+            except OSError:
                 pass
             else:
                 success = True
                 break
         if success:
-            oauth_callback = "http://%s:%s/" % (host_name, port_number)
+            oauth_callback = f"http://{host_name}:{port_number}/"
         else:
             print(
                 "Failed to start a local web server. Please check your firewall"
@@ -381,7 +379,7 @@ class GoogleAuth(ApiAttributeMixin, object):
 
         try:
             self.credentials = self._default_storage.get()
-        except IOError:
+        except OSError:
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
             )
@@ -431,7 +429,7 @@ class GoogleAuth(ApiAttributeMixin, object):
 
         try:
             storage.put(self.credentials)
-        except IOError:
+        except OSError:
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
             )
@@ -538,7 +536,7 @@ class GoogleAuth(ApiAttributeMixin, object):
                 ]
             except KeyError:
                 err = "Insufficient service config in settings"
-                err += "\n\nMissing: {} key.".format(config)
+                err += f"\n\nMissing: {config} key."
                 raise InvalidConfigError(err)
 
     def LoadClientConfigSettings(self):

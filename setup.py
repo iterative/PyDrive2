@@ -1,4 +1,3 @@
-import sys
 from setuptools import setup
 
 # Extra dependecies to run tests
@@ -11,8 +10,7 @@ tests_requirements = [
     "pytest-mock",
 ]
 
-if sys.version_info >= (3, 6):
-    tests_requirements.append("black==22.3.0")
+tests_requirements.append("black==22.3.0")
 
 setup(
     name="PyDrive2",

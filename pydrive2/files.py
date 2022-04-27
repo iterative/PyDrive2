@@ -17,9 +17,7 @@ from .auth import LoadAuth
 BLOCK_SIZE = 1024
 # Usage: MIME_TYPE_TO_BOM['<Google Drive mime type>']['<download mimetype>'].
 MIME_TYPE_TO_BOM = {
-    "application/vnd.google-apps.document": {
-        "text/plain": "\ufeff".encode("utf8")
-    }
+    "application/vnd.google-apps.document": {"text/plain": "\ufeff".encode()}
 }
 
 
@@ -68,7 +66,7 @@ class GoogleDriveFileList(ApiResourceList):
 
     def __init__(self, auth=None, param=None):
         """Create an instance of GoogleDriveFileList."""
-        super(GoogleDriveFileList, self).__init__(auth=auth, metadata=param)
+        super().__init__(auth=auth, metadata=param)
 
     @LoadAuth
     def _GetList(self):
@@ -98,7 +96,7 @@ class GoogleDriveFileList(ApiResourceList):
         return result
 
 
-class IoBuffer(object):
+class IoBuffer:
     """Lightweight retention of one chunk."""
 
     def __init__(self, encoding):
@@ -116,7 +114,7 @@ class IoBuffer(object):
         )
 
 
-class MediaIoReadable(object):
+class MediaIoReadable:
     def __init__(
         self,
         request,

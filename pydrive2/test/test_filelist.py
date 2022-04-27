@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import os
 import unittest
 
@@ -28,7 +27,7 @@ class GoogleDriveFileListTest(unittest.TestCase):
 
     def test_01_Files_List_GetList(self):
         drive = GoogleDrive(self.ga)
-        query = "title = '{}' and trashed = false".format(self.title)
+        query = f"title = '{self.title}' and trashed = false"
         for file1 in pydrive_list_item(drive, query):
             found = False
             for file2 in pydrive_list_item(drive, query):
@@ -38,7 +37,7 @@ class GoogleDriveFileListTest(unittest.TestCase):
 
     def test_02_Files_List_ForLoop(self):
         drive = GoogleDrive(self.ga)
-        query = "title = '{}' and trashed = false".format(self.title)
+        query = f"title = '{self.title}' and trashed = false"
         files = []
         for x in pydrive_list_item(
             drive, query, 2
@@ -84,7 +83,7 @@ class GoogleDriveFileListTest(unittest.TestCase):
         )
         pydrive_retry(folder1.Upload)
         self.file_list.append(folder1)
-        query = "title = '{}' and trashed = false".format(self.title)
+        query = f"title = '{self.title}' and trashed = false"
         count = 0
         for file1 in pydrive_list_item(drive, query):
             self.assertFileInFileList(file1)
