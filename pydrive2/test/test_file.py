@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import filecmp
 import os
 import unittest
@@ -8,7 +7,6 @@ from io import BytesIO
 from tempfile import mkdtemp
 from time import time
 
-from six.moves import range
 import timeout_decorator
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from googleapiclient import errors
@@ -699,22 +697,22 @@ class GoogleDriveFileTest(unittest.TestCase):
 
     def test_InsertPrefix(self):
         # Create BytesIO.
-        file_obj = BytesIO("abc".encode("utf8"))
+        file_obj = BytesIO(b"abc")
         original_length = len(file_obj.getvalue())
-        char_to_insert = "\ufeff".encode("utf8")
+        char_to_insert = "\ufeff".encode()
 
         # Insert the prefix.
         GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
         modified_length = len(file_obj.getvalue())
         self.assertGreater(modified_length, original_length)
-        self.assertEqual(file_obj.getvalue(), "\ufeffabc".encode("utf8"))
+        self.assertEqual(file_obj.getvalue(), "\ufeffabc".encode())
 
     def test_InsertPrefixLarge(self):
         # Create BytesIO.
         test_content = "abc" * 800
         file_obj = BytesIO(test_content.encode("utf-8"))
         original_length = len(file_obj.getvalue())
-        char_to_insert = "\ufeff".encode("utf8")
+        char_to_insert = "\ufeff".encode()
 
         # Insert the prefix.
         GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
@@ -725,22 +723,22 @@ class GoogleDriveFileTest(unittest.TestCase):
 
     def test_RemovePrefix(self):
         # Create BytesIO.
-        file_obj = BytesIO("\ufeffabc".encode("utf8"))
+        file_obj = BytesIO("\ufeffabc".encode())
         original_length = len(file_obj.getvalue())
-        char_to_remove = "\ufeff".encode("utf8")
+        char_to_remove = "\ufeff".encode()
 
         # Insert the prefix.
         GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)
         modified_length = len(file_obj.getvalue())
         self.assertLess(modified_length, original_length)
-        self.assertEqual(file_obj.getvalue(), "abc".encode("utf8"))
+        self.assertEqual(file_obj.getvalue(), b"abc")
 
     def test_RemovePrefixLarge(self):
         # Create BytesIO.
         test_content = "\ufeff" + "abc" * 800
         file_obj = BytesIO(test_content.encode("utf8"))
         original_length = len(file_obj.getvalue())
-        char_to_remove = "\ufeff".encode("utf8")
+        char_to_remove = "\ufeff".encode()
 
         # Insert the prefix.
         GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)

@@ -4,7 +4,7 @@ from .files import GoogleDriveFileList
 from .auth import LoadAuth
 
 
-class GoogleDrive(ApiAttributeMixin, object):
+class GoogleDrive(ApiAttributeMixin):
     """Main Google Drive class."""
 
     def __init__(self, auth=None):
