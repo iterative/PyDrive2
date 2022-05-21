@@ -282,13 +282,17 @@ class GoogleAuth(ApiAttributeMixin):
 
         :returns: str -- code returned from commandline.
         """
-        self.flow.redirect_uri = OOB_CALLBACK_URN
-        authorize_url = self.GetAuthUrl()
-        print("Go to the following link in your browser:")
-        print()
-        print("    " + authorize_url)
-        print()
-        return input("Enter verification code: ").strip()
+        from warnings import warn
+
+        warn(
+            (
+                "The command line auth has been deprecated. "
+                "The recommended alternative is to use local webserver auth with a loopback address."
+            ),
+            DeprecationWarning,
+        )
+
+        self.LocalWebserverAuth()
 
     @CheckServiceAuth
     def ServiceAuth(self):
