@@ -188,6 +188,7 @@ class GoogleAuth(ApiAttributeMixin):
                 self.settings = self.DEFAULT_SETTINGS
             else:
                 ValidateSettings(self.settings)
+        self.LoadClientConfig()
         self._storages = self._InitializeStoragesFromSettings()
         # Only one (`file`) backend is supported now
         self._default_storage = self._storages["file"]
@@ -522,10 +523,7 @@ class GoogleAuth(ApiAttributeMixin):
 
         :raises: InvalidConfigError
         """
-        if not all(
-            config in self.client_config for config in self.CLIENT_CONFIGS_LIST
-        ):
-            self.LoadClientConfig()
+
         constructor_kwargs = {
             "redirect_uri": self.client_config["redirect_uri"],
             "auth_uri": self.client_config["auth_uri"],
