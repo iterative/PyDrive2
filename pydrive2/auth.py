@@ -479,14 +479,6 @@ class GoogleAuth(ApiAttributeMixin):
         self.client_config = checked_config
         self.client_type = client_type
 
-        # Service auth related fields.
-        service_auth_config = ["client_email"]
-        try:
-            for config in service_auth_config:
-                self.client_config[config] = client_info[config]
-        except KeyError:
-            pass  # The service auth fields are not present, handling code can go here.
-
     def LoadServiceConfigSettings(self):
         """Loads client configuration from settings file.
         :raises: InvalidConfigError
