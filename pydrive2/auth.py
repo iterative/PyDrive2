@@ -21,6 +21,9 @@ from .settings import ValidateSettings
 from .settings import SettingsError
 from .settings import InvalidConfigError
 
+from .auth_helpers import verify_client_config
+import json
+
 
 class AuthError(Exception):
     """Base error for authentication/authorization errors."""
@@ -153,14 +156,7 @@ class GoogleAuth(ApiAttributeMixin):
         "save_credentials": False,
         "oauth_scope": ["https://www.googleapis.com/auth/drive"],
     }
-    CLIENT_CONFIGS_LIST = [
-        "client_id",
-        "client_secret",
-        "auth_uri",
-        "token_uri",
-        "revoke_uri",
-        "redirect_uri",
-    ]
+
     SERVICE_CONFIGS_LIST = ["client_user_email"]
     settings = ApiAttribute("settings")
     client_config = ApiAttribute("client_config")
@@ -470,37 +466,18 @@ class GoogleAuth(ApiAttributeMixin):
         """
         if client_config_file is None:
             client_config_file = self.settings["client_config_file"]
-        try:
-            client_type, client_info = clientsecrets.loadfile(
-                client_config_file
-            )
-        except clientsecrets.InvalidClientSecretsError as error:
-            raise InvalidConfigError("Invalid client secrets file %s" % error)
-        if client_type not in (
-            clientsecrets.TYPE_WEB,
-            clientsecrets.TYPE_INSTALLED,
-        ):
-            raise InvalidConfigError(
-                "Unknown client_type of client config file"
-            )
 
-        # General settings.
-        try:
-            config_index = [
-                "client_id",
-                "client_secret",
-                "auth_uri",
-                "token_uri",
-            ]
-            for config in config_index:
-                self.client_config[config] = client_info[config]
+        with open(client_config_file, "r") as json_file:
+            client_config = json.load(json_file)
 
-            self.client_config["revoke_uri"] = client_info.get("revoke_uri")
-            self.client_config["redirect_uri"] = client_info["redirect_uris"][
-                0
-            ]
-        except KeyError:
-            raise InvalidConfigError("Insufficient client config in file")
+        try:
+            # check the format of the loaded client config
+            client_type, checked_config = verify_client_config(client_config)
+        except ValueError as e:
+            raise InvalidConfigError("Invalid client secrets file: %s" % e)
+
+        self.client_config = checked_config
+        self.client_type = client_type
 
         # Service auth related fields.
         service_auth_config = ["client_email"]
@@ -514,45 +491,39 @@ class GoogleAuth(ApiAttributeMixin):
         """Loads client configuration from settings file.
         :raises: InvalidConfigError
         """
-        for file_format in ["json", "pkcs12"]:
-            config = f"client_{file_format}_file_path"
-            value = self.settings["service_config"].get(config)
-            if value:
-                self.client_config[config] = value
-                break
-        else:
-            raise InvalidConfigError(
-                "Either json or pkcs12 file path required "
-                "for service authentication"
+        service_config = self.settings["service_config"]
+
+        # see https://github.com/googleapis/google-auth-library-python/issues/288
+        if "client_pkcs12_file_path" in service_config:
+            raise DeprecationWarning(
+                "PKCS#12 files are no longer supported in the new google.auth library. "
+                "Please download a new json service credential file from google cloud console. "
+                "For more info, visit https://github.com/googleapis/google-auth-library-python/issues/288"
             )
 
-        if file_format == "pkcs12":
-            self.SERVICE_CONFIGS_LIST.append("client_service_email")
-
-        for config in self.SERVICE_CONFIGS_LIST:
-            try:
-                self.client_config[config] = self.settings["service_config"][
-                    config
-                ]
-            except KeyError:
-                err = "Insufficient service config in settings"
-                err += f"\n\nMissing: {config} key."
-                raise InvalidConfigError(err)
+        self.client_config = service_config
 
     def LoadClientConfigSettings(self):
         """Loads client configuration from settings file.
 
         :raises: InvalidConfigError
         """
-        for config in self.CLIENT_CONFIGS_LIST:
-            try:
-                self.client_config[config] = self.settings["client_config"][
-                    config
-                ]
-            except KeyError:
-                raise InvalidConfigError(
-                    "Insufficient client config in settings"
-                )
+
+        try:
+            client_config = self.settings["client_config"]
+            _, checked_config = verify_client_config(
+                client_config, with_client_type=False
+            )
+        except KeyError as e:
+            raise InvalidConfigError(
+                "Settings does not contain 'client_config'"
+            )
+        except ValueError as e:
+            raise InvalidConfigError("Invalid client secrets file: %s" % e)
+
+        # assumed to be Installed App Flow as the Local Server Auth is appropriate for this type of device
+        self.client_config = checked_config
+        self.client_type = "installed"
 
     def GetFlow(self):
         """Gets Flow object from client configuration.
