@@ -1,0 +1,5 @@
+client_config_backend: service
+service_config:
+  use_default: True
+oauth_scope:
+  - https://www.googleapis.com/auth/drive
