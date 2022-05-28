@@ -22,6 +22,7 @@ def test_01_LocalWebserverAuthWithClientConfigFromFile():
     # Test if authentication works with config read from file
     ga = GoogleAuth(settings_file_path("test_oauth_test_01.yaml"))
     ga.LocalWebserverAuth()
+    assert ga.credentials
     assert not ga.access_token_expired
     # Test if correct credentials file is created
     CheckCredentialsFile("credentials/1.dat")
@@ -35,6 +36,7 @@ def test_02_LocalWebserverAuthWithClientConfigFromSettings():
     # Test if authentication works with config read from settings
     ga = GoogleAuth(settings_file_path("test_oauth_test_02.yaml"))
     ga.LocalWebserverAuth()
+    assert ga.credentials
     assert not ga.access_token_expired
     # Test if correct credentials file is created
     CheckCredentialsFile("credentials/2.dat")
@@ -48,6 +50,7 @@ def test_03_LocalWebServerAuthWithNoCredentialsSaving():
     ga = GoogleAuth(settings_file_path("test_oauth_test_03.yaml"))
     assert not ga.settings["save_credentials"]
     ga.LocalWebserverAuth()
+    assert ga.credentials
     assert not ga.access_token_expired
     time.sleep(1)
 
@@ -59,6 +62,7 @@ def test_04_CommandLineAuthWithClientConfigFromFile():
     # Test if authentication works with config read from file
     ga = GoogleAuth(settings_file_path("test_oauth_test_04.yaml"))
     ga.CommandLineAuth()
+    assert ga.credentials
     assert not ga.access_token_expired
     # Test if correct credentials file is created
     CheckCredentialsFile("credentials/4.dat")
@@ -70,6 +74,7 @@ def test_05_ConfigFromSettingsWithoutOauthScope():
     # Test if authentication works without oauth_scope
     ga = GoogleAuth(settings_file_path("test_oauth_test_05.yaml"))
     ga.LocalWebserverAuth()
+    assert ga.credentials
     assert not ga.access_token_expired
     time.sleep(1)
 
@@ -79,6 +84,7 @@ def test_06_ServiceAuthFromSavedCredentialsP12File():
     setup_credentials("credentials/6.dat")
     ga = GoogleAuth(settings_file_path("test_oauth_test_06.yaml"))
     ga.ServiceAuth()
+    assert ga.credentials
     assert not ga.access_token_expired
     time.sleep(1)
 
@@ -91,12 +97,9 @@ def test_07_ServiceAuthFromSavedCredentialsJsonFile():
     delete_file(credentials_file)
     assert not os.path.exists(credentials_file)
     ga.ServiceAuth()
-    assert os.path.exists(credentials_file)
-    # Secondary auth should be made only using the previously saved
-    # login info
     ga = GoogleAuth(settings_file_path("test_oauth_test_07.yaml"))
     ga.ServiceAuth()
-    assert not ga.access_token_expired
+    assert ga.credentials
     time.sleep(1)
 
 
@@ -120,8 +123,6 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
     assert not os.path.exists(credentials_file)
     spy = mocker.spy(Storage, "__init__")
     ga.ServiceAuth()
-    ga.LoadCredentials()
-    ga.SaveCredentials()
     assert spy.call_count == 0
 
 
