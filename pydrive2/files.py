@@ -12,7 +12,6 @@ from .apiattr import ApiAttribute
 from .apiattr import ApiAttributeMixin
 from .apiattr import ApiResource
 from .apiattr import ApiResourceList
-from .auth import LoadAuth
 
 BLOCK_SIZE = 1024
 # Usage: MIME_TYPE_TO_BOM['<Google Drive mime type>']['<download mimetype>'].
@@ -68,7 +67,6 @@ class GoogleDriveFileList(ApiResourceList):
         """Create an instance of GoogleDriveFileList."""
         super().__init__(auth=auth, metadata=param)
 
-    @LoadAuth
     def _GetList(self):
         """Overwritten method which actually makes API call to list files.
 
@@ -287,7 +285,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.FetchContent(mimetype, remove_bom)
         return self.content.getvalue().decode(encoding)
 
-    @LoadAuth
     def GetContentFile(
         self,
         filename,
@@ -355,7 +352,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 if bom:
                     self._RemovePrefix(fd, bom)
 
-    @LoadAuth
     def GetContentIOBuffer(
         self,
         mimetype=None,
@@ -412,7 +408,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 chunksize=chunksize,
             )
 
-    @LoadAuth
     def FetchMetadata(self, fields=None, fetch_all=False):
         """Download file's metadata from id using Files.get().
 
@@ -552,7 +547,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         return permission
 
-    @LoadAuth
     def GetPermissions(self):
         """Get file's or shared drive's permissions.
 
@@ -603,7 +597,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             request.http = self.auth.Get_Http_Object()
         return request
 
-    @LoadAuth
     def _FilesInsert(self, param=None):
         """Upload a new file using Files.insert().
 
@@ -633,7 +626,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.dirty["content"] = False
             self.UpdateMetadata(metadata)
 
-    @LoadAuth
     def _FilesUnTrash(self, param=None):
         """Un-delete (Trash) a file using Files.UnTrash().
         :param param: additional parameter to file.
@@ -658,7 +650,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 self.metadata["labels"]["trashed"] = False
             return True
 
-    @LoadAuth
     def _FilesTrash(self, param=None):
         """Soft-delete (Trash) a file using Files.Trash().
 
@@ -684,7 +675,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 self.metadata["labels"]["trashed"] = True
             return True
 
-    @LoadAuth
     def _FilesDelete(self, param=None):
         """Delete a file using Files.Delete()
         (WARNING: deleting permanently deletes the file!)
@@ -709,7 +699,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         else:
             return True
 
-    @LoadAuth
     @LoadMetadata
     def _FilesUpdate(self, param=None):
         """Update metadata and/or content using Files.Update().
@@ -741,7 +730,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.dirty["content"] = False
             self.UpdateMetadata(metadata)
 
-    @LoadAuth
     @LoadMetadata
     def _FilesPatch(self, param=None):
         """Update metadata using Files.Patch().
@@ -782,7 +770,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.content, self["mimeType"], resumable=True
         )
 
-    @LoadAuth
     def _DownloadFromUrl(self, url):
         """Download file from url using provided credential.
 
@@ -797,7 +784,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             raise ApiRequestError(errors.HttpError(resp, content, uri=url))
         return content
 
-    @LoadAuth
     def _DeletePermission(self, permission_id):
         """Deletes the permission remotely, and from the file object itself.
 

@@ -75,6 +75,7 @@ SETTINGS_STRUCT = {
             "client_service_email": {"type": str, "required": False},
             "client_pkcs12_file_path": {"type": str, "required": False},
             "client_json_file_path": {"type": str, "required": False},
+            "use_default": {"type": bool, "required": False},
         },
     },
     "oauth_scope": {
@@ -107,6 +108,10 @@ def LoadSettingsFile(filename=SETTINGS_FILE):
             data = load(stream, Loader=Loader)
     except (YAMLError, OSError) as e:
         raise SettingsError(e)
+
+    if not data:
+        raise SettingsError("{} is an empty settings file.".format(filename))
+
     return data
 
 

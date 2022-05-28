@@ -1,9 +1,11 @@
-import webbrowser
 import httplib2
+import json
 import oauth2client.clientsecrets as clientsecrets
-import threading
+import google.oauth2.credentials
+import google.oauth2.service_account
 
 from googleapiclient.discovery import build
+
 from functools import wraps
 from oauth2client.service_account import ServiceAccountCredentials
 from oauth2client.client import FlowExchangeError
@@ -21,7 +23,30 @@ from .settings import ValidateSettings
 from .settings import SettingsError
 from .settings import InvalidConfigError
 
+from .auth_helpers import verify_client_config
+from oauthlib.oauth2.rfc6749.errors import OAuth2Error, MissingCodeError
+from google_auth_oauthlib.flow import InstalledAppFlow
 from google_auth_httplib2 import AuthorizedHttp
+from warnings import warn
+
+
+DEFAULT_SETTINGS = {
+    "client_config_backend": "file",
+    "client_config_file": "client_secrets.json",
+    "save_credentials": False,
+    "oauth_scope": ["https://www.googleapis.com/auth/drive"],
+}
+
+_CLIENT_AUTH_PROMPT_MESSAGE = "Please visit this URL:\n{url}\n"
+
+
+DEFAULT_SETTINGS = {
+    "client_config_backend": "file",
+    "client_config_file": "client_secrets.json",
+    "save_credentials": False,
+    "oauth_scope": ["https://www.googleapis.com/auth/drive"],
+}
+
 
 class AuthError(Exception):
     """Base error for authentication/authorization errors."""
@@ -43,87 +68,6 @@ class RefreshError(AuthError):
     """Access token refresh error."""
 
 
-def LoadAuth(decoratee):
-    """Decorator to check if the auth is valid and loads auth if not."""
-
-    @wraps(decoratee)
-    def _decorated(self, *args, **kwargs):
-        # Initialize auth if needed.
-        if self.auth is None:
-            self.auth = GoogleAuth()
-        # Re-create access token if it expired.
-        if self.auth.access_token_expired:
-            if getattr(self.auth, "auth_method", False) == "service":
-                self.auth.ServiceAuth()
-            else:
-                self.auth.LocalWebserverAuth()
-
-        # Initialise service if not built yet.
-        if self.auth.service is None:
-            self.auth.Authorize()
-
-        
-
-        return decoratee(self, *args, **kwargs)
-
-    return _decorated
-
-
-def CheckServiceAuth(decoratee):
-    """Decorator to authorize service account."""
-
-    @wraps(decoratee)
-    def _decorated(self, *args, **kwargs):
-        self.auth_method = "service"
-        dirty = False
-        save_credentials = self.settings.get("save_credentials")
-        if self.credentials is None and save_credentials:
-            self.LoadCredentials()
-        if self.credentials is None:
-            decoratee(self, *args, **kwargs)
-            self.Authorize()
-            dirty = True
-        elif self.access_token_expired:
-            self.Refresh()
-            dirty = True
-        self.credentials.set_store(self._default_storage)
-        if dirty and save_credentials:
-            self.SaveCredentials()
-
-    return _decorated
-
-
-def CheckAuth(decoratee):
-    """Decorator to check if it requires OAuth2 flow request."""
-
-    @wraps(decoratee)
-    def _decorated(self, *args, **kwargs):
-        dirty = False
-        code = None
-        save_credentials = self.settings.get("save_credentials")
-        if self.credentials is None and save_credentials:
-            self.LoadCredentials()
-        if self.flow is None:
-            self.GetFlow()
-        if self.credentials is None:
-            code = decoratee(self, *args, **kwargs)
-            dirty = True
-        else:
-            if self.access_token_expired:
-                if self.credentials.refresh_token is not None:
-                    self.Refresh()
-                else:
-                    code = decoratee(self, *args, **kwargs)
-                dirty = True
-        if code is not None:
-            self.Auth(code)
-        self.credentials.set_store(self._default_storage)
-        if dirty and save_credentials:
-            self.SaveCredentials()
-
-    return _decorated
-
-
 class GoogleAuth(ApiAttributeMixin):
     """Wrapper class for oauth2client library in google-api-python-client.
 
@@ -132,20 +76,6 @@ class GoogleAuth(ApiAttributeMixin):
     and authorization.
     """
 
-    DEFAULT_SETTINGS = {
-        "client_config_backend": "file",
-        "client_config_file": "client_secrets.json",
-        "save_credentials": False,
-        "oauth_scope": ["https://www.googleapis.com/auth/drive"],
-    }
-    CLIENT_CONFIGS_LIST = [
-        "client_id",
-        "client_secret",
-        "auth_uri",
-        "token_uri",
-        "revoke_uri",
-        "redirect_uri",
-    ]
     SERVICE_CONFIGS_LIST = ["client_user_email"]
     settings = ApiAttribute("settings")
     client_config = ApiAttribute("client_config")
@@ -166,21 +96,23 @@ class GoogleAuth(ApiAttributeMixin):
         """
         self.http_timeout = http_timeout
         ApiAttributeMixin.__init__(self)
-        self.client_config = {}
+
         try:
             self.settings = LoadSettingsFile(settings_file)
         except SettingsError:
-            self.settings = self.DEFAULT_SETTINGS
+            self.settings = DEFAULT_SETTINGS
         else:
-            if self.settings is None:
-                self.settings = self.DEFAULT_SETTINGS
-            else:
-                ValidateSettings(self.settings)
+            # if no exceptions
+            ValidateSettings(self.settings)
         self._storages = self._InitializeStoragesFromSettings()
         # Only one (`file`) backend is supported now
         self._default_storage = self._storages["file"]
 
         self._service = None
+        self._credentials = None
+        self._client_config = None
+        self._oauth_type = None
+        self._flow = None
 
     # Lazy loading, read-only properties
     @property
@@ -190,16 +122,50 @@ class GoogleAuth(ApiAttributeMixin):
         return self._service
 
     @property
+    def client_config(self):
+        if not self._client_config:
+            self.LoadClientConfig()
+        return self._client_config
+
+    @property
+    def oauth_type(self):
+        if not self._oauth_type:
+            self.LoadClientConfig()
+        return self._oauth_type
+
+    @property
+    def flow(self):
+        if not self._flow:
+            self.GetFlow()
+        return self._flow
+
+    @property
+    def credentials(self):
+        if not self._credentials:
+            if self.oauth_type in ("web", "installed"):
+                self.LocalWebserverAuth()
+
+            elif self.oauth_type == "service":
+                self.ServiceAuth()
+            else:
+                raise InvalidConfigError(
+                    "Only web, installed, service oauth is supported"
+                )
+
+        return self._credentials
+
+    # Other properties
+    @property
     def access_token_expired(self):
         """Checks if access token doesn't exist or is expired.
 
         :returns: bool -- True if access token doesn't exist or is expired.
         """
-        if self.credentials is None:
+        if not self.credentials:
             return True
-        return self.credentials.access_token_expired
 
-    @CheckAuth
+        return not self.credentials.valid
+
     def LocalWebserverAuth(
         self, host_name="localhost", port_numbers=None, launch_browser=True
     ):
@@ -219,27 +185,53 @@ class GoogleAuth(ApiAttributeMixin):
         :raises: AuthenticationRejected, AuthenticationError
         """
         if port_numbers is None:
-            port_numbers = [
-                8080,
-                8090,
-            ]  # Mutable objects should not be default
-            # values, as each call's changes are global.
-        success = False
-        port_number = 0
-        for port in port_numbers:
-            port_number = port
-            try:
-                httpd = ClientRedirectServer(
-                    (host_name, port), ClientRedirectHandler
+            port_numbers = [8080, 8090]
+
+        additional_config = {}
+        # offline token request needed to obtain refresh token
+        # make sure that consent is requested
+        if self.settings.get("get_refresh_token"):
+            additional_config["access_type"] = "offline"
+            additional_config["prompt"] = "select_account"
+
+        try:
+            for port in port_numbers:
+                self._credentials = self.flow.run_local_server(
+                    host=host_name,
+                    port=port,
+                    authorization_prompt_message=_CLIENT_AUTH_PROMPT_MESSAGE,
+                    open_browser=launch_browser,
+                    **additional_config,
                 )
-            except OSError:
-                pass
-            else:
-                success = True
+                # if any port results in successful auth, we're done
                 break
-        if success:
-            oauth_callback = f"http://{host_name}:{port_number}/"
-        else:
+
+        except OSError as e:
+            # OSError: [WinError 10048] ...
+            # When WSGIServer.allow_reuse_address = False,
+            # raise OSError when binding to a used port
+
+            # If some other error besides the socket address reuse error
+            if e.errno != 10048:
+                raise
+
+            print("Port {} is in use. Trying a different port".format(port))
+
+        except MissingCodeError as e:
+            # if code is not found in the redirect uri's query parameters
+            print(
+                "Failed to find 'code' in the query parameters of the redirect."
+            )
+            print("Please check that your redirect uri is correct.")
+            raise AuthenticationError("No code found in redirect")
+
+        except OAuth2Error as e:
+            # catch oauth 2 errors
+            print("Authentication request was rejected")
+            raise AuthenticationRejected("User rejected authentication")
+
+        # If we have tried all ports and could not find a port
+        if not self._credentials:
             print(
                 "Failed to start a local web server. Please check your firewall"
             )
@@ -248,30 +240,7 @@ class GoogleAuth(ApiAttributeMixin):
             )
             print("using configured ports. Default ports are 8080 and 8090.")
             raise AuthenticationError()
-        self.flow.redirect_uri = oauth_callback
-        authorize_url = self.GetAuthUrl()
-        if launch_browser:
-            webbrowser.open(authorize_url, new=1, autoraise=True)
-            print("Your browser has been opened to visit:")
-        else:
-            print("Open your browser to visit:")
-        print()
-        print("    " + authorize_url)
-        print()
-        httpd.handle_request()
-        if "error" in httpd.query_params:
-            print("Authentication request was rejected")
-            raise AuthenticationRejected("User rejected authentication")
-        if "code" in httpd.query_params:
-            return httpd.query_params["code"]
-        else:
-            print(
-                'Failed to find "code" in the query parameters of the redirect.'
-            )
-            print("Try command-line authentication")
-            raise AuthenticationError("No code found in redirect")
 
-    @CheckAuth
     def CommandLineAuth(self):
         """Authenticate and authorize from user by printing authentication url
         retrieving authentication code from command-line.
@@ -286,36 +255,31 @@ class GoogleAuth(ApiAttributeMixin):
         print()
         return input("Enter verification code: ").strip()
 
-    @CheckServiceAuth
     def ServiceAuth(self):
         """Authenticate and authorize using P12 private key, client id
         and client email for a Service account.
         :raises: AuthError, InvalidConfigError
         """
-        if set(self.SERVICE_CONFIGS_LIST) - set(self.client_config):
-            self.LoadServiceConfigSettings()
-        scopes = scopes_to_string(self.settings["oauth_scope"])
         client_service_json = self.client_config.get("client_json_file_path")
+
         if client_service_json:
-            self.credentials = (
-                ServiceAccountCredentials.from_json_keyfile_name(
-                    filename=client_service_json, scopes=scopes
-                )
+            additional_config = {}
+            additional_config["subject"] = self.client_config.get(
+                "client_user_email"
             )
-        else:
-            service_email = self.client_config["client_service_email"]
-            file_path = self.client_config["client_pkcs12_file_path"]
-            self.credentials = ServiceAccountCredentials.from_p12_keyfile(
-                service_account_email=service_email,
-                filename=file_path,
-                scopes=scopes,
+            additional_config["scopes"] = self.settings["oauth_scope"]
+
+            self._credentials = google.oauth2.service_account.Credentials.from_service_account_file(
+                client_service_json, **additional_config
             )
 
-        user_email = self.client_config.get("client_user_email")
-        if user_email:
-            self.credentials = self.credentials.create_delegated(
-                sub=user_email
+        elif self.client_config.get("use_default"):
+            # if no service credential file in yaml settings
+            # default to checking env var `GOOGLE_APPLICATION_CREDENTIALS`
+            credentials, _ = google.auth.default(
+                scopes=self.settings["oauth_scope"]
             )
+            self._credentials = credentials
 
     def _InitializeStoragesFromSettings(self):
         result = {"file": None}
@@ -463,144 +427,102 @@ class GoogleAuth(ApiAttributeMixin):
         """
         if client_config_file is None:
             client_config_file = self.settings["client_config_file"]
-        try:
-            client_type, client_info = clientsecrets.loadfile(
-                client_config_file
-            )
-        except clientsecrets.InvalidClientSecretsError as error:
-            raise InvalidConfigError("Invalid client secrets file %s" % error)
-        if client_type not in (
-            clientsecrets.TYPE_WEB,
-            clientsecrets.TYPE_INSTALLED,
-        ):
-            raise InvalidConfigError(
-                "Unknown client_type of client config file"
-            )
 
-        # General settings.
-        try:
-            config_index = [
-                "client_id",
-                "client_secret",
-                "auth_uri",
-                "token_uri",
-            ]
-            for config in config_index:
-                self.client_config[config] = client_info[config]
+        with open(client_config_file, "r") as json_file:
+            client_config = json.load(json_file)
 
-            self.client_config["revoke_uri"] = client_info.get("revoke_uri")
-            self.client_config["redirect_uri"] = client_info["redirect_uris"][
-                0
-            ]
-        except KeyError:
-            raise InvalidConfigError("Insufficient client config in file")
-
-        # Service auth related fields.
-        service_auth_config = ["client_email"]
         try:
-            for config in service_auth_config:
-                self.client_config[config] = client_info[config]
-        except KeyError:
-            pass  # The service auth fields are not present, handling code can go here.
+            # check the format of the loaded client config
+            client_type, checked_config = verify_client_config(client_config)
+        except ValueError as e:
+            raise InvalidConfigError("Invalid client secrets file: %s" % e)
+
+        self._client_config = checked_config
+        self._oauth_type = client_type
 
     def LoadServiceConfigSettings(self):
         """Loads client configuration from settings file.
         :raises: InvalidConfigError
         """
-        for file_format in ["json", "pkcs12"]:
-            config = f"client_{file_format}_file_path"
-            value = self.settings["service_config"].get(config)
-            if value:
-                self.client_config[config] = value
-                break
-        else:
-            raise InvalidConfigError(
-                "Either json or pkcs12 file path required "
-                "for service authentication"
+        service_config = self.settings["service_config"]
+
+        # see https://github.com/googleapis/google-auth-library-python/issues/288
+        if "client_pkcs12_file_path" in service_config:
+            raise DeprecationWarning(
+                "PKCS#12 files are no longer supported in the new google.auth library. "
+                "Please download a new json service credential file from google cloud console. "
+                "For more info, visit https://github.com/googleapis/google-auth-library-python/issues/288"
             )
 
-        if file_format == "pkcs12":
-            self.SERVICE_CONFIGS_LIST.append("client_service_email")
-
-        for config in self.SERVICE_CONFIGS_LIST:
-            try:
-                self.client_config[config] = self.settings["service_config"][
-                    config
-                ]
-            except KeyError:
-                err = "Insufficient service config in settings"
-                err += f"\n\nMissing: {config} key."
-                raise InvalidConfigError(err)
+        self._client_config = service_config
+        self._oauth_type = "service"
 
     def LoadClientConfigSettings(self):
         """Loads client configuration from settings file.
 
         :raises: InvalidConfigError
         """
-        for config in self.CLIENT_CONFIGS_LIST:
-            try:
-                self.client_config[config] = self.settings["client_config"][
-                    config
-                ]
-            except KeyError:
-                raise InvalidConfigError(
-                    "Insufficient client config in settings"
-                )
+
+        try:
+            client_config = self.settings["client_config"]
+        except KeyError as e:
+            raise InvalidConfigError(
+                "Settings does not contain 'client_config'"
+            )
+
+        try:
+            _, checked_config = verify_client_config(
+                client_config, with_oauth_type=False
+            )
+        except ValueError as e:
+            raise InvalidConfigError("Invalid client secrets file: %s" % e)
+
+        # assumed to be Installed App Flow as the Local Server Auth is appropriate for this type of device
+        self._client_config = checked_config
+        self._oauth_type = "installed"
 
     def GetFlow(self):
         """Gets Flow object from client configuration.
 
         :raises: InvalidConfigError
         """
-        if not all(
-            config in self.client_config for config in self.CLIENT_CONFIGS_LIST
-        ):
-            self.LoadClientConfig()
-        constructor_kwargs = {
-            "redirect_uri": self.client_config["redirect_uri"],
-            "auth_uri": self.client_config["auth_uri"],
-            "token_uri": self.client_config["token_uri"],
-            "access_type": "online",
-        }
-        if self.client_config["revoke_uri"] is not None:
-            constructor_kwargs["revoke_uri"] = self.client_config["revoke_uri"]
-        self.flow = OAuth2WebServerFlow(
-            self.client_config["client_id"],
-            self.client_config["client_secret"],
-            scopes_to_string(self.settings["oauth_scope"]),
-            **constructor_kwargs,
-        )
-        if self.settings.get("get_refresh_token"):
-            self.flow.params.update(
-                {"access_type": "offline", "approval_prompt": "force"}
+
+        additional_config = {}
+        scopes = self.settings.get("oauth_scope")
+
+        if self.oauth_type in ("web", "installed"):
+            self._flow = InstalledAppFlow.from_client_config(
+                {self.oauth_type: self.client_config},
+                scopes,
+                **additional_config,
             )
+
+        if self.oauth_type == "service":
+            # In a service oauth2 flow,
+            # the oauth subject does not have to provide any consent via the client
+            pass
 
     def Refresh(self):
         """Refreshes the access_token.
 
         :raises: RefreshError
         """
-        if self.credentials is None:
-            raise RefreshError("No credential to refresh.")
-        if (
-            self.credentials.refresh_token is None
-            and self.auth_method != "service"
-        ):
-            raise RefreshError(
-                "No refresh_token found."
-                "Please set access_type of OAuth to offline."
-            )
-
-        
+        raise DeprecationWarning(
+            "Refresh is now handled automatically within the new google.auth Credential objects. "
+            "There's no need to manually refresh your credentials now."
+        )
 
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.
 
         :returns: str -- Authentication url.
         """
-        if self.flow is None:
-            self.GetFlow()
-        return self.flow.step1_get_authorize_url()
+        if self.oauth_type == "service":
+            raise AuthenticationError(
+                "Authentication is not required for service client type."
+            )
+
+        return self.flow.authorization_url()
 
     def Auth(self, code):
         """Authenticate, authorize, and build service.
@@ -619,13 +541,26 @@ class GoogleAuth(ApiAttributeMixin):
         :type code: str.
         :raises: AuthenticationError
         """
-        if self.flow is None:
-            self.GetFlow()
+        if self.oauth_type == "service":
+            raise AuthenticationError(
+                "Authentication is not required for service client type."
+            )
+
         try:
-            self.credentials = self.flow.step2_exchange(code)
-        except FlowExchangeError as e:
-            raise AuthenticationError("OAuth2 code exchange failed: %s" % e)
-        print("Authentication successful.")
+            self.flow.fetch_token(code=code)
+
+        except MissingCodeError as e:
+            # if code is not found in the redirect uri's query parameters
+            print(
+                "Failed to find 'code' in the query parameters of the redirect."
+            )
+            print("Please check that your redirect uri is correct.")
+            raise AuthenticationError("No code found in redirect")
+
+        except OAuth2Error as e:
+            # catch oauth 2 errors
+            print("Authentication request was rejected")
+            raise AuthenticationRejected("User rejected authentication")
 
     def _build_http(self):
         http = httplib2.Http(timeout=self.http_timeout)
