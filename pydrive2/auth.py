@@ -21,6 +21,7 @@ from .settings import ValidateSettings
 from .settings import SettingsError
 from .settings import InvalidConfigError
 
+from google_auth_httplib2 import AuthorizedHttp
 
 class AuthError(Exception):
     """Base error for authentication/authorization errors."""
@@ -61,23 +62,7 @@ def LoadAuth(decoratee):
         if self.auth.service is None:
             self.auth.Authorize()
 
-        # Ensure that a thread-safe HTTP object is provided.
-        if (
-            kwargs is not None
-            and "param" in kwargs
-            and kwargs["param"] is not None
-            and "http" in kwargs["param"]
-            and kwargs["param"]["http"] is not None
-        ):
-            self.http = kwargs["param"]["http"]
-            del kwargs["param"]["http"]
-
-        else:
-            # If HTTP object not specified, create or resuse an HTTP
-            # object from the thread local storage.
-            if not getattr(self.auth.thread_local, "http", None):
-                self.auth.thread_local.http = self.auth.Get_Http_Object()
-            self.http = self.auth.thread_local.http
+        
 
         return decoratee(self, *args, **kwargs)
 
@@ -173,15 +158,14 @@ class GoogleAuth(ApiAttributeMixin):
     def __init__(self, settings_file="settings.yaml", http_timeout=None):
         """Create an instance of GoogleAuth.
 
-        This constructor just sets the path of settings file.
-        It does not actually read the file.
+        This constructor parses just he yaml settings file.
+        All other settings are lazy
 
         :param settings_file: path of settings file. 'settings.yaml' by default.
         :type settings_file: str.
         """
         self.http_timeout = http_timeout
         ApiAttributeMixin.__init__(self)
-        self.thread_local = threading.local()
         self.client_config = {}
         try:
             self.settings = LoadSettingsFile(settings_file)
@@ -195,6 +179,15 @@ class GoogleAuth(ApiAttributeMixin):
         self._storages = self._InitializeStoragesFromSettings()
         # Only one (`file`) backend is supported now
         self._default_storage = self._storages["file"]
+
+        self._service = None
+
+    # Lazy loading, read-only properties
+    @property
+    def service(self):
+        if not self._service:
+            self._service = build("drive", "v2", cache_discovery=False)
+        return self._service
 
     @property
     def access_token_expired(self):
@@ -597,12 +590,8 @@ class GoogleAuth(ApiAttributeMixin):
                 "No refresh_token found."
                 "Please set access_type of OAuth to offline."
             )
-        if self.http is None:
-            self.http = self._build_http()
-        try:
-            self.credentials.refresh(self.http)
-        except AccessTokenRefreshError as error:
-            raise RefreshError("Access token refresh failed: %s" % error)
+
+        
 
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.
@@ -663,19 +652,10 @@ class GoogleAuth(ApiAttributeMixin):
                 "No valid credentials provided to authorize"
             )
 
-        if self.http is None:
-            self.http = self._build_http()
-        self.http = self.credentials.authorize(self.http)
-        self.service = build(
-            "drive", "v2", http=self.http, cache_discovery=False
-        )
-
     def Get_Http_Object(self):
         """Create and authorize an httplib2.Http object. Necessary for
         thread-safety.
         :return: The http object to be used in each call.
         :rtype: httplib2.Http
         """
-        http = self._build_http()
-        http = self.credentials.authorize(http)
-        return http
+        return AuthorizedHttp(self.credentials, http=self._build_http())
