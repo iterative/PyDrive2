@@ -1,21 +1,10 @@
 import httplib2
 import json
-import oauth2client.clientsecrets as clientsecrets
 import google.oauth2.credentials
 import google.oauth2.service_account
 
 from googleapiclient.discovery import build
-
-from functools import wraps
-from oauth2client.service_account import ServiceAccountCredentials
-from oauth2client.client import FlowExchangeError
-from oauth2client.client import AccessTokenRefreshError
-from oauth2client.client import OAuth2WebServerFlow
-from oauth2client.client import OOB_CALLBACK_URN
-from oauth2client.file import Storage
-from oauth2client.tools import ClientRedirectHandler
-from oauth2client.tools import ClientRedirectServer
-from oauth2client._helpers import scopes_to_string
+from pydrive2.storage import FileBackend
 from .apiattr import ApiAttribute
 from .apiattr import ApiAttributeMixin
 from .settings import LoadSettingsFile
@@ -257,6 +246,9 @@ class GoogleAuth(ApiAttributeMixin):
             print("using configured ports. Default ports are 8080 and 8090.")
             raise AuthenticationError()
 
+        if self.storage:
+            self.SaveCredentials()
+
     def CommandLineAuth(self):
         """Authenticate and authorize from user by printing authentication url
         retrieving authentication code from command-line.
@@ -273,7 +265,6 @@ class GoogleAuth(ApiAttributeMixin):
         )
 
         self.LocalWebserverAuth(host_name="127.0.0.1")
-
 
     def ServiceAuth(self):
         """Authenticate and authorize using P12 private key, client id
@@ -526,7 +517,6 @@ class GoogleAuth(ApiAttributeMixin):
 
         :raises: InvalidConfigError
         """
-
         additional_config = {}
         scopes = self.settings.get("oauth_scope")
 
