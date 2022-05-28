@@ -104,10 +104,8 @@ class GoogleAuth(ApiAttributeMixin):
         else:
             # if no exceptions
             ValidateSettings(self.settings)
-        self._storages = self._InitializeStoragesFromSettings()
-        # Only one (`file`) backend is supported now
-        self._default_storage = self._storages["file"]
 
+        self._storage = None
         self._service = None
         self._credentials = None
         self._client_config = None
@@ -140,9 +138,27 @@ class GoogleAuth(ApiAttributeMixin):
         return self._flow
 
     @property
+    def storage(self):
+        if not self.settings.get("save_credentials"):
+            return None
+
+        if not self._storage:
+            self._InitializeStoragesFromSettings()
+        return self._storage
+
+    @property
     def credentials(self):
         if not self._credentials:
             if self.oauth_type in ("web", "installed"):
+                # try to load from backend if available
+                # credentials would auto-refresh if expired
+                if self.storage:
+                    try:
+                        self.LoadCredentials()
+                        return self._credentials
+                    except FileNotFoundError:
+                        pass
+
                 self.LocalWebserverAuth()
 
             elif self.oauth_type == "service":
@@ -282,21 +298,14 @@ class GoogleAuth(ApiAttributeMixin):
             self._credentials = credentials
 
     def _InitializeStoragesFromSettings(self):
-        result = {"file": None}
-        backend = self.settings.get("save_credentials_backend")
-        save_credentials = self.settings.get("save_credentials")
-        if backend == "file":
-            credentials_file = self.settings.get("save_credentials_file")
-            if credentials_file is None:
+        if self.settings.get("save_credentials"):
+            backend = self.settings.get("save_credentials_backend")
+            if backend != "file":
                 raise InvalidConfigError(
-                    "Please specify credentials file to read"
+                    "Unknown save_credentials_backend: %s" % backend
                 )
-            result[backend] = Storage(credentials_file)
-        elif save_credentials:
-            raise InvalidConfigError(
-                "Unknown save_credentials_backend: %s" % backend
-            )
-        return result
+
+            self._storage = FileBackend()
 
     def LoadCredentials(self, backend=None):
         """Loads credentials or create empty credentials if it doesn't exist.
@@ -324,25 +333,55 @@ class GoogleAuth(ApiAttributeMixin):
         :raises: InvalidConfigError, InvalidCredentialsError
         """
         if credentials_file is None:
-            self._default_storage = self._storages["file"]
-            if self._default_storage is None:
+            credentials_file = self.settings.get("save_credentials_file")
+            if credentials_file is None:
                 raise InvalidConfigError(
-                    "Backend `file` is not configured, specify "
-                    "credentials file to read in the settings "
-                    "file or pass an explicit value"
+                    "Please specify credentials file to read"
                 )
-        else:
-            self._default_storage = Storage(credentials_file)
 
         try:
-            self.credentials = self._default_storage.get()
+            auth_info = self.storage.read_credentials(credentials_file)
+        except FileNotFoundError:
+            # if credential found was not found, raise the error for handling
+            raise
         except OSError:
+            # catch other errors
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
             )
 
-        if self.credentials:
-            self.credentials.set_store(self._default_storage)
+        try:
+            self._credentials = google.oauth2.credentials.Credentials.from_authorized_user_info(
+                auth_info, scopes=auth_info["scopes"]
+            )
+        except ValueError:
+            # if saved credentials lack a refresh token
+            # handled for backwards compatibility
+            warn(
+                "Loading authorized user credentials without a refresh token is "
+                "not officially supported by google auth library. We recommend that "
+                "you only store refreshable credentials moving forward."
+            )
+
+            self._credentials = google.oauth2.credentials.Credentials(
+                token=auth_info.get("token"),
+                token_uri="https://oauth2.googleapis.com/token",  # always overrides
+                scopes=auth_info.get("scopes"),
+                client_id=auth_info.get("client_id"),
+                client_secret=auth_info.get("client_secret"),
+            )
+
+        # in-case reauth / consent required
+        # create a flow object so that reauth flow can be triggered
+        additional_config = {}
+        if self.credentials.refresh_token:
+            additional_config["access_type"] = "offline"
+
+        self._flow = InstalledAppFlow.from_client_config(
+            {self.oauth_type: self.client_config},
+            self.credentials.scopes,
+            **additional_config,
+        )
 
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
@@ -370,22 +409,19 @@ class GoogleAuth(ApiAttributeMixin):
         :type credentials_file: str.
         :raises: InvalidConfigError, InvalidCredentialsError
         """
-        if self.credentials is None:
+        if not self.credentials:
             raise InvalidCredentialsError("No credentials to save")
 
         if credentials_file is None:
-            storage = self._storages["file"]
-            if storage is None:
+            credentials_file = self.settings.get("save_credentials_file")
+            if credentials_file is None:
                 raise InvalidConfigError(
-                    "Backend `file` is not configured, specify "
-                    "credentials file to read in the settings "
-                    "file or pass an explicit value"
+                    "Please specify credentials file to read"
                 )
-        else:
-            storage = Storage(credentials_file)
 
         try:
-            storage.put(self.credentials)
+            self.storage.store_credentials(self.credentials, credentials_file)
+
         except OSError:
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
