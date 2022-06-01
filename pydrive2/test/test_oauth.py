@@ -8,7 +8,7 @@ from pydrive2.test.test_util import (
     delete_file,
     settings_file_path,
 )
-from oauth2client.file import Storage
+from ..storage import FileBackend
 
 
 def setup_module(module):
@@ -121,7 +121,7 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
     # Delete old credentials file
     delete_file(credentials_file)
     assert not os.path.exists(credentials_file)
-    spy = mocker.spy(Storage, "__init__")
+    spy = mocker.spy(FileBackend, "__init__")
     ga.ServiceAuth()
     assert spy.call_count == 0
 
