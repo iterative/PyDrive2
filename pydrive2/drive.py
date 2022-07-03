@@ -62,8 +62,7 @@ class GoogleDrive(ApiAttributeMixin):
         """
 
         body = {
-            "parents": [{"kind": "drive#fileLink",
-                         "id": target_folder_id}],
+            "parents": [{"id": target_folder_id}],
             'title': new_name 
             }
             
