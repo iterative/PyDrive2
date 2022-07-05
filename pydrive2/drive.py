@@ -48,27 +48,3 @@ class GoogleDrive(ApiAttributeMixin):
         """
         return self.auth.service.about().get().execute(http=self.http)
         
-
-    @LoadAuth
-    def CopyFile(self, source_file_id, target_folder_id, new_name):
-        """Copy a file to a new location.
-
-        :param source_file_id: ID of the file to copy.
-        :type source_file_id: str.
-        :param target_folder_id: ID of the folder to copy to.
-        :type target_folder_id: str.
-        :param new_name: Name of the new file.
-        :type new_name: str.
-        """
-
-        body = {
-            "parents": [{"id": target_folder_id}],
-            'title': new_name 
-            }
-            
-        self.auth.service.files().copy(
-            fileId=source_file_id, 
-            supportsAllDrives=True,
-            body=body
-        ).execute()
-        
