@@ -519,7 +519,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self._FilesDelete(param=param)
 
     @LoadAuth
-    def Copy(self, target_folder: "GoogleDriveFile", new_title = None):
+    def Copy(self, target_folder, new_title = None):
         """Copy this file to a new location.
 
         :param target_folder: Folder where the file will be copied.
@@ -532,13 +532,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             new_title = self["title"]
 
         body = {
-            "parents": [{"id": target_folder['id']}],
-            'title': new_title 
+            "parents": [{"id": target_folder["id"]}],
+            "title": new_title 
             }
             
         try:
             self.auth.service.files().copy(
-                fileId=self['id'], 
+                fileId=self["id"], 
                 supportsAllDrives=True,
                 body=body
             ).execute()
