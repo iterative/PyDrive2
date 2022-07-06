@@ -536,11 +536,14 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             'title': new_title 
             }
             
-        self.auth.service.files().copy(
-            fileId=self['id'], 
-            supportsAllDrives=True,
-            body=body
-        ).execute()
+        try:
+            self.auth.service.files().copy(
+                fileId=self['id'], 
+                supportsAllDrives=True,
+                body=body
+            ).execute()
+        except errors.HttpError as error:
+            raise ApiRequestError(error)
 
     def InsertPermission(self, new_permission, param=None):
         """Insert a new permission. Re-fetches all permissions after call.
