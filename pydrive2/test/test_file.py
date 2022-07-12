@@ -848,14 +848,32 @@ class GoogleDriveFileTest(unittest.TestCase):
     def test_CopyFile(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
-        file1["title"] = self.getTempFile()
-        file1.Upload()
-        file2 = drive.CreateFile({"parents": [{"id": file1["id"]}]})
-        file2["title"] = self.getTempFile()
-        file2.Upload()
-        file1.Copy(file2)
-        self.assertTrue(delete_file(file1["title"]))
-        self.assertTrue(delete_file(file2["title"]))
+        filename = self.getTempFile("copytestfile")
+        content = "hello world!"
+        file1["title"] = filename
+        file1.SetContentString(content)
+        pydrive_retry(file1.Upload)
+        pydrive_retry(file1.FetchMetadata)
+
+        parent_id = file1["parents"][0]["id"]
+        parent_folder = drive.CreateFile({"id": parent_id})
+
+        file1.Copy(parent_folder, new_title="copytestfile_copy")
+
+        files = drive.ListFile({"q": f"'{parent_id}' in parents"}).GetList()
+
+        file2 = None
+        for f in files:
+            if f["title"] == "copytestfile_copy":
+                file2 = f
+                break
+        
+        self.assertIsNotNone(file2)
+        
+        pydrive_retry(file2.FetchContent)
+        self.assertEqual(file2.GetContentString(), content)
+
+        self.DeleteUploadedFiles(drive, [file1["id"], file2["id"]])
 
     # Helper functions.
     # =================

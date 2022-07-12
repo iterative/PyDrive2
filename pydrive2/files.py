@@ -536,11 +536,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         if param is None:
             param = {}
 
-        param["fileId"] = self["id"],
-        param["supportsAllDrives"] = True,
+        param["fileId"] = self["id"]
+        param["supportsAllDrives"] = True
         param["body"] = {}
 
-        param["body"]["parents"] = [{"id": target_folder["id"]}],
+        param["body"]["parents"] = [{"id": target_folder["id"]}]
         param["body"]["title"] = new_title
 
         try:
