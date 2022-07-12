@@ -519,29 +519,32 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self._FilesDelete(param=param)
 
     @LoadAuth
-    def Copy(self, target_folder, new_title = None):
+    def Copy(self, target_folder, new_title = None, param=None):
         """Copy this file to a new location.
 
         :param target_folder: Folder where the file will be copied.
         :type target_folder: GoogleDriveFile.
         :param new_title: Name of the new file.
         :type new_title: str.
+        :param param: addition parameters to pass
+        :type param: dict
         """
 
         if new_title is None:
             new_title = self["title"]
-
-        body = {
-            "parents": [{"id": target_folder["id"]}],
-            "title": new_title 
-            }
             
+        if param is None:
+            param = {}
+
+        param["fileId"] = self["id"],
+        param["supportsAllDrives"] = True,
+        param["body"] = {}
+
+        param["body"]["parents"] = [{"id": target_folder["id"]}],
+        param["body"]["title"] = new_title
+
         try:
-            self.auth.service.files().copy(
-                fileId=self["id"], 
-                supportsAllDrives=True,
-                body=body
-            ).execute()
+            self.auth.service.files().copy(**param).execute()
         except errors.HttpError as error:
             raise ApiRequestError(error)
 
