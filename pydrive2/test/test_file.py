@@ -842,6 +842,21 @@ class GoogleDriveFileTest(unittest.TestCase):
         files = self._parallel_uploader(self.FILE_UPLOAD_COUNT, 10)
         self._parallel_downloader(files, 10)
 
+    # Tests for Copy file.
+    # ====================
+
+    def test_CopyFile(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile()
+        file1["title"] = self.getTempFile()
+        file1.Upload()
+        file2 = drive.CreateFile({"parents": [{"id": file1["id"]}]})
+        file2["title"] = self.getTempFile()
+        file2.Upload()
+        file1.Copy(file2)
+        self.assertTrue(delete_file(file1["title"]))
+        self.assertTrue(delete_file(file2["title"]))
+
     # Helper functions.
     # =================
 
