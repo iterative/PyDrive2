@@ -845,35 +845,60 @@ class GoogleDriveFileTest(unittest.TestCase):
     # Tests for Copy file.
     # ====================
 
-    def test_CopyFile(self):
+    def test_CopyFileSameFolder(self):
         drive = GoogleDrive(self.ga)
+
+        # create a temp file and set it's content to a known string
         file1 = drive.CreateFile()
         filename = self.getTempFile("copytestfile")
         content = "hello world!"
         file1["title"] = filename
         file1.SetContentString(content)
         pydrive_retry(file1.Upload)
-        pydrive_retry(file1.FetchMetadata)
 
-        parent_id = file1["parents"][0]["id"]
-        parent_folder = drive.CreateFile({"id": parent_id})
+        # copy the file
+        file2 = file1.Copy(new_title="copytestfile_copy")
 
-        file1.Copy(parent_folder, new_title="copytestfile_copy")
-
-        files = drive.ListFile({"q": f"'{parent_id}' in parents"}).GetList()
-
-        file2 = None
-        for f in files:
-            if f["title"] == "copytestfile_copy":
-                file2 = f
-                break
-        
         self.assertIsNotNone(file2)
         
         pydrive_retry(file2.FetchContent)
+        # assert that the content of the copied file is the same as the original (file1)
         self.assertEqual(file2.GetContentString(), content)
 
         self.DeleteUploadedFiles(drive, [file1["id"], file2["id"]])
+
+    def test_CopyFileDifferentFolder(self):
+        drive = GoogleDrive(self.ga)
+
+        # create a temp file and set it's content to a known string
+        file1 = drive.CreateFile()
+        filename = self.getTempFile("copytestfile")
+        content = "hello world!"
+        file1["title"] = filename
+        file1.SetContentString(content)
+        pydrive_retry(file1.Upload)
+
+        temp_dir = drive.CreateFile({
+            'title': "temp_dir",
+            'mimeType': 'application/vnd.google-apps.folder',
+            'parents': [{'id': file1["parents"][0]["id"]}]
+        })
+        temp_dir.Upload()
+
+        # copy the file into the new folder
+        file2 = file1.Copy(target_folder=temp_dir, new_title="copytestfile_copy")
+
+        self.assertIsNotNone(file2)
+
+        pydrive_retry(file2.FetchContent)
+        # assert that the content of the copied file is the same as the original (file1)
+        self.assertEqual(file2.GetContentString(), content)
+
+        files = drive.ListFile({"q": f"'{temp_dir['id']}' in parents"}).GetList()
+        self.assertIn("copytestfile_copy", [f["title"] for f in files])
+
+        self.DeleteUploadedFiles(drive, [file1["id"], file2["id"], temp_dir["id"]])
+
 
     # Helper functions.
     # =================
