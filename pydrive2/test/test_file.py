@@ -880,6 +880,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1.SetContentString(content)
         pydrive_retry(file1.Upload)
 
+        # create a temp directory
         temp_dir = drive.CreateFile({
             'title': "temp_dir",
             'mimeType': 'application/vnd.google-apps.folder',
