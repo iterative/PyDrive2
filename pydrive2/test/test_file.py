@@ -848,10 +848,11 @@ class GoogleDriveFileTest(unittest.TestCase):
     def test_CopyFileSameFolder(self):
         drive = GoogleDrive(self.ga)
 
+        content = "hello world!"
+
         # create a temp file and set it's content to a known string
         file1 = drive.CreateFile()
         filename = self.getTempFile("copytestfile")
-        content = "hello world!"
         file1["title"] = filename
         file1.SetContentString(content)
         pydrive_retry(file1.Upload)
@@ -870,10 +871,11 @@ class GoogleDriveFileTest(unittest.TestCase):
     def test_CopyFileDifferentFolder(self):
         drive = GoogleDrive(self.ga)
 
+        content = "hello world!"
+
         # create a temp file and set it's content to a known string
         file1 = drive.CreateFile()
         filename = self.getTempFile("copytestfile")
-        content = "hello world!"
         file1["title"] = filename
         file1.SetContentString(content)
         pydrive_retry(file1.Upload)
