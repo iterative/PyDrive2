@@ -520,7 +520,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
     @LoadAuth
     def Copy(self, target_folder=None, new_title=None, param=None):
-        """Copy this file to a new location.
+        """Creates a copy of this file. Folders cannot be copied.
 
         :param target_folder: Folder where the file will be copied.
         :type target_folder: GoogleDriveFile
