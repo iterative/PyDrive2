@@ -524,14 +524,14 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         :param target_folder: Folder where the file will be copied.
         :type target_folder: GoogleDriveFile
-        :param new_title: Name of the new file., defaults to None
+        :param new_title: Name of the new file.
         :type new_title: str, optional
-        :param param: addition parameters to pass, defaults to None
+        :param param: addition parameters to pass.
         :type param: dict, optional
         :raises ApiRequestError
         :return: the copied file
         :rtype: GoogleDriveFile
-        """        
+        """
 
         if param is None:
             param = {}
@@ -546,7 +546,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         new_file = None
         try:
-            new_file = self.auth.service.files().copy(**param).execute(http=self.http)
+            new_file = (
+                self.auth.service.files().copy(**param).execute(http=self.http)
+            )
         except errors.HttpError as error:
             raise ApiRequestError(error)
 
