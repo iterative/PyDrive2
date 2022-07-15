@@ -243,11 +243,7 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             metadata["type"] = "file"
             metadata["size"] = int(gdrive_file.get("fileSize"))
-            metadata["checksum"] = (
-                gdrive_file["md5Checksum"]
-                if "md5Checksum" in gdrive_file
-                else None
-            )
+            metadata["checksum"] = gdrive_file.get("md5Checksum")
         return metadata
 
     def ls(self, path, detail=False):
@@ -280,9 +276,7 @@ class GDriveFileSystem(AbstractFileSystem):
                         "type": "file",
                         "name": item_path,
                         "size": int(item["fileSize"]),
-                        "checksum": item["md5Checksum"]
-                        if "md5Checksum" in item
-                        else None,
+                        "checksum": item.get("md5Checksum"),
                     }
                 )
 
@@ -327,9 +321,7 @@ class GDriveFileSystem(AbstractFileSystem):
                         "name": posixpath.join(bucket, item_path),
                         "type": "file",
                         "size": int(item["fileSize"]),
-                        "checksum": item["md5Checksum"]
-                        if "md5Checksum" in item
-                        else None,
+                        "checksum": item.get("md5Checksum"),
                     }
                 )
 
