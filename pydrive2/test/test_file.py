@@ -852,9 +852,9 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         # create a temp file and set it's content to a known string
         file1 = drive.CreateFile()
-        filename = self.getTempFile("copytestfile")
+        filename = self.getTempFile("copytestfile", content=content)
         file1["title"] = filename
-        file1.SetContentString(content)
+        file1.SetContentFile(filename)
         pydrive_retry(file1.Upload)
 
         # copy the file
@@ -875,9 +875,9 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         # create a temp file and set it's content to a known string
         file1 = drive.CreateFile()
-        filename = self.getTempFile("copytestfile")
+        filename = self.getTempFile("copytestfile", content=content)
         file1["title"] = filename
-        file1.SetContentString(content)
+        file1.SetContentFile(filename)
         pydrive_retry(file1.Upload)
 
         # create a temp directory
