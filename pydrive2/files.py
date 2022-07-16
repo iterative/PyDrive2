@@ -523,7 +523,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """Creates a copy of this file. Folders cannot be copied.
 
         :param target_folder: Folder where the file will be copied.
-        :type target_folder: GoogleDriveFile
+        :type target_folder: GoogleDriveFile, optional
         :param new_title: Name of the new file.
         :type new_title: str, optional
         :param param: addition parameters to pass.
