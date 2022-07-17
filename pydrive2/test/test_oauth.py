@@ -125,6 +125,33 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
     assert spy.call_count == 0
 
 
+def test_10_ServiceAuthFromSavedCredentialsDictionary():
+    creds_dict = {}
+    settings = {
+        "client_config_backend": "service",
+        "service_config": {
+            "client_json_file_path": "/tmp/pydrive2/credentials.json",
+        },
+        "oauth_scope": ["https://www.googleapis.com/auth/drive"],
+        "save_credentials": True,
+        "save_credentials_backend": "dictionary",
+        "save_credentials_dict": creds_dict,
+        "save_credentials_key": "creds",
+    }
+    ga = GoogleAuth(settings=settings)
+    ga.ServiceAuth()
+    assert not ga.access_token_expired
+    assert creds_dict
+    first_creds_dict = creds_dict.copy()
+    # Secondary auth should be made only using the previously saved
+    # login info
+    ga = GoogleAuth(settings=settings)
+    ga.ServiceAuth()
+    assert not ga.access_token_expired
+    assert creds_dict == first_creds_dict
+    time.sleep(1)
+
+
 def CheckCredentialsFile(credentials, no_file=False):
     ga = GoogleAuth(settings_file_path("test_oauth_default.yaml"))
     ga.LoadCredentialsFile(credentials)
