@@ -10,6 +10,7 @@ from oauth2client.client import FlowExchangeError
 from oauth2client.client import AccessTokenRefreshError
 from oauth2client.client import OAuth2WebServerFlow
 from oauth2client.client import OOB_CALLBACK_URN
+from oauth2client.contrib.dictionary_storage import DictionaryStorage
 from oauth2client.file import Storage
 from oauth2client.tools import ClientRedirectHandler
 from oauth2client.tools import ClientRedirectServer
@@ -197,9 +198,9 @@ class GoogleAuth(ApiAttributeMixin):
         self.settings = settings or self.DEFAULT_SETTINGS
         ValidateSettings(self.settings)
 
-        self._storages = self._InitializeStoragesFromSettings()
-        # Only one (`file`) backend is supported now
-        self._default_storage = self._storages["file"]
+        storages, default = self._InitializeStoragesFromSettings()
+        self._storages = storages
+        self._default_storage = default
 
     @property
     def access_token_expired(self):
@@ -337,7 +338,7 @@ class GoogleAuth(ApiAttributeMixin):
             )
 
     def _InitializeStoragesFromSettings(self):
-        result = {"file": None}
+        result = {"file": None, "dictionary": None}
         backend = self.settings.get("save_credentials_backend")
         save_credentials = self.settings.get("save_credentials")
         if backend == "file":
@@ -347,11 +348,16 @@ class GoogleAuth(ApiAttributeMixin):
                     "Please specify credentials file to read"
                 )
             result[backend] = Storage(credentials_file)
+        elif backend == "dictionary":
+            result[backend] = DictionaryStorage(
+                self.settings["save_credentials_dict"],
+                self.settings["save_credentials_key"],
+            )
         elif save_credentials:
             raise InvalidConfigError(
                 "Unknown save_credentials_backend: %s" % backend
             )
-        return result
+        return result, result.get(backend)
 
     def LoadCredentials(self, backend=None):
         """Loads credentials or create empty credentials if it doesn't exist.
@@ -366,6 +372,8 @@ class GoogleAuth(ApiAttributeMixin):
                 raise InvalidConfigError("Please specify credential backend")
         if backend == "file":
             self.LoadCredentialsFile()
+        elif backend == "dictionary":
+            self._LoadCredentialsDictionary()
         else:
             raise InvalidConfigError("Unknown save_credentials_backend")
 
@@ -399,6 +407,19 @@ class GoogleAuth(ApiAttributeMixin):
         if self.credentials:
             self.credentials.set_store(self._default_storage)
 
+    def _LoadCredentialsDictionary(self):
+        self._default_storage = self._storages["dictionary"]
+        if self._default_storage is None:
+            raise InvalidConfigError(
+                "Backend `dictionary` is not configured, specify "
+                "credentials dict and key to read in the settings file"
+            )
+
+        self.credentials = self._default_storage.get()
+
+        if self.credentials:
+            self.credentials.set_store(self._default_storage)
+
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
 
@@ -415,6 +436,8 @@ class GoogleAuth(ApiAttributeMixin):
                 raise InvalidConfigError("Please specify credential backend")
         if backend == "file":
             self.SaveCredentialsFile()
+        elif backend == "dictionary":
+            self._SaveCredentialsDictionary()
         else:
             raise InvalidConfigError("Unknown save_credentials_backend")
 
@@ -445,6 +468,19 @@ class GoogleAuth(ApiAttributeMixin):
             raise InvalidCredentialsError(
                 "Credentials file cannot be symbolic link"
             )
+
+    def _SaveCredentialsDictionary(self):
+        if self.credentials is None:
+            raise InvalidCredentialsError("No credentials to save")
+
+        storage = self._storages["dictionary"]
+        if storage is None:
+            raise InvalidConfigError(
+                "Backend `dictionary` is not configured, specify "
+                "credentials dict and key to write in the settings file"
+            )
+
+        storage.put(self.credentials)
 
     def LoadClientConfig(self, backend=None):
         """Loads client configuration according to specified backend.

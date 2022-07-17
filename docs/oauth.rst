@@ -74,6 +74,8 @@ These are all the possible fields of a *settings.yaml* file:
     save_credentials: {{bool}}
     save_credentials_backend: {{str}}
     save_credentials_file: {{str}}
+    save_credentials_dict: {{dict}}
+    save_credentials_key: {{str}}
 
     get_refresh_token: {{bool}}
 
@@ -91,8 +93,10 @@ Fields explained:
 :client_config['redirect_uri'] (str): Redirection endpoint URI. **Default**: 'urn:ietf:wg:oauth:2.0:oob'. **Required**: No.
 :client_config['revoke_uri'] (str): Revoke endpoint URI. **Default**: None. **Required**: No.
 :save_credentials (bool): True if you want to save credentials. **Default**: False. **Required**: No.
-:save_credentials_backend (str): Backend to save credentials to. 'file' is the only valid value for now. **Default**: 'file'. **Required**: No.
+:save_credentials_backend (str): Backend to save credentials to. 'file' and 'dictionary' are the only valid values for now. **Default**: 'file'. **Required**: No.
 :save_credentials_file (str): Destination of credentials file. **Required**: Yes, only if *save_credentials_backend* is 'file'.
+:save_credentials_dict (dict): Dict to use for storing credentials. **Required**: Yes, only if *save_credentials_backend* is 'dictionary'.
+:save_credentials_key (str): Key within the *save_credentials_dict* to store the credentials in. **Required**: Yes, only if *save_credentials_backend* is 'dictionary'.
 :get_refresh_token (bool): True if you want to retrieve refresh token along with access token. **Default**: False. **Required**: No.
 :oauth_scope (list of str): OAuth scope to authenticate. **Default**: ['https://www.googleapis.com/auth/drive']. **Required**: No.
 
