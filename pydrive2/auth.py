@@ -170,7 +170,9 @@ class GoogleAuth(ApiAttributeMixin):
     service = ApiAttribute("service")
     auth_method = ApiAttribute("auth_method")
 
-    def __init__(self, settings_file="settings.yaml", http_timeout=None):
+    def __init__(
+        self, settings_file="settings.yaml", http_timeout=None, settings=None
+    ):
         """Create an instance of GoogleAuth.
 
         This constructor just sets the path of settings file.
@@ -178,20 +180,23 @@ class GoogleAuth(ApiAttributeMixin):
 
         :param settings_file: path of settings file. 'settings.yaml' by default.
         :type settings_file: str.
+        :param settings: settigs dict.
+        :type settings: dict.
         """
         self.http_timeout = http_timeout
         ApiAttributeMixin.__init__(self)
         self.thread_local = threading.local()
         self.client_config = {}
-        try:
-            self.settings = LoadSettingsFile(settings_file)
-        except SettingsError:
-            self.settings = self.DEFAULT_SETTINGS
-        else:
-            if self.settings is None:
-                self.settings = self.DEFAULT_SETTINGS
-            else:
-                ValidateSettings(self.settings)
+
+        if settings is None and settings_file:
+            try:
+                settings = LoadSettingsFile(settings_file)
+            except SettingsError:
+                pass
+
+        self.settings = settings or self.DEFAULT_SETTINGS
+        ValidateSettings(self.settings)
+
         self._storages = self._InitializeStoragesFromSettings()
         # Only one (`file`) backend is supported now
         self._default_storage = self._storages["file"]
