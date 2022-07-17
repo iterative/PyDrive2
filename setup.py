@@ -10,7 +10,7 @@ tests_requirements = [
     "pytest-mock",
 ]
 
-tests_requirements.append("black==22.3.0")
+tests_requirements.append("black==22.6.0")
 
 setup(
     name="PyDrive2",
