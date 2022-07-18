@@ -16,6 +16,7 @@ jobs:
     steps:
       - run: echo ✓
   test:
+    needs: authorize
     runs-on: ${{ matrix.os }}
 
     strategy:
