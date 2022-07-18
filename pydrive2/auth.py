@@ -1,3 +1,4 @@
+import json
 import webbrowser
 import httplib2
 import oauth2client.clientsecrets as clientsecrets
@@ -310,6 +311,12 @@ class GoogleAuth(ApiAttributeMixin):
         scopes = scopes_to_string(self.settings["oauth_scope"])
         keyfile_name = self.client_config.get("client_json_file_path")
         keyfile_dict = self.client_config.get("client_json_dict")
+        keyfile_json = self.client_config.get("client_json")
+
+        if not keyfile_dict and keyfile_json:
+            # Compensating for missing ServiceAccountCredentials.from_json_keyfile
+            keyfile_dict = json.loads(keyfile_json)
+
         if keyfile_dict:
             self.credentials = (
                 ServiceAccountCredentials.from_json_keyfile_dict(
