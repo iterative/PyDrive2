@@ -71,9 +71,17 @@ These are all the possible fields of a *settings.yaml* file:
       redirect_uri: {{str}}
       revoke_uri: {{str}}
 
+    service_config:
+      client_user_email: {{str}}
+      client_json_file_path: {{str}}
+      client_json_dict: {{dict}}
+      client_json: {{str}}
+
     save_credentials: {{bool}}
     save_credentials_backend: {{str}}
     save_credentials_file: {{str}}
+    save_credentials_dict: {{dict}}
+    save_credentials_key: {{str}}
 
     get_refresh_token: {{bool}}
 
@@ -81,20 +89,29 @@ These are all the possible fields of a *settings.yaml* file:
 
 Fields explained:
 
-:client_config_backend (str): From where to read client configuration(API application settings such as client_id and client_secrets) from. Valid values are 'file' and 'settings'. **Default**: 'file'. **Required**: No.
+:client_config_backend (str): From where to read client configuration(API application settings such as client_id and client_secrets) from. Valid values are 'file', 'settings' and 'service'. **Default**: 'file'. **Required**: No.
 :client_config_file (str): When *client_config_backend* is 'file', path to the file containing client configuration. **Default**: 'client_secrets.json'. **Required**: No.
-:client_config (dict): Place holding dictionary for client configuration when *client_config_backend* is 'settings'. **Required**: Yes, only if *client_config_backend* is 'settings'
+:client_config (dict): Place holding dictionary for client configuration when *client_config_backend* is 'settings'. **Required**: Yes, only if *client_config_backend* is 'settings' and not using *service_config*
 :client_config['client_id'] (str): Client ID of the application. **Required**: Yes, only if *client_config_backend* is 'settings'
 :client_config['client_secret'] (str): Client secret of the application. **Required**: Yes, only if *client_config_backend* is 'settings'
 :client_config['auth_uri'] (str): The authorization server endpoint URI. **Default**: 'https://accounts.google.com/o/oauth2/auth'. **Required**: No.
 :client_config['token_uri'] (str): The token server endpoint URI. **Default**: 'https://accounts.google.com/o/oauth2/token'. **Required**: No.
 :client_config['redirect_uri'] (str): Redirection endpoint URI. **Default**: 'urn:ietf:wg:oauth:2.0:oob'. **Required**: No.
 :client_config['revoke_uri'] (str): Revoke endpoint URI. **Default**: None. **Required**: No.
+:service_config (dict): Place holding dictionary for client configuration when *client_config_backend* is 'service' or 'settings' and using service account. **Required**: Yes, only if *client_config_backend* is 'service' or 'settings' and not using *client_config*
+:service_config['client_user_email'] (str): User email that authority was delegated_ to. **Required**: No.
+:service_config['client_json_file_path'] (str): Path to service account `.json` key file. **Required**: No.
+:service_config['client_json_dict'] (dict): Service account `.json` key file loaded into a dictionary. **Required**: No.
+:service_config['client_json'] (str): Service account `.json` key file loaded into a string. **Required**: No.
 :save_credentials (bool): True if you want to save credentials. **Default**: False. **Required**: No.
-:save_credentials_backend (str): Backend to save credentials to. 'file' is the only valid value for now. **Default**: 'file'. **Required**: No.
+:save_credentials_backend (str): Backend to save credentials to. 'file' and 'dictionary' are the only valid values for now. **Default**: 'file'. **Required**: No.
 :save_credentials_file (str): Destination of credentials file. **Required**: Yes, only if *save_credentials_backend* is 'file'.
+:save_credentials_dict (dict): Dict to use for storing credentials. **Required**: Yes, only if *save_credentials_backend* is 'dictionary'.
+:save_credentials_key (str): Key within the *save_credentials_dict* to store the credentials in. **Required**: Yes, only if *save_credentials_backend* is 'dictionary'.
 :get_refresh_token (bool): True if you want to retrieve refresh token along with access token. **Default**: False. **Required**: No.
 :oauth_scope (list of str): OAuth scope to authenticate. **Default**: ['https://www.googleapis.com/auth/drive']. **Required**: No.
+
+.. _delegated: https://developers.google.com/admin-sdk/directory/v1/guides/delegation
 
 Sample *settings.yaml*
 ______________________
