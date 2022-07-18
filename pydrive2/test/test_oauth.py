@@ -1,3 +1,4 @@
+import json
 import os
 import time
 import pytest
@@ -7,6 +8,7 @@ from pydrive2.test.test_util import (
     setup_credentials,
     delete_file,
     settings_file_path,
+    GDRIVE_USER_CREDENTIALS_DATA,
 )
 from oauth2client.file import Storage
 
@@ -149,6 +151,40 @@ def test_10_ServiceAuthFromSavedCredentialsDictionary():
     ga.ServiceAuth()
     assert not ga.access_token_expired
     assert creds_dict == first_creds_dict
+    time.sleep(1)
+
+
+def test_11_ServiceAuthFromJsonNoCredentialsSaving():
+    client_json = os.environ[GDRIVE_USER_CREDENTIALS_DATA]
+    settings = {
+        "client_config_backend": "service",
+        "service_config": {
+            "client_json": client_json,
+        },
+        "oauth_scope": ["https://www.googleapis.com/auth/drive"],
+    }
+    # Test that no credentials are saved and API is still functional
+    # We are testing that there are no exceptions at least
+    ga = GoogleAuth(settings=settings)
+    assert not ga.settings["save_credentials"]
+    ga.ServiceAuth()
+    time.sleep(1)
+
+
+def test_12_ServiceAuthFromJsonDictNoCredentialsSaving():
+    client_json_dict = json.loads(os.environ[GDRIVE_USER_CREDENTIALS_DATA])
+    settings = {
+        "client_config_backend": "service",
+        "service_config": {
+            "client_json_dict": client_json_dict,
+        },
+        "oauth_scope": ["https://www.googleapis.com/auth/drive"],
+    }
+    # Test that no credentials are saved and API is still functional
+    # We are testing that there are no exceptions at least
+    ga = GoogleAuth(settings=settings)
+    assert not ga.settings["save_credentials"]
+    ga.ServiceAuth()
     time.sleep(1)
 
 
