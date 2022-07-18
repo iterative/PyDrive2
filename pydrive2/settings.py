@@ -82,6 +82,7 @@ SETTINGS_STRUCT = {
                 "required": False,
                 "struct": {},
             },
+            "client_json": {"type": str, "required": False},
         },
     },
     "oauth_scope": {
