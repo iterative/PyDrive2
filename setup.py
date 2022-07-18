@@ -14,7 +14,7 @@ tests_requirements.append("black==22.3.0")
 
 setup(
     name="PyDrive2",
-    version="1.11.1",
+    version="1.11.2",
     author="JunYoung Gwak",
     author_email="jgwak@dreamylab.com",
     maintainer="DVC team",
