@@ -77,6 +77,11 @@ SETTINGS_STRUCT = {
             "client_service_email": {"type": str, "required": False},
             "client_pkcs12_file_path": {"type": str, "required": False},
             "client_json_file_path": {"type": str, "required": False},
+            "client_json_dict": {
+                "type": dict,
+                "required": False,
+                "struct": {},
+            },
         },
     },
     "oauth_scope": {
