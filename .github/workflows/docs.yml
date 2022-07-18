@@ -1,0 +1,28 @@
+name: Build docs
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Build
+      run: |
+        pip install -U -r docs/requirements.txt
+        sphinx-build docs dist/site -b dirhtml -a
+
+    - name: Publish
+      if: ${{ github.event_name == 'push' && github.ref_name == 'master' }}
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: dist/site
