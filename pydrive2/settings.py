@@ -86,7 +86,7 @@ SETTINGS_STRUCT = {
         "default": ["https://www.googleapis.com/auth/drive"],
     },
     "save_credentials_file": {"type": str, "required": False},
-    "save_credentials_dict": {"type": dict, "required": False},
+    "save_credentials_dict": {"type": dict, "required": False, "struct": {}},
     "save_credentials_key": {"type": str, "required": False},
 }
 
