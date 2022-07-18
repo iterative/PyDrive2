@@ -36,7 +36,9 @@ SETTINGS_STRUCT = {
         "type": str,
         "required": False,
         "dependency": [
-            {"value": "file", "attribute": ["save_credentials_file"]}
+            {"value": "file", "attribute": ["save_credentials_file"]},
+            {"value": "dictionary", "attribute": ["save_credentials_dict"]},
+            {"value": "dictionary", "attribute": ["save_credentials_key"]},
         ],
     },
     "client_config": {
@@ -84,6 +86,8 @@ SETTINGS_STRUCT = {
         "default": ["https://www.googleapis.com/auth/drive"],
     },
     "save_credentials_file": {"type": str, "required": False},
+    "save_credentials_dict": {"type": dict, "required": False},
+    "save_credentials_key": {"type": str, "required": False},
 }
 
 
