@@ -2,13 +2,19 @@ on:
   push:
     branches:
       - master
-  pull_request:
-    branches:
-      - '*'
+  pull_request_target:
 
 name: Tests
 
 jobs:
+  authorize:
+    environment:
+      ${{ (github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository) &&
+      'external' || 'internal' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ✓
   test:
     runs-on: ${{ matrix.os }}
 
