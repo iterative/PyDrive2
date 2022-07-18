@@ -349,10 +349,15 @@ class GoogleAuth(ApiAttributeMixin):
                 )
             result[backend] = Storage(credentials_file)
         elif backend == "dictionary":
-            result[backend] = DictionaryStorage(
-                self.settings["save_credentials_dict"],
-                self.settings["save_credentials_key"],
-            )
+            creds_dict = self.settings.get("save_credentials_dict")
+            if creds_dict is None:
+                raise InvalidConfigError("Please specify credentials dict")
+
+            creds_key = self.settings.get("save_credentials_key")
+            if creds_key is None:
+                raise InvalidConfigError("Please specify credentials key")
+
+            result[backend] = DictionaryStorage(creds_dict, creds_key)
         elif save_credentials:
             raise InvalidConfigError(
                 "Unknown save_credentials_backend: %s" % backend
