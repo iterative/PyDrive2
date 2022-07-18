@@ -308,18 +308,18 @@ class GoogleAuth(ApiAttributeMixin):
         if set(self.SERVICE_CONFIGS_LIST) - set(self.client_config):
             self.LoadServiceConfigSettings()
         scopes = scopes_to_string(self.settings["oauth_scope"])
-        client_service_json = self.client_config.get("client_json_file_path")
-        creds_dict = self.client_config.get("client_creds_dict")
-        if creds_dict:
+        keyfile_name = self.client_config.get("client_json_file_path")
+        keyfile_dict = self.client_config.get("client_json_dict")
+        if keyfile_dict:
             self.credentials = (
                 ServiceAccountCredentials.from_json_keyfile_dict(
-                    keyfile_dict=creds_dict, scopes=scopes
+                    keyfile_dict=keyfile_dict, scopes=scopes
                 )
             )
-        elif client_service_json:
+        elif keyfile_name:
             self.credentials = (
                 ServiceAccountCredentials.from_json_keyfile_name(
-                    filename=client_service_json, scopes=scopes
+                    filename=keyfile_name, scopes=scopes
                 )
             )
         else:
