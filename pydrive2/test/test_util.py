@@ -17,6 +17,7 @@ TESTS_ROOTDIR = os.path.dirname(__file__)
 SETTINGS_PATH = posixpath.join(TESTS_ROOTDIR, "settings/")
 LOCAL_PATH = posixpath.join(TESTS_ROOTDIR, "settings/local/")
 
+assert False
 
 def setup_credentials(credentials_path=DEFAULT_USER_CREDENTIALS_FILE):
     os.chdir(TESTS_ROOTDIR)
