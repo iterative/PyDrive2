@@ -518,6 +518,42 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """
         self._FilesDelete(param=param)
 
+    @LoadAuth
+    def Copy(self, target_folder=None, new_title=None, param=None):
+        """Creates a copy of this file. Folders cannot be copied.
+
+        :param target_folder: Folder where the file will be copied.
+        :type target_folder: GoogleDriveFile, optional
+        :param new_title: Name of the new file.
+        :type new_title: str, optional
+        :param param: addition parameters to pass.
+        :type param: dict, optional
+        :raises ApiRequestError
+        :return: the copied file
+        :rtype: GoogleDriveFile
+        """
+
+        if param is None:
+            param = {}
+
+        param["fileId"] = self["id"]
+        param["supportsAllDrives"] = True
+        param["body"] = {}
+
+        if target_folder:
+            param["body"]["parents"] = [{"id": target_folder["id"]}]
+        param["body"]["title"] = new_title
+
+        new_file = None
+        try:
+            new_file = (
+                self.auth.service.files().copy(**param).execute(http=self.http)
+            )
+        except errors.HttpError as error:
+            raise ApiRequestError(error)
+
+        return GoogleDriveFile(self.auth, new_file)
+
     def InsertPermission(self, new_permission, param=None):
         """Insert a new permission. Re-fetches all permissions after call.
 
