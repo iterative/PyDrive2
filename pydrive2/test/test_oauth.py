@@ -157,7 +157,7 @@ def test_10_ServiceAuthFromSavedCredentialsDictionary():
 def test_11_ServiceAuthFromJsonNoCredentialsSaving():
     client_json = os.environ[GDRIVE_USER_CREDENTIALS_DATA]
     settings = {
-        "client_config_backend": "settings",
+        "client_config_backend": "service",
         "service_config": {
             "client_json": client_json,
         },
@@ -174,7 +174,7 @@ def test_11_ServiceAuthFromJsonNoCredentialsSaving():
 def test_12_ServiceAuthFromJsonDictNoCredentialsSaving():
     client_json_dict = json.loads(os.environ[GDRIVE_USER_CREDENTIALS_DATA])
     settings = {
-        "client_config_backend": "settings",
+        "client_config_backend": "service",
         "service_config": {
             "client_json_dict": client_json_dict,
         },
