@@ -1,3 +1,4 @@
+import os
 import posixpath
 import secrets
 import uuid
@@ -8,6 +9,7 @@ import fsspec
 from pydrive2.auth import GoogleAuth
 from pydrive2.fs import GDriveFileSystem
 from pydrive2.test.test_util import settings_file_path, setup_credentials
+from pydrive2.test.test_util import GDRIVE_USER_CREDENTIALS_DATA
 
 TEST_GDRIVE_REPO_BUCKET = "root"
 
@@ -34,6 +36,34 @@ def fs(tmpdir, base_remote_dir):
     fs._gdrive_create_dir("root", base)
 
     return fs
+
+
+@pytest.mark.manual
+def test_fs_oauth(base_remote_dir):
+    GDriveFileSystem(
+        base_remote_dir,
+        client_id="47794215776-cd9ssb6a4vv5otkq6n0iadpgc4efgjb1.apps.googleusercontent.com",  # noqa: E501
+        client_secret="i2gerGA7uBjZbR08HqSOSt9Z",
+    )
+
+
+def test_fs_service_json_file(base_remote_dir):
+    creds = "credentials/fs.dat"
+    setup_credentials(creds)
+    GDriveFileSystem(
+        base_remote_dir,
+        use_service_account=True,
+        client_json_file_path=creds,
+    )
+
+
+def test_fs_service_json(base_remote_dir):
+    creds = os.environ[GDRIVE_USER_CREDENTIALS_DATA]
+    GDriveFileSystem(
+        base_remote_dir,
+        use_service_account=True,
+        client_json=creds,
+    )
 
 
 def test_info(fs, tmpdir, remote_dir):

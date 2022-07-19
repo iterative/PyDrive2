@@ -37,7 +37,12 @@ setup(
         "pyOpenSSL >= 19.1.0",
     ],
     extras_require={
-        "fsspec": ["fsspec >= 2021.07.0", "tqdm >= 4.0.0", "funcy >= 1.14"],
+        "fsspec": [
+            "fsspec >= 2021.07.0",
+            "tqdm >= 4.0.0",
+            "funcy >= 1.14",
+            "appdirs >= 1.4.3",
+        ],
         "tests": tests_requirements,
     },
     python_requires=">=3.7",

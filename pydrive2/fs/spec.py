@@ -1,3 +1,4 @@
+import appdirs
 import errno
 import io
 import logging
@@ -5,6 +6,7 @@ import os
 import posixpath
 import threading
 from collections import defaultdict
+from contextlib import contextmanager
 
 from fsspec.spec import AbstractFileSystem
 from funcy import cached_property, retry, wrap_prop, wrap_with
@@ -13,10 +15,23 @@ from tqdm.utils import CallbackIOWrapper
 
 from pydrive2.drive import GoogleDrive
 from pydrive2.fs.utils import IterStream
+from pydrive2.auth import GoogleAuth
 
 logger = logging.getLogger(__name__)
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
+
+COMMON_SETTINGS = {
+    "get_refresh_token": True,
+    "oauth_scope": [
+        "https://www.googleapis.com/auth/drive",
+        "https://www.googleapis.com/auth/drive.appdata",
+    ],
+}
+
+
+class GDriveAuthError(Exception):
+    pass
 
 
 def _gdrive_retry(func):
@@ -49,13 +64,169 @@ def _gdrive_retry(func):
     )(func)
 
 
+@contextmanager
+def _wrap_errors():
+    try:
+        yield
+    except Exception as exc:
+        # Handle AuthenticationError, RefreshError and other auth failures
+        # It's hard to come up with a narrow exception, since PyDrive throws
+        # a lot of different errors - broken credentials file, refresh token
+        # expired, flow failed, etc.
+        raise GDriveAuthError("Failed to authenticate GDrive") from exc
+
+
+def _client_auth(
+    client_id=None,
+    client_secret=None,
+    client_json=None,
+    client_json_file_path=None,
+    profile=None,
+):
+    if client_json:
+        save_settings = {
+            "save_credentials_backend": "dictionary",
+            "save_credentials_dict": {"creds": client_json},
+            "save_credentials_key": "creds",
+        }
+    else:
+        creds_file = client_json_file_path
+        if not creds_file:
+            cache_dir = os.path.join(
+                appdirs.user_cache_dir("pydrive2fs", appauthor=False),
+                client_id,
+            )
+            os.makedirs(cache_dir, exist_ok=True)
+
+            profile = profile or "default"
+            creds_file = os.path.join(cache_dir, f"{profile}.json")
+
+        save_settings = {
+            "save_credentials_backend": "file",
+            "save_credentials_file": creds_file,
+        }
+
+    settings = {
+        **COMMON_SETTINGS,
+        "save_credentials": True,
+        **save_settings,
+        "client_config_backend": "settings",
+        "client_config": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "revoke_uri": "https://oauth2.googleapis.com/revoke",
+            "redirect_uri": "",
+        },
+    }
+
+    auth = GoogleAuth(settings=settings)
+
+    with _wrap_errors():
+        auth.LocalWebserverAuth()
+
+    return auth
+
+
+def _service_auth(
+    client_user_email=None,
+    client_json=None,
+    client_json_file_path=None,
+):
+    settings = {
+        **COMMON_SETTINGS,
+        "client_config_backend": "service",
+        "service_config": {
+            "client_user_email": client_user_email,
+            "client_json": client_json,
+            "client_json_file_path": client_json_file_path,
+        },
+    }
+
+    auth = GoogleAuth(settings=settings)
+
+    with _wrap_errors():
+        auth.ServiceAuth()
+
+    return auth
+
+
 class GDriveFileSystem(AbstractFileSystem):
-    def __init__(self, path, google_auth, trash_only=True, **kwargs):
+    def __init__(
+        self,
+        path,
+        google_auth=None,
+        trash_only=True,
+        client_id=None,
+        client_secret=None,
+        client_user_email=None,
+        client_json=None,
+        client_json_file_path=None,
+        use_service_account=False,
+        profile=None,
+        **kwargs,
+    ):
+        """Access to gdrive as a file-system
+
+        :param path: gdrive path.
+        :type path: str.
+        :param google_auth: Authenticated GoogleAuth instance.
+        :type google_auth: GoogleAuth.
+        :param trash_only: Move files to trash instead of deleting.
+        :type trash_only: bool.
+        :param client_id: Client ID of the application.
+        :type client_id: str
+        :param client_secret: Client secret of the application.
+        :type client_secret: str.
+        :param client_user_email: User email that authority was delegated to
+            (only for service account).
+        :type client_user_email: str.
+        :param client_json: JSON keyfile loaded into a string.
+        :type client_json: str.
+        :param client_json_file_path: Path to JSON keyfile.
+        :type client_json_file_path: str.
+        :param use_service_account: Use service account.
+        :type use_service_account: bool.
+        :param profile: Profile name for caching credentials
+            (ignored for service account).
+        :type profile: str.
+        :raises: GDriveAuthError
+        """
+        super().__init__(**kwargs)
         self.path = path
         self.root, self.base = self.split_path(self.path)
+
+        if not google_auth:
+            if (
+                not client_json
+                and not client_json_file_path
+                and not (client_id and client_secret)
+            ):
+                raise ValueError(
+                    "Specify credentials using one of these methods: "
+                    "client_id/client_secret or "
+                    "client_json or "
+                    "client_json_file_path"
+                )
+
+            if use_service_account:
+                google_auth = _service_auth(
+                    client_json=client_json,
+                    client_json_file_path=client_json_file_path,
+                    client_user_email=client_user_email,
+                )
+            else:
+                google_auth = _client_auth(
+                    client_id=client_id,
+                    client_secret=client_secret,
+                    client_json=client_json,
+                    client_json_file_path=client_json_file_path,
+                    profile=profile,
+                )
+
         self.client = GoogleDrive(google_auth)
         self._trash_only = trash_only
-        super().__init__(**kwargs)
 
     def split_path(self, path):
         parts = path.replace("//", "/").rstrip("/").split("/", 1)
