@@ -571,22 +571,27 @@ class GoogleAuth(ApiAttributeMixin):
             pass  # The service auth fields are not present, handling code can go here.
 
     def LoadServiceConfigSettings(self):
-        """Loads client configuration from settings file.
+        """Loads client configuration from settings.
         :raises: InvalidConfigError
         """
-        for file_format in ["json", "pkcs12"]:
-            config = f"client_{file_format}_file_path"
+        configs = [
+            "client_json_file_path",
+            "client_json_dict",
+            "client_json",
+            "client_pkcs12_file_path",
+        ]
+
+        for config in configs:
             value = self.settings["service_config"].get(config)
             if value:
                 self.client_config[config] = value
                 break
         else:
             raise InvalidConfigError(
-                "Either json or pkcs12 file path required "
-                "for service authentication"
+                f"One of {configs} is required for service authentication"
             )
 
-        if file_format == "pkcs12":
+        if config == "client_pkcs12_file_path":
             self.SERVICE_CONFIGS_LIST.append("client_service_email")
 
         for config in self.SERVICE_CONFIGS_LIST:
