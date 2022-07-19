@@ -29,7 +29,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
       with:
-	# NOTE: needed for pull_request_target to use PR code
+        # NOTE: needed for pull_request_target to use PR code
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
     - uses: actions/setup-python@v4
