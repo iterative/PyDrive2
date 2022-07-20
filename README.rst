@@ -39,6 +39,7 @@ Features of PyDrive2
    classes of each resource to make your program more object-oriented.
 -  Helps common operations else than API calls, such as content fetching
    and pagination control.
+-  Provides `fsspec`_ filesystem implementation.
 
 How to install
 --------------
@@ -125,6 +126,23 @@ File listing pagination made easy
         for file1 in file_list:
             print('title: {}, id: {}'.format(file1['title'], file1['id']))
 
+Fsspec filesystem
+-----------------
+
+*PyDrive2* provides easy way to work with your files through `fsspec`_
+compatible `GDriveFileSystem`_.
+
+.. code:: python
+
+    from pydrive2.fs import GDriveFileSystem
+
+    fs = GDriveFileSystem("root", client_id=my_id, client_secret=my_secret)
+
+    for root, dnames, fnames in fs.walk(""):
+        ...
+
+.. _`GDriveFileSystem`: https://docs.iterative.ai/PyDrive2/fsspec/
+
 Concurrent access made easy
 ---------------------------
 
@@ -137,3 +155,5 @@ Thanks to all our contributors!
 
 .. image:: https://contrib.rocks/image?repo=iterative/PyDrive2
    :target: https://github.com/iterative/PyDrive2/graphs/contributors
+
+.. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
