@@ -295,6 +295,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         remove_bom=False,
         callback=None,
         chunksize=DEFAULT_CHUNK_SIZE,
+        acknowledge_abuse=False,
     ):
         """Save content of this file as a local file.
 
@@ -308,6 +309,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type param: callable
         :param chunksize: chunksize in bytes (standard 100 MB(1024*1024*100))
         :type chunksize: int
+        :param acknowledge_abuse: Acknowledging the risk and download file
+            identified as abusive.
+        :type acknowledge_abuse: bool
         :raises: ApiRequestError, FileNotUploadedError
         """
         files = self.auth.service.files()
@@ -331,7 +335,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             # But that would first require a slow call to FetchMetadata().
             # We prefer to try-except for speed.
             try:
-                download(fd, files.get_media(fileId=file_id))
+                download(
+                    fd,
+                    files.get_media(
+                        fileId=file_id, acknowledgeAbuse=acknowledge_abuse
+                    ),
+                )
             except errors.HttpError as error:
                 exc = ApiRequestError(error)
                 if (
@@ -362,6 +371,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         encoding=None,
         remove_bom=False,
         chunksize=DEFAULT_CHUNK_SIZE,
+        acknowledge_abuse=False,
     ):
         """Get a file-like object which has a buffered read() method.
 
@@ -373,6 +383,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type remove_bom: bool
         :param chunksize: default read()/iter() chunksize.
         :type chunksize: int
+        :param acknowledge_abuse: Acknowledging the risk and download file
+            identified as abusive.
+        :type acknowledge_abuse: bool
         :returns: MediaIoReadable -- file-like object.
         :raises: ApiRequestError, FileNotUploadedError
         """
@@ -386,7 +399,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         # But that would first require a slow call to FetchMetadata().
         # We prefer to try-except for speed.
         try:
-            request = self._WrapRequest(files.get_media(fileId=file_id))
+            request = self._WrapRequest(
+                files.get_media(
+                    fileId=file_id, acknowledgeAbuse=acknowledge_abuse
+                )
+            )
             return MediaIoReadable(
                 request, encoding=encoding, chunksize=chunksize
             )

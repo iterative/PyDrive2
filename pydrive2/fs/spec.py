@@ -159,7 +159,6 @@ class GDriveFileSystem(AbstractFileSystem):
         self,
         path,
         google_auth=None,
-        trash_only=True,
         client_id=None,
         client_secret=None,
         client_user_email=None,
@@ -167,6 +166,8 @@ class GDriveFileSystem(AbstractFileSystem):
         client_json_file_path=None,
         use_service_account=False,
         profile=None,
+        trash_only=True,
+        acknowledge_abuse=False,
         **kwargs,
     ):
         """Create an instance of GDriveFileSystem.
@@ -175,8 +176,6 @@ class GDriveFileSystem(AbstractFileSystem):
         :type path: str.
         :param google_auth: Authenticated GoogleAuth instance.
         :type google_auth: GoogleAuth.
-        :param trash_only: Move files to trash instead of deleting.
-        :type trash_only: bool.
         :param client_id: Client ID of the application.
         :type client_id: str
         :param client_secret: Client secret of the application.
@@ -192,6 +191,11 @@ class GDriveFileSystem(AbstractFileSystem):
         :type use_service_account: bool.
         :param profile: Profile name for caching credentials
             (ignored for service account).
+        :param trash_only: Move files to trash instead of deleting.
+        :type trash_only: bool.
+        :param acknowledge_abuse: Acknowledging the risk and download file
+            identified as abusive.
+        :type acknowledge_abuse: bool
         :type profile: str.
         :raises: GDriveAuthError
         """
@@ -229,6 +233,7 @@ class GDriveFileSystem(AbstractFileSystem):
 
         self.client = GoogleDrive(google_auth)
         self._trash_only = trash_only
+        self._acknowledge_abuse = acknowledge_abuse
 
     def split_path(self, path):
         parts = path.replace("//", "/").rstrip("/").split("/", 1)
@@ -549,7 +554,7 @@ class GDriveFileSystem(AbstractFileSystem):
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
 
-        extra_args = {}
+        extra_args = {"acknowledge_abuse": self._acknowledge_abuse}
         if block_size:
             extra_args["chunksize"] = block_size
 
@@ -577,7 +582,9 @@ class GDriveFileSystem(AbstractFileSystem):
         param = {"id": item_id}
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
-        fd = gdrive_file.GetContentIOBuffer()
+        fd = gdrive_file.GetContentIOBuffer(
+            acknowledge_abuse=self._acknowledge_abuse
+        )
         return IterStream(iter(fd))
 
     def rm_file(self, path):

@@ -95,6 +95,12 @@ Using json keyfile string:
 
 Use `client_user_email` if you are using `delegation of authority`_.
 
+Additional parameters
+---------------------
+
+:trash_only (bool): Move files to trash instead of deleting.
+:acknowledge_abuse (bool): Acknowledging the risk and download file identified as abusive. See `Abusive files`_ for more info.
+
 Using filesystem
 ----------------
 
@@ -114,4 +120,5 @@ about and manipulating files, refer to fsspec docs on
 .. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
 .. _`GDriveFileSystem`: /PyDrive2/pydrive2/#pydrive2.fs.GDriveFileSystem
 .. _`delegation of authority`: https://developers.google.com/admin-sdk/directory/v1/guides/delegation
+.. _`Abusive files`: /PyDrive2/filemanagement/index.html#abusive-files
 .. _`how to use a filesystem`: https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system
