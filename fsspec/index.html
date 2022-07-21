@@ -3,10 +3,10 @@
   <head><meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1"/>
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
-<link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="fsspec filesystem" href="../fsspec/" /><link rel="prev" title="File management made easy" href="../filemanagement/" />
+<link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="pydrive2 package" href="../pydrive2/" /><link rel="prev" title="File listing made easy" href="../filelist/" />
 
     <meta name="generator" content="sphinx-5.0.2, furo 2022.06.21"/>
-        <title>File listing made easy - PyDrive2 1.12.1 documentation</title>
+        <title>fsspec filesystem - PyDrive2 1.12.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=40978830699223671f4072448e654b5958f38b89" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
@@ -158,8 +158,8 @@
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../oauth/">OAuth made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filemanagement/">File management made easy</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">File listing made easy</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../fsspec/">fsspec filesystem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../filelist/">File listing made easy</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">fsspec filesystem</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../pydrive2/">pydrive2 package</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../genindex/">Index</a></li>
 </ul>
@@ -195,39 +195,101 @@
           </label>
         </div>
         <article role="main">
-          <section id="file-listing-made-easy">
-<h1>File listing made easy<a class="headerlink" href="#file-listing-made-easy" title="Permalink to this heading">#</a></h1>
-<p><em>PyDrive</em> handles paginations and parses response as list of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>.</p>
-<section id="get-all-files-which-matches-the-query">
-<h2>Get all files which matches the query<a class="headerlink" href="#get-all-files-which-matches-the-query" title="Permalink to this heading">#</a></h2>
-<p>Create <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFileList">GoogleDriveFileList</a> instance with <a class="reference external" href="https://developers.google.com/drive/v2/reference/files/list#request">parameters of Files.list()</a> as <code class="docutils literal notranslate"><span class="pre">dict</span></code>.
-Call <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.apiattr.ApiResourceList.GetList">GetList()</a> and you will get all files that matches your query as a list of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>.
-The syntax and possible option of the query <code class="docutils literal notranslate"><span class="pre">q</span></code> parameter can be found in <cite>search for files</cite> Google documentation.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
-
-<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span> <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance</span>
-
-<span class="c1"># Auto-iterate through all files in the root folder.</span>
-<span class="n">file_list</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">&#39;q&#39;</span><span class="p">:</span> <span class="s2">&quot;&#39;root&#39; in parents and trashed=false&quot;</span><span class="p">})</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
-  <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+          <section id="fsspec-filesystem">
+<h1>fsspec filesystem<a class="headerlink" href="#fsspec-filesystem" title="Permalink to this heading">#</a></h1>
+<p><em>PyDrive2</em> provides easy way to work with your files through <a class="reference external" href="https://filesystem-spec.readthedocs.io/en/latest/">fsspec</a>
+compatible <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.fs.GDriveFileSystem">GDriveFileSystem</a>.</p>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">#</a></h2>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip install <span class="s1">&#39;pydrive2[fsspec]&#39;</span>
 </pre></div>
 </div>
-<p>You can update metadata or content of these <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instances if you need it.</p>
 </section>
-<section id="paginate-and-iterate-through-files">
-<h2>Paginate and iterate through files<a class="headerlink" href="#paginate-and-iterate-through-files" title="Permalink to this heading">#</a></h2>
-<p><em>PyDrive</em> provides Pythonic way of paginating and iterating through list of files.
-Here is an example how to do this, <code class="docutils literal notranslate"><span class="pre">maxResults</span></code> below defines how many
-files it retrieves at once and we wrap it into a <code class="docutils literal notranslate"><span class="pre">for</span></code> loop to iterate:</p>
-<p>Sample code continues from above:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Paginate file lists by specifying number of max results</span>
-<span class="k">for</span> <span class="n">file_list</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">&#39;q&#39;</span><span class="p">:</span> <span class="s1">&#39;trashed=true&#39;</span><span class="p">,</span> <span class="s1">&#39;maxResults&#39;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}):</span>
-  <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Received </span><span class="si">%s</span><span class="s1"> files from Files.list()&#39;</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">))</span> <span class="c1"># &lt;= 10</span>
-  <span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
-      <span class="nb">print</span><span class="p">(</span><span class="s1">&#39;title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+<section id="local-webserver">
+<h2>Local webserver<a class="headerlink" href="#local-webserver" title="Permalink to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;my_client_id&quot;</span><span class="p">,</span>
+    <span class="n">client_secret</span><span class="o">=</span><span class="s2">&quot;my_client_secret&quot;</span><span class="p">,</span>
+<span class="p">)</span>
 </pre></div>
 </div>
+<p>By default, credentials will be cached per ‘client_id’, but if you are using
+multiple users you might want to use ‘profile’ to avoid accidentally using
+someone else’s cached credentials:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;my_client_id&quot;</span><span class="p">,</span>
+    <span class="n">client_secret</span><span class="o">=</span><span class="s2">&quot;my_client_secret&quot;</span><span class="p">,</span>
+    <span class="n">profile</span><span class="o">=</span><span class="s2">&quot;myprofile&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Writing cached credentials to a file and using it if it already exists (which
+avoids interactive auth):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;my_client_id&quot;</span><span class="p">,</span>
+    <span class="n">client_secret</span><span class="o">=</span><span class="s2">&quot;my_client_secret&quot;</span><span class="p">,</span>
+    <span class="n">client_json_file_path</span><span class="o">=</span><span class="s2">&quot;/path/to/keyfile.json&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Using cached credentials from json string (avoids interactive auth):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+    <span class="n">client_id</span><span class="o">=</span><span class="s2">&quot;my_client_id&quot;</span><span class="p">,</span>
+    <span class="n">client_secret</span><span class="o">=</span><span class="s2">&quot;my_client_secret&quot;</span><span class="p">,</span>
+    <span class="n">client_json</span><span class="o">=</span><span class="n">json_string</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="service-account">
+<h2>Service account<a class="headerlink" href="#service-account" title="Permalink to this heading">#</a></h2>
+<p>Using json keyfile path:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+    <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">client_json_file_path</span><span class="o">=</span><span class="s2">&quot;/path/to/keyfile.json&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Using json keyfile string:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
+
+<span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="s2">&quot;root&quot;</span><span class="p">,</span>
+    <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">client_json</span><span class="o">=</span><span class="n">json_string</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Use <cite>client_user_email</cite> if you are using <a class="reference external" href="https://developers.google.com/admin-sdk/directory/v1/guides/delegation">delegation of authority</a>.</p>
+</section>
+<section id="using-filesystem">
+<h2>Using filesystem<a class="headerlink" href="#using-filesystem" title="Permalink to this heading">#</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dnames</span><span class="p">,</span> <span class="n">fnames</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">dname</span> <span class="ow">in</span> <span class="n">dnames</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;dir: </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">dname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">fnames</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;file: </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Filesystem instance offers a large number of methods for getting information
+about and manipulating files, refer to fsspec docs on
+<a class="reference external" href="https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system">how to use a filesystem</a>.</p>
 </section>
 </section>
 
@@ -236,23 +298,23 @@ files it retrieves at once and we wrap it into a <code class="docutils literal n
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="../fsspec/">
+          <a class="next-page" href="../pydrive2/">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">fsspec filesystem</div>
+                <div class="title">pydrive2 package</div>
               </div>
               <svg><use href="#svg-arrow-right"></use></svg>
             </a>
-          <a class="prev-page" href="../filemanagement/">
+          <a class="prev-page" href="../filelist/">
               <svg><use href="#svg-arrow-right"></use></svg>
               <div class="page-info">
                 <div class="context">
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">File management made easy</div>
+                <div class="title">File listing made easy</div>
                 
               </div>
             </a>
@@ -288,9 +350,11 @@ files it retrieves at once and we wrap it into a <code class="docutils literal n
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">File listing made easy</a><ul>
-<li><a class="reference internal" href="#get-all-files-which-matches-the-query">Get all files which matches the query</a></li>
-<li><a class="reference internal" href="#paginate-and-iterate-through-files">Paginate and iterate through files</a></li>
+<li><a class="reference internal" href="#">fsspec filesystem</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#local-webserver">Local webserver</a></li>
+<li><a class="reference internal" href="#service-account">Service account</a></li>
+<li><a class="reference internal" href="#using-filesystem">Using filesystem</a></li>
 </ul>
 </li>
 </ul>
