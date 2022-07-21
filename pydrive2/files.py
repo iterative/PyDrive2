@@ -528,7 +528,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type new_title: str, optional
         :param param: addition parameters to pass.
         :type param: dict, optional
-        :raises ApiRequestError
+        :raises: ApiRequestError
         :return: the copied file
         :rtype: GoogleDriveFile
         """
