@@ -507,7 +507,7 @@ class GDriveFileSystem(AbstractFileSystem):
             stream = CallbackIOWrapper(
                 callback.relative_update, stream, "read"
             )
-        return self.gdrive_upload_fobj(
+        return self._gdrive_upload_fobj(
             posixpath.basename(rpath.rstrip("/")), parent_id, stream
         )
 
@@ -518,7 +518,7 @@ class GDriveFileSystem(AbstractFileSystem):
             self.upload_fobj(stream, rpath, callback=callback)
 
     @_gdrive_retry
-    def gdrive_upload_fobj(self, title, parent_id, stream, callback=None):
+    def _gdrive_upload_fobj(self, title, parent_id, stream, callback=None):
         item = self.client.CreateFile(
             {"title": title, "parents": [{"id": parent_id}]}
         )
@@ -537,12 +537,12 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
-        return self.gdrive_get_file(
+        return self._gdrive_get_file(
             item_id, rpath, callback=callback, block_size=block_size
         )
 
     @_gdrive_retry
-    def gdrive_get_file(self, item_id, rpath, callback=None, block_size=None):
+    def _gdrive_get_file(self, item_id, rpath, callback=None, block_size=None):
         param = {"id": item_id}
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
@@ -568,10 +568,10 @@ class GDriveFileSystem(AbstractFileSystem):
             return GDriveBufferedWriter(self, path)
         else:
             item_id = self._get_item_id(path)
-            return self.gdrive_open_file(item_id)
+            return self._gdrive_open_file(item_id)
 
     @_gdrive_retry
-    def gdrive_open_file(self, item_id):
+    def _gdrive_open_file(self, item_id):
         param = {"id": item_id}
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
@@ -580,10 +580,10 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def rm_file(self, path):
         item_id = self._get_item_id(path)
-        self.gdrive_delete_file(item_id)
+        self._gdrive_delete_file(item_id)
 
     @_gdrive_retry
-    def gdrive_delete_file(self, item_id):
+    def _gdrive_delete_file(self, item_id):
         from pydrive2.files import ApiRequestError
 
         param = {"id": item_id}
