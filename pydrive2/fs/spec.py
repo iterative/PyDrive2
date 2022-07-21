@@ -153,6 +153,8 @@ def _service_auth(
 
 
 class GDriveFileSystem(AbstractFileSystem):
+    """Access to gdrive as an fsspec filesystem"""
+
     def __init__(
         self,
         path,
@@ -167,7 +169,7 @@ class GDriveFileSystem(AbstractFileSystem):
         profile=None,
         **kwargs,
     ):
-        """Access to gdrive as a file-system
+        """Create an instance of GDriveFileSystem.
 
         :param path: gdrive path.
         :type path: str.
