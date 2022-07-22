@@ -239,6 +239,14 @@ is downloaded. Just set the `remove_bom` parameter in `GetContentString()` or
 `GetContentFile()` - see `examples/strip_bom_example.py` in the GitHub
 repository for an example.
 
+Abusive files
+-------------
+
+Files identified as `abusive`_ (malware, etc.) are only downloadable by the owner.
+If you see a
+'This file has been identified as malware or spam and cannot be downloaded'
+error, set 'acknowledge_abuse=True' parameter in `GetContentFile()`. By using
+it you indicate that you acknowledge the risks of downloading potential malware.
 
 .. _`GoogleDriveFile`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile
 .. _`Upload()`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.Upload
@@ -251,3 +259,4 @@ repository for an example.
 .. _`GetContentString()`: ./PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentString
 .. _`official documentation`: https://developers.google.com/drive/v2/reference/files#resource-representations
 .. _`known`: https://productforums.google.com/forum/#!topic/docs/BJLimQDGtjQ
+.. _`abusive`: https://support.google.com/docs/answer/148505

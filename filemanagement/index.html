@@ -400,6 +400,14 @@ is downloaded. Just set the <cite>remove_bom</cite> parameter in <cite>GetConten
 <cite>GetContentFile()</cite> - see <cite>examples/strip_bom_example.py</cite> in the GitHub
 repository for an example.</p>
 </section>
+<section id="abusive-files">
+<h2>Abusive files<a class="headerlink" href="#abusive-files" title="Permalink to this heading">#</a></h2>
+<p>Files identified as <a class="reference external" href="https://support.google.com/docs/answer/148505">abusive</a> (malware, etc.) are only downloadable by the owner.
+If you see a
+‘This file has been identified as malware or spam and cannot be downloaded’
+error, set ‘acknowledge_abuse=True’ parameter in <cite>GetContentFile()</cite>. By using
+it you indicate that you acknowledge the risks of downloading potential malware.</p>
+</section>
 </section>
 
         </article>
@@ -472,6 +480,7 @@ repository for an example.</p>
 </li>
 <li><a class="reference internal" href="#upload-and-update-file-content">Upload and update file content</a></li>
 <li><a class="reference internal" href="#download-file-content">Download file content</a></li>
+<li><a class="reference internal" href="#abusive-files">Abusive files</a></li>
 </ul>
 </li>
 </ul>

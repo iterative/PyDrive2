@@ -277,6 +277,17 @@ avoids interactive auth):</p>
 </div>
 <p>Use <cite>client_user_email</cite> if you are using <a class="reference external" href="https://developers.google.com/admin-sdk/directory/v1/guides/delegation">delegation of authority</a>.</p>
 </section>
+<section id="additional-parameters">
+<h2>Additional parameters<a class="headerlink" href="#additional-parameters" title="Permalink to this heading">#</a></h2>
+<dl class="field-list simple">
+<dt class="field-odd">trash_only (bool)<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Move files to trash instead of deleting.</p>
+</dd>
+<dt class="field-even">acknowledge_abuse (bool)<span class="colon">:</span></dt>
+<dd class="field-even"><p>Acknowledging the risk and download file identified as abusive. See <a class="reference external" href="/PyDrive2/filemanagement/index.html#abusive-files">Abusive files</a> for more info.</p>
+</dd>
+</dl>
+</section>
 <section id="using-filesystem">
 <h2>Using filesystem<a class="headerlink" href="#using-filesystem" title="Permalink to this heading">#</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dnames</span><span class="p">,</span> <span class="n">fnames</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
@@ -354,6 +365,7 @@ about and manipulating files, refer to fsspec docs on
 <li><a class="reference internal" href="#installation">Installation</a></li>
 <li><a class="reference internal" href="#local-webserver">Local webserver</a></li>
 <li><a class="reference internal" href="#service-account">Service account</a></li>
+<li><a class="reference internal" href="#additional-parameters">Additional parameters</a></li>
 <li><a class="reference internal" href="#using-filesystem">Using filesystem</a></li>
 </ul>
 </li>
