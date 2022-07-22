@@ -1,3 +1,8 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+
+[tool.setuptools_scm]
+
 [tool.black]
 line-length = 79
 include = '\.pyi?$'
