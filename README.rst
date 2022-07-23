@@ -1,6 +1,6 @@
 |CI| |Conda| |PyPI|
 
-.. |CI| image:: https://github.com/iterative/PyDrive2/workflows/Tests/badge.svg?branch=master
+.. |CI| image:: https://github.com/iterative/PyDrive2/workflows/Tests/badge.svg?branch=main
    :target: https://github.com/iterative/PyDrive2/actions
    :alt: GHA Tests
 

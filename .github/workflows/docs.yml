@@ -21,7 +21,7 @@ jobs:
         sphinx-build docs dist/site -b dirhtml -a
 
     - name: Publish
-      if: ${{ github.event_name == 'push' && github.ref_name == 'master' }}
+      if: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
       uses: peaceiris/actions-gh-pages@v3
       with:
         github_token: ${{ secrets.GITHUB_TOKEN }}
