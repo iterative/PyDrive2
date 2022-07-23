@@ -42,13 +42,13 @@ source_suffix = ".rst"
 # The encoding of source files.
 # source_encoding = 'utf-8-sig'
 
-# The master toctree document.
-master_doc = "index"
+# The root toctree document.
+root_doc = "index"
 
 # General information about the project.
 project = "PyDrive2"
 copyright = (
-    "2020, JunYoung Gwak, Scott Blevins, Robin Nabel, Google Inc, "
+    "2022, JunYoung Gwak, Scott Blevins, Robin Nabel, Google Inc, "
     "Iterative Inc"
 )
 author = "JunYoung Gwak, Scott Blevins, Robin Nabel, Iterative Inc"
@@ -229,7 +229,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (
-        master_doc,
+        root_doc,
         "PyDrive2.tex",
         "PyDrive2 Documentation",
         "JunYoung Gwak, Scott Blevins, Robin Nabel, Iterative Inc",
@@ -262,7 +262,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "pydrive2", "PyDrive2 Documentation", [author], 1)]
+man_pages = [(root_doc, "pydrive2", "PyDrive2 Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -275,7 +275,7 @@ man_pages = [(master_doc, "pydrive2", "PyDrive2 Documentation", [author], 1)]
 #  dir menu entry, description, category)
 texinfo_documents = [
     (
-        master_doc,
+        root_doc,
         "PyDrive2",
         "PyDrive2 Documentation",
         author,
