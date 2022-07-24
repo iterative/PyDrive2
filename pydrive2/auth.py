@@ -177,12 +177,9 @@ class GoogleAuth(ApiAttributeMixin):
     ):
         """Create an instance of GoogleAuth.
 
-        This constructor just sets the path of settings file.
-        It does not actually read the file.
-
         :param settings_file: path of settings file. 'settings.yaml' by default.
         :type settings_file: str.
-        :param settings: settigs dict.
+        :param settings: settings dict.
         :type settings: dict.
         """
         self.http_timeout = http_timeout
@@ -220,8 +217,8 @@ class GoogleAuth(ApiAttributeMixin):
         """Authenticate and authorize from user by creating local web server and
         retrieving authentication code.
 
-        This function is not for web server application. It creates local web server
-        for user from standalone application.
+        This function is not for web server application. It creates local web
+        server for user from standalone application.
 
         :param host_name: host name of the local web server.
         :type host_name: str.
