@@ -127,14 +127,12 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
 
 
 def test_10_ServiceAuthFromEnvironmentDefault():
-    # Test fix for https://github.com/iterative/PyDrive2/issues/163
-    # Make sure that Load and Save credentials by default reuse the
-    # same Storage (since it defined lock which make it TS)
+    # Test Google's default authentication
+    # uses GOOGLE_APPLICATION_CREDENTIALS env variable as service.yaml path
     ga = GoogleAuth(settings_file_path("test_oauth_test_10.yaml"))
     ga.ServiceAuth()
     assert ga.credentials
     time.sleep(1)
-
 
 def CheckCredentialsFile(credentials, no_file=False):
     ga = GoogleAuth(settings_file_path("test_oauth_default.yaml"))
