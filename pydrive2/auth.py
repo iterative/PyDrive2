@@ -19,22 +19,7 @@ from google_auth_httplib2 import AuthorizedHttp
 from warnings import warn
 
 
-DEFAULT_SETTINGS = {
-    "client_config_backend": "file",
-    "client_config_file": "client_secrets.json",
-    "save_credentials": False,
-    "oauth_scope": ["https://www.googleapis.com/auth/drive"],
-}
-
 _CLIENT_AUTH_PROMPT_MESSAGE = "Please visit this URL:\n{url}\n"
-
-
-DEFAULT_SETTINGS = {
-    "client_config_backend": "file",
-    "client_config_file": "client_secrets.json",
-    "save_credentials": False,
-    "oauth_scope": ["https://www.googleapis.com/auth/drive"],
-}
 
 
 class AuthError(Exception):
@@ -65,7 +50,13 @@ class GoogleAuth(ApiAttributeMixin):
     and authorization.
     """
 
-    SERVICE_CONFIGS_LIST = ["client_user_email"]
+    DEFAULT_SETTINGS = {
+        "client_config_backend": "file",
+        "client_config_file": "client_secrets.json",
+        "save_credentials": False,
+        "oauth_scope": ["https://www.googleapis.com/auth/drive"],
+    }
+
     settings = ApiAttribute("settings")
     client_config = ApiAttribute("client_config")
     flow = ApiAttribute("flow")
