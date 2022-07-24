@@ -68,8 +68,8 @@ class GoogleAuth(ApiAttributeMixin):
     def __init__(self, settings_file="settings.yaml", http_timeout=None):
         """Create an instance of GoogleAuth.
 
-        This constructor parses just he yaml settings file.
-        All other settings are lazy
+        This constructor parses just the yaml settings file.
+        All other config & auth related objects are lazily loaded (see properties section)
 
         :param settings_file: path of settings file. 'settings.yaml' by default.
         :type settings_file: str.
