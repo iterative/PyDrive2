@@ -134,6 +134,7 @@ def test_10_ServiceAuthFromEnvironmentDefault():
     assert ga.credentials
     time.sleep(1)
 
+
 def CheckCredentialsFile(credentials, no_file=False):
     ga = GoogleAuth(settings_file_path("test_oauth_default.yaml"))
     ga.LoadCredentialsFile(credentials)

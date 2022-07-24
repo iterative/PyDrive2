@@ -222,8 +222,8 @@ class GoogleAuth(ApiAttributeMixin):
             additional_config["access_type"] = "offline"
             additional_config["prompt"] = "select_account"
 
-        try:
-            for port in port_numbers:
+        for port in port_numbers:
+            try:
                 self._credentials = self.flow.run_local_server(
                     host=host_name,
                     port=port,
@@ -231,46 +231,52 @@ class GoogleAuth(ApiAttributeMixin):
                     open_browser=launch_browser,
                     **additional_config,
                 )
-                # if any port results in successful auth, we're done
-                break
 
-        except OSError as e:
-            # OSError: [WinError 10048] ...
-            # When WSGIServer.allow_reuse_address = False,
-            # raise OSError when binding to a used port
+            except OSError as e:
+                # Google Auth's local server implementation does not allow socket reuse
+                # i.e. WSGIServer.allow_reuse_address = False
+                # The Installed App Flow raises OSError when binding to a used port
 
-            # If some other error besides the socket address reuse error
-            if e.errno != 10048:
-                raise
+                # More on TCP state changes: https://users.cs.northwestern.edu/~agupta/cs340/project2/TCPIP_State_Transition_Diagram.pdf
+                if e.errno not in (10048, 48):
+                    raise
 
-            print("Port {} is in use. Trying a different port".format(port))
+                # [IOS] OS Error 48 occurs on Mac OS whenever binding to a TCP port that is not CLOSED
+                # A recently unbound port will enter a TIME_WAIT state which will also raise this error
+                # see https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/intro.2.html
 
-        except MissingCodeError as e:
-            # if code is not found in the redirect uri's query parameters
-            print(
-                "Failed to find 'code' in the query parameters of the redirect."
-            )
-            print("Please check that your redirect uri is correct.")
-            raise AuthenticationError("No code found in redirect")
+                # [Windows] OS Error 10048 occurs on Windows whenever binding to a TCP port that is not available
+                # A recently unbound port will enter a TIME_WAIT state which will also raise this error
+                # See https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--9000-11999-
+                print(
+                    "Port {} is in use. Trying a different port".format(port)
+                )
 
-        except OAuth2Error as e:
-            # catch oauth 2 errors
-            print("Authentication request was rejected")
-            raise AuthenticationRejected("User rejected authentication")
+            except MissingCodeError as e:
+                # if code is not found in the redirect uri's query parameters
+                print(
+                    "Failed to find 'code' in the query parameters of the redirect."
+                )
+                print("Please check that your redirect uri is correct.")
+                raise AuthenticationError("No code found in redirect uri")
+
+            except OAuth2Error as e:
+                # catch all other oauth 2 errors
+                print("Authentication request was rejected")
+                raise AuthenticationRejected("User rejected authentication")
+
+            # if any port results in successful auth, we're done
+            if self._credentials:
+                if self.storage:
+                    self.SaveCredentials()
+
+                return
 
         # If we have tried all ports and could not find a port
-        if not self._credentials:
-            print(
-                "Failed to start a local web server. Please check your firewall"
-            )
-            print(
-                "settings and locally running programs that may be blocking or"
-            )
-            print("using configured ports. Default ports are 8080 and 8090.")
-            raise AuthenticationError()
-
-        if self.storage:
-            self.SaveCredentials()
+        print("Failed to start a local web server. Please check your firewall")
+        print("settings and locally running programs that may be blocking or")
+        print("using configured ports. Default ports are 8080 and 8090.")
+        raise AuthenticationError()
 
     def CommandLineAuth(self):
         """Authenticate and authorize from user by printing authentication url
