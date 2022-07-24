@@ -571,6 +571,25 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         return GoogleDriveFile(self.auth, new_file)
 
+    def Rename(self, new_title, param=None):
+        """Rename a file."""
+
+        if param is None:
+            param = {}
+
+        if "body" not in param:
+            param["body"] = {}
+
+        param["fileId"] = self["id"]
+        param["body"]["title"] = new_title
+        param["fields"] = "title"
+
+        self.auth.service.files().patch(**param).execute()
+
+        # self["title"] = new_title
+
+        # self._FilesPatch(param=param)
+
     def InsertPermission(self, new_permission, param=None):
         """Insert a new permission. Re-fetches all permissions after call.
 
