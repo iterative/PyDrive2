@@ -2,6 +2,8 @@ import httplib2
 import json
 import google.oauth2.credentials
 import google.oauth2.service_account
+import threading
+from functools import wraps
 
 from googleapiclient.discovery import build
 from pydrive2.storage import FileBackend
@@ -42,6 +44,20 @@ class RefreshError(AuthError):
     """Access token refresh error."""
 
 
+def LoadAuth(decoratee):
+    """Decorator to check if the auth is valid and loads auth if not."""
+
+    @wraps(decoratee)
+    def _decorated(self, *args, **kwargs):
+        # Initialize auth if needed.
+        if self.auth is None:
+            self.auth = GoogleAuth()
+
+        return decoratee(self, *args, **kwargs)
+
+    return _decorated
+
+
 class GoogleAuth(ApiAttributeMixin):
     """Wrapper class for oauth2client library in google-api-python-client.
 
@@ -78,6 +94,7 @@ class GoogleAuth(ApiAttributeMixin):
         """
         self.http_timeout = http_timeout
         ApiAttributeMixin.__init__(self)
+        self.thread_local = threading.local()
 
         if settings is None and settings_file:
             try:
@@ -88,12 +105,12 @@ class GoogleAuth(ApiAttributeMixin):
         self.settings = settings or self.DEFAULT_SETTINGS
         ValidateSettings(self.settings)
 
-        self._storage = None
         self._service = None
-        self._credentials = None
         self._client_config = None
         self._oauth_type = None
         self._flow = None
+        self._storage = None
+        self._credentials = None
 
     # Lazy loading, read-only properties
     @property
@@ -152,6 +169,18 @@ class GoogleAuth(ApiAttributeMixin):
                 )
 
         return self._credentials
+
+    @property
+    def authorized_http(self):
+        # Ensure that a thread-safe, Authorized HTTP object is provided
+        # If HTTP object not specified, create or resuse an HTTP
+        # object from the thread local storage.
+        if not getattr(self.thread_local, "http", None):
+            self.thread_local.http = AuthorizedHttp(
+                self.credentials, http=self._build_http()
+            )
+
+        return self.thread_local.http
 
     # Other properties
     @property
@@ -612,9 +641,10 @@ class GoogleAuth(ApiAttributeMixin):
             )
 
     def Get_Http_Object(self):
-        """Create and authorize an httplib2.Http object. Necessary for
-        thread-safety.
+        """Alias for self.authorized_http. To avoid creating multiple Http Objects by caching it per thread.
         :return: The http object to be used in each call.
         :rtype: httplib2.Http
         """
-        return AuthorizedHttp(self.credentials, http=self._build_http())
+
+        # updated as alias for
+        return self.authorized_http

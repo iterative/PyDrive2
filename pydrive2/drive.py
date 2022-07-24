@@ -1,6 +1,7 @@
 from .apiattr import ApiAttributeMixin
 from .files import GoogleDriveFile
 from .files import GoogleDriveFileList
+from .auth import LoadAuth
 
 
 class GoogleDrive(ApiAttributeMixin):
@@ -39,6 +40,7 @@ class GoogleDrive(ApiAttributeMixin):
         """
         return GoogleDriveFileList(auth=self.auth, param=param)
 
+    @LoadAuth
     def GetAbout(self):
         """Return information about the Google Drive of the auth instance.
 
