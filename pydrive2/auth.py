@@ -605,6 +605,8 @@ class GoogleAuth(ApiAttributeMixin):
             print("Authentication request was rejected")
             raise AuthenticationRejected("User rejected authentication")
 
+        print("Authentication successful.")
+
     def _build_http(self):
         http = httplib2.Http(timeout=self.http_timeout)
         # 308's are used by several Google APIs (Drive, YouTube)
