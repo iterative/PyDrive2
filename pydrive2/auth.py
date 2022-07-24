@@ -555,16 +555,6 @@ class GoogleAuth(ApiAttributeMixin):
             # the oauth subject does not have to provide any consent via the client
             pass
 
-    def Refresh(self):
-        """Refreshes the access_token.
-
-        :raises: RefreshError
-        """
-        raise DeprecationWarning(
-            "Refresh is now handled automatically within the new google.auth Credential objects. "
-            "There's no need to manually refresh your credentials now."
-        )
-
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.
 
