@@ -108,10 +108,6 @@ def LoadSettingsFile(filename=SETTINGS_FILE):
             data = load(stream, Loader=Loader)
     except (YAMLError, OSError) as e:
         raise SettingsError(e)
-
-    if not data:
-        raise SettingsError("{} is an empty settings file.".format(filename))
-
     return data
 
 

@@ -65,7 +65,9 @@ class GoogleAuth(ApiAttributeMixin):
     service = ApiAttribute("service")
     auth_method = ApiAttribute("auth_method")
 
-    def __init__(self, settings_file="settings.yaml", http_timeout=None):
+    def __init__(
+        self, settings_file="settings.yaml", http_timeout=None, settings=None
+    ):
         """Create an instance of GoogleAuth.
 
         This constructor parses just the yaml settings file.
@@ -77,13 +79,14 @@ class GoogleAuth(ApiAttributeMixin):
         self.http_timeout = http_timeout
         ApiAttributeMixin.__init__(self)
 
-        try:
-            self.settings = LoadSettingsFile(settings_file)
-        except SettingsError:
-            self.settings = DEFAULT_SETTINGS
-        else:
-            # if no exceptions
-            ValidateSettings(self.settings)
+        if settings is None and settings_file:
+            try:
+                settings = LoadSettingsFile(settings_file)
+            except SettingsError:
+                pass
+
+        self.settings = settings or self.DEFAULT_SETTINGS
+        ValidateSettings(self.settings)
 
         self._storage = None
         self._service = None
