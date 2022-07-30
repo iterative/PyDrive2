@@ -233,21 +233,6 @@ class GoogleAuth(ApiAttributeMixin):
                 )
 
             except OSError as e:
-                # Google Auth's local server implementation does not allow socket reuse
-                # i.e. WSGIServer.allow_reuse_address = False
-                # The Installed App Flow raises OSError when binding to a used port
-
-                # More on TCP state changes: https://users.cs.northwestern.edu/~agupta/cs340/project2/TCPIP_State_Transition_Diagram.pdf
-                if e.errno not in (10048, 48):
-                    raise
-
-                # [IOS] OS Error 48 occurs on Mac OS whenever binding to a TCP port that is not CLOSED
-                # A recently unbound port will enter a TIME_WAIT state which will also raise this error
-                # see https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/intro.2.html
-
-                # [Windows] OS Error 10048 occurs on Windows whenever binding to a TCP port that is not available
-                # A recently unbound port will enter a TIME_WAIT state which will also raise this error
-                # See https://docs.microsoft.com/en-us/windows/win32/debug/system-error-codes--9000-11999-
                 print(
                     "Port {} is in use. Trying a different port".format(port)
                 )
