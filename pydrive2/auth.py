@@ -287,15 +287,10 @@ class GoogleAuth(ApiAttributeMixin):
         :returns: str -- code returned from commandline.
         """
 
-        warn(
-            (
-                "The command line auth has been deprecated. "
-                "The recommended alternative is to use local webserver auth with a loopback address."
-            ),
-            DeprecationWarning,
+        raise DeprecationWarning(
+            "The command line auth has been deprecated. "
+            "The recommended alternative is to use local webserver auth with a loopback address."
         )
-
-        self.LocalWebserverAuth(host_name="127.0.0.1")
 
     def ServiceAuth(self):
         """Authenticate and authorize using P12 private key, client id
