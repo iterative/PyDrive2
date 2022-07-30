@@ -46,8 +46,4 @@ class GoogleDrive(ApiAttributeMixin):
 
         :returns: A dictionary of Google Drive information like user, usage, quota etc.
         """
-        return (
-            self.auth.service.about()
-            .get()
-            .execute(http=self.auth.Get_Http_Object())
-        )
+        return self.auth.service.about().get().execute(http=self.http)

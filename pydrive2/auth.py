@@ -45,13 +45,32 @@ class RefreshError(AuthError):
 
 
 def LoadAuth(decoratee):
-    """Decorator to check if the auth is valid and loads auth if not."""
+    """
+    Decorator to check the self.auth & self.http object in a decorated API call.
+    Loads a new GoogleAuth or Http object if not the needed.
+    """
 
     @wraps(decoratee)
     def _decorated(self, *args, **kwargs):
         # Initialize auth if needed.
         if self.auth is None:
             self.auth = GoogleAuth()
+
+        # Ensure that a thread-safe HTTP object is provided.
+        if (
+            kwargs is not None
+            and "param" in kwargs
+            and kwargs["param"] is not None
+            and "http" in kwargs["param"]
+            and kwargs["param"]["http"] is not None
+        ):
+            # overwrites the HTTP objects used by the Gdrive API object
+            self.http = kwargs["param"]["http"]
+            del kwargs["param"]["http"]
+
+        else:
+            # If HTTP object not specified, resuse HTTP from self.auth.thread_local
+            self.http = self.auth.authorized_http
 
         return decoratee(self, *args, **kwargs)
 
@@ -172,13 +191,11 @@ class GoogleAuth(ApiAttributeMixin):
 
     @property
     def authorized_http(self):
-        # Ensure that a thread-safe, Authorized HTTP object is provided
-        # If HTTP object not specified, create or resuse an HTTP
-        # object from the thread local storage.
+        # returns a thread-safe, local, cached HTTP object
         if not getattr(self.thread_local, "http", None):
-            self.thread_local.http = AuthorizedHttp(
-                self.credentials, http=self._build_http()
-            )
+            # If HTTP object not available,
+            # create and store Authorized Http object in thread_local storage
+            self.thread_local.http = self.Get_Http_Object()
 
         return self.thread_local.http
 
@@ -624,10 +641,10 @@ class GoogleAuth(ApiAttributeMixin):
             )
 
     def Get_Http_Object(self):
-        """Alias for self.authorized_http. To avoid creating multiple Http Objects by caching it per thread.
+        """
+        Helper function to get a new Authorized Http object.
         :return: The http object to be used in each call.
         :rtype: httplib2.Http
         """
-
-        # updated as alias for
-        return self.authorized_http
+        
+        return AuthorizedHttp(self.credentials, http=self._build_http())

@@ -82,7 +82,7 @@ class GoogleDriveFileList(ApiResourceList):
             self.metadata = (
                 self.auth.service.files()
                 .list(**dict(self))
-                .execute(http=self.auth.Get_Http_Object())
+                .execute(http=self.http)
             )
         except errors.HttpError as error:
             raise ApiRequestError(error)
@@ -440,7 +440,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                         # Teamdrive support
                         supportsAllDrives=True,
                     )
-                    .execute(http=self.auth.Get_Http_Object())
+                    .execute(http=self.http)
                 )
             except errors.HttpError as error:
                 raise ApiRequestError(error)
@@ -543,7 +543,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             permission = (
                 self.auth.service.permissions()
                 .insert(**param)
-                .execute(http=self.auth.Get_Http_Object())
+                .execute(http=self.http)
             )
         except errors.HttpError as error:
             raise ApiRequestError(error)
@@ -574,7 +574,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 # Teamdrive support
                 supportsAllDrives=True,
             )
-            .execute(http=self.auth.Get_Http_Object())
+            .execute(http=self.http)
         ).get("items")
 
         if permissions:
@@ -594,13 +594,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         return self._DeletePermission(permission_id)
 
     def _WrapRequest(self, request):
-        """Replaces request.http with self.auth.Get_Http_Object().
+        """Replaces request.http with self.http.
 
         Ensures thread safety. Similar to other places where we call
         `.execute(http=self.http)` to pass a client from the thread local storage.
         """
         if self.auth:
-            request.http = self.auth.Get_Http_Object()
+            request.http = self.http
         return request
 
     @LoadAuth
@@ -624,7 +624,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             metadata = (
                 self.auth.service.files()
                 .insert(**param)
-                .execute(http=self.auth.Get_Http_Object())
+                .execute(http=self.http)
             )
         except errors.HttpError as error:
             raise ApiRequestError(error)
@@ -648,9 +648,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         param["supportsAllDrives"] = True
 
         try:
-            self.auth.service.files().untrash(**param).execute(
-                http=self.auth.Get_Http_Object()
-            )
+            self.auth.service.files().untrash(**param).execute(http=self.http)
         except errors.HttpError as error:
             raise ApiRequestError(error)
         else:
@@ -674,9 +672,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         param["supportsAllDrives"] = True
 
         try:
-            self.auth.service.files().trash(**param).execute(
-                http=self.auth.Get_Http_Object()
-            )
+            self.auth.service.files().trash(**param).execute(http=self.http)
         except errors.HttpError as error:
             raise ApiRequestError(error)
         else:
@@ -701,9 +697,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         param["supportsAllDrives"] = True
 
         try:
-            self.auth.service.files().delete(**param).execute(
-                http=self.auth.Get_Http_Object()
-            )
+            self.auth.service.files().delete(**param).execute(http=self.http)
         except errors.HttpError as error:
             raise ApiRequestError(error)
         else:
@@ -732,7 +726,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             metadata = (
                 self.auth.service.files()
                 .update(**param)
-                .execute(http=self.auth.Get_Http_Object())
+                .execute(http=self.http)
             )
         except errors.HttpError as error:
             raise ApiRequestError(error)
@@ -762,7 +756,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             metadata = (
                 self.auth.service.files()
                 .patch(**param)
-                .execute(http=self.auth.Get_Http_Object())
+                .execute(http=self.http)
             )
         except errors.HttpError as error:
             raise ApiRequestError(error)
@@ -791,8 +785,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :returns: str -- content of downloaded file in string.
         :raises: ApiRequestError
         """
-        http = self.auth.Get_Http_Object()
-        resp, content = http.request(url)
+        resp, content = self.http.request(url)
         if resp.status != 200:
             raise ApiRequestError(errors.HttpError(resp, content, uri=url))
         return content
