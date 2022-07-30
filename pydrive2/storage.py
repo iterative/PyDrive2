@@ -1,7 +1,7 @@
 import os
 import json
 import warnings
-from filelock import FileLock
+import threading
 
 
 _SYM_LINK_MESSAGE = "File: {0}: Is a symbolic link."
