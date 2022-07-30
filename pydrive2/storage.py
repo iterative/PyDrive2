@@ -61,19 +61,10 @@ class CredentialBackend(object):
 
 
 class FileBackend(CredentialBackend):
-    # https://stackoverflow.com/questions/37084682/is-oauth-thread-safe
-    """Read and write credentials to a file backend with File Locking"""
+    """Read and write credentials to a file backend with Thread-locking"""
 
     def __init__(self):
-        self._locks = {}
-
-    def createLock(self, rpath):
-        self._locks[rpath] = FileLock("{}.lock".format(rpath))
-
-    def getLock(self, rpath):
-        if rpath not in self._locks:
-            self.createLock(rpath)
-        return self._locks[rpath]
+        self._thread_lock = threading.Lock()
 
     def _create_file_if_needed(self, rpath):
         """Create an empty file if necessary.
@@ -92,7 +83,8 @@ class FileBackend(CredentialBackend):
         Returns:
         Raises:
         """
-        with self.getLock(rpath):
+        with self._thread_lock:
+            validate_file(rpath)
             with open(rpath, "r") as json_file:
                 return json.load(json_file)
 
@@ -101,17 +93,22 @@ class FileBackend(CredentialBackend):
         Args:
         Raises:
         """
-        with self.getLock(rpath):
-            self._create_file_if_needed(rpath)
-            validate_file(rpath)
+        with self._thread_lock:
+            # write new credentials to the temp file
+            dirname, filename = os.path.split(rpath)
+            temp_path = os.path.join(dirname, "temp_{}".format(filename))
+            self._create_file_if_needed(temp_path)
 
-            with open(rpath, "w") as json_file:
+            with open(temp_path, "w") as json_file:
                 json_file.write(credentials.to_json())
+
+            # replace the existing credential file
+            os.replace(temp_path, rpath)
 
     def _delete_credentials(self, rpath):
         """Delete Credentials file.
         Args:
             credentials: Credentials, the credentials to store.
         """
-        with self.getLock(rpath):
+        with self._thread_lock:
             os.unlink(rpath)

@@ -35,7 +35,6 @@ setup(
         "google-auth >= 2.6.6",
         "google-auth-httplib2 >= 0.1.0",
         "google-auth-oauthlib >= 0.5.1",
-        "filelock >= 3.7.0",
         "PyYAML >= 3.0",
         "pyOpenSSL >= 19.1.0",
     ],

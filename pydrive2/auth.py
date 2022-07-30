@@ -641,5 +641,5 @@ class GoogleAuth(ApiAttributeMixin):
         :return: The http object to be used in each call.
         :rtype: httplib2.Http
         """
-        
+
         return AuthorizedHttp(self.credentials, http=self._build_http())
