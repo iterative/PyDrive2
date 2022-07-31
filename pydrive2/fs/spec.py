@@ -555,35 +555,20 @@ class GDriveFileSystem(AbstractFileSystem):
         file1_parent = self._parent(path1)
         file2_parent = self._parent(path2)
 
-        print(f"names: {file1_name} -> {file2_name}")
-        print(f"parents: {file1_parent} -> {file2_parent}")
-
         file1_id = self._get_item_id(path1)
-        file1_parent_id = self._get_item_id(file1_parent)
-
-        file2_parent_id = self._get_item_id(file2_parent)
 
         file1 = self.client.CreateFile({"id": file1_id})
 
         file1.FetchMetadata(fields="title,parents")
 
-        print(file1)
-
-        file1["title"] = file2_name
-
-        for p in file1["parents"]:
-            if p["id"] == file1_parent_id:
-                file1["parents"].remove(p)
-
-        file1["parents"] = [{"id": file2_parent_id}]
-
-        print(file1)
-
         if file1_name != file2_name:
-            file1._FilesPatch()
+            file1["title"] = file2_name
 
         if file1_parent != file2_parent:
-            file1._FilesUpdate()
+            file2_parent_id = self._get_item_id(file2_parent)
+            file1["parents"] = [{"id": file2_parent_id}]
+
+        file1._FilesUpdate()
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
