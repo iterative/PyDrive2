@@ -542,6 +542,43 @@ class GDriveFileSystem(AbstractFileSystem):
             buffer = io.BytesIO(stream.read())
             self.upload_fobj(buffer, rpath)
 
+    def mv(self, path1, path2, recursive=False, maxdepth=None, **kwargs):
+
+        if recursive:
+            raise NotImplementedError("Recursive move is not supported")
+        if maxdepth:
+            raise NotImplementedError("Max depth move is not supported")
+
+        file1_name = posixpath.basename(path1)
+        file2_name = posixpath.basename(path2)
+
+        file1_parent = self._parent(path1)
+        file2_parent = self._parent(path2)
+
+        print(f"names: {file1_name} -> {file2_name}")
+        print(f"parents: {file1_parent} -> {file2_parent}")
+
+        file1_id = self._get_item_id(path1)
+        file1_parent_id = self._get_item_id(file1_parent)
+
+        file2_parent_id = self._get_item_id(file2_parent)
+
+        file1 = self.client.CreateFile({"id": file1_id})
+
+        file1.FetchMetadata(fields="title,parents")
+
+        file1["title"] = file2_name
+
+        print(file1["parents"])
+
+        for p in file1["parents"]:
+            if p["id"] == file1_parent_id:
+                file1["parents"].remove(p)
+
+        file1["parents"].append({"id": file2_parent_id})
+
+        file1.Upload()
+
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
         return self._gdrive_get_file(
