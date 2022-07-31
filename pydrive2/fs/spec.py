@@ -567,17 +567,23 @@ class GDriveFileSystem(AbstractFileSystem):
 
         file1.FetchMetadata(fields="title,parents")
 
-        file1["title"] = file2_name
+        print(file1)
 
-        print(file1["parents"])
+        file1["title"] = file2_name
 
         for p in file1["parents"]:
             if p["id"] == file1_parent_id:
                 file1["parents"].remove(p)
 
-        file1["parents"].append({"id": file2_parent_id})
+        file1["parents"] = [{"id": file2_parent_id}]
 
-        file1.Upload()
+        print(file1)
+
+        if file1_name != file2_name:
+            file1._FilesPatch()
+
+        if file1_parent != file2_parent:
+            file1._FilesUpdate()
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
