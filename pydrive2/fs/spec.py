@@ -542,6 +542,7 @@ class GDriveFileSystem(AbstractFileSystem):
             buffer = io.BytesIO(stream.read())
             self.upload_fobj(buffer, rpath)
 
+    @_gdrive_retry
     def mv(self, path1, path2, recursive=False, maxdepth=None, **kwargs):
 
         if recursive:
