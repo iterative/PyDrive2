@@ -26,6 +26,7 @@ from warnings import warn
 
 _CLIENT_AUTH_PROMPT_MESSAGE = "Please visit this URL:\n{url}\n"
 
+
 class AuthError(Exception):
     """Base error for authentication/authorization errors."""
 
@@ -328,6 +329,13 @@ class GoogleAuth(ApiAttributeMixin):
             self._credentials = google.oauth2.service_account.Credentials.from_service_account_file(
                 keyfile_name, **additional_config
             )
+        elif self.settings.get("use_default"):
+            # if no service credential file in yaml settings
+            # default to checking env var `GOOGLE_APPLICATION_CREDENTIALS`
+            credentials, _ = google.auth.default(
+                scopes=self.settings["oauth_scope"]
+            )
+            self._credentials = credentials
         else:
             raise AuthenticationError("Invalid service credentials")
 
@@ -639,6 +647,15 @@ class GoogleAuth(ApiAttributeMixin):
             # the oauth subject does not have to provide any consent via the client
             pass
 
+    def Refresh(self):
+        """Refreshes the access_token.
+        :raises: RefreshError
+        """
+        raise DeprecationWarning(
+            "Manual refresh will be deprecated as the"
+            "new google auth library handles refresh automatically"
+        )
+
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.
 
@@ -688,7 +705,7 @@ class GoogleAuth(ApiAttributeMixin):
             # catch oauth 2 errors
             print("Authentication request was rejected")
             raise AuthenticationRejected("User rejected authentication")
-        
+
         print("Authentication successful.")
 
     def _build_http(self):
@@ -711,16 +728,9 @@ class GoogleAuth(ApiAttributeMixin):
 
         :raises: AuthenticationError
         """
-        if self.access_token_expired:
-            raise AuthenticationError(
-                "No valid credentials provided to authorize"
-            )
-
-        if self.http is None:
-            self.http = self._build_http()
-        self.http = self.credentials.authorize(self.http)
-        self.service = build(
-            "drive", "v2", http=self.http, cache_discovery=False
+        raise DeprecationWarning(
+            "Manual authorization of HTTP will be deprecated as the"
+            "new google auth library handles the adding to relevant oauth headers automatically"
         )
 
     def Get_Http_Object(self):
