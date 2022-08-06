@@ -328,14 +328,7 @@ class GoogleAuth(ApiAttributeMixin):
         elif keyfile_name:
             self._credentials = google.oauth2.service_account.Credentials.from_service_account_file(
                 keyfile_name, **additional_config
-            )
-        elif self.settings.get("use_default"):
-            # if no service credential file in yaml settings
-            # default to checking env var `GOOGLE_APPLICATION_CREDENTIALS`
-            credentials, _ = google.auth.default(
-                scopes=self.settings["oauth_scope"]
-            )
-            self._credentials = credentials
+            )       
         else:
             raise AuthenticationError("Invalid service credentials")
 
