@@ -1,0 +1,9 @@
+client_config_backend: file
+client_config_file: /tmp/pydrive2/user.json
+
+save_credentials: True
+save_credentials_backend: file
+save_credentials_file: credentials/default_user_no_refresh.dat
+
+oauth_scope:
+  - https://www.googleapis.com/auth/drive
