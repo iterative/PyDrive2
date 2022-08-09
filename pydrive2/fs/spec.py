@@ -549,7 +549,7 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             dst_parent_id = self._get_item_id(self._parent(rpath), create=True)
             dst_parent = self.client.CreateFile({"id": dst_parent_id})
-            file.Copy(dst_parent, file["title"])
+            file.Copy(dst_parent, rpath.split("/")[-1])
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
