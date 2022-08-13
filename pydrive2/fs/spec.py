@@ -536,9 +536,6 @@ class GDriveFileSystem(AbstractFileSystem):
     def cp_file(self, lpath, rpath, **kwargs):
         """copy a single file or folder"""
 
-        if self.exists(rpath):
-            raise FileExistsError(rpath)
-
         file_id = self._get_item_id(lpath)
 
         file = self.client.CreateFile({"id": file_id})
