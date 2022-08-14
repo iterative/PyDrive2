@@ -94,24 +94,12 @@ class ApiResource(dict):
 
         :returns: dict -- changed metadata elements.
         """
-        # fmt: off
         dirty = {}
         for key in self:
             if self.metadata.get(key) is None:
-                print(
-                    f"key: {key} -> self.metadata.get(key) is None, \t self.get(key): {self.get(key)}"  # noqa: E501
-                )
                 dirty[key] = self[key]
             elif self.metadata[key] != self[key]:
-                print(
-                    f"key: {key} -> self.metadata[key] != self[key], \t self.metadata[key]: {self.metadata[key]}, \t self[key]: {self[key]}"  # noqa: E501
-                )
                 dirty[key] = self[key]
-            else:
-                print(
-                    f"key: {key} -> else \t  self.metadata[key]: {self.metadata[key]}, \t self[key]: {self[key]}"  # noqa: E501
-                )
-        # fmt: on
         return dirty
 
 
