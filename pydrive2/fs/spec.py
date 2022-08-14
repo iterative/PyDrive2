@@ -560,8 +560,6 @@ class GDriveFileSystem(AbstractFileSystem):
 
         file1 = self.client.CreateFile({"id": file1_id})
 
-        file1.FetchMetadata(fields="title,parents")
-
         if file1_name != file2_name:
             file1["title"] = file2_name
 
