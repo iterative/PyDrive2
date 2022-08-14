@@ -542,11 +542,11 @@ class GDriveFileSystem(AbstractFileSystem):
 
         if file["mimeType"] == FOLDER_MIME_TYPE:
             dst_id = self._get_item_id(self._parent(rpath))
-            self._gdrive_create_dir(dst_id, rpath.split("/")[-1])
+            self._gdrive_create_dir(dst_id, posixpath.basename(rpath))
         else:
             dst_parent_id = self._get_item_id(self._parent(rpath), create=True)
             dst_parent = self.client.CreateFile({"id": dst_parent_id})
-            file.Copy(dst_parent, rpath.split("/")[-1])
+            file.Copy(dst_parent, posixpath.basename(rpath))
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
