@@ -53,7 +53,7 @@ class GoogleDriveFileTest(unittest.TestCase):
             create_file(filename, content)
         return filename
 
-    def test_01_Files_Insert(self):
+    def test_Files_Insert(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("firsttestfile")
@@ -66,7 +66,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_02_Files_Insert_Unicode(self):
+    def test_Files_Insert_Unicode(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("첫번째 파일")
@@ -79,7 +79,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_03_Files_Insert_Content_String(self):
+    def test_Files_Insert_Content_String(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("secondtestfile")
@@ -103,7 +103,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_04_Files_Insert_Content_Unicode_String(self):
+    def test_Files_Insert_Content_Unicode_String(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("두번째 파일")
@@ -126,7 +126,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_05_Files_Insert_Content_File(self):
+    def test_Files_Insert_Content_File(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("filecontent")
@@ -150,7 +150,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_06_Files_Patch(self):
+    def test_Files_Patch(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("prepatchtestfile")
@@ -169,7 +169,25 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_07_Files_Patch_Skipping_Content(self):
+    def test_Files_Patch_By_Id(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile()
+        filename = self.getTempFile("prepatchtestfile")
+        newfilename = self.getTempFile("patchtestfile")
+        file1["title"] = filename
+        pydrive_retry(file1.Upload)  # Files.insert
+
+        file2 = drive.CreateFile(
+            {"id": file1["id"]}
+        )  # Patch file no download.
+        file2["title"] = newfilename
+        pydrive_retry(file2.Upload)  # Files.patch
+
+        file3 = drive.CreateFile({"id": file1["id"]})  # Download file from id.
+        pydrive_retry(file3.FetchMetadata)
+        self.assertEqual(file3.metadata["title"], newfilename)
+
+    def test_Files_Patch_Skipping_Content(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("prepatchtestfile")
@@ -185,11 +203,10 @@ class GoogleDriveFileTest(unittest.TestCase):
         pydrive_retry(file1.Upload)  # Files.patch
         self.assertEqual(file1.metadata["title"], newfilename)
         self.assertEqual(file1.GetContentString(), content)
-        self.assertEqual(file1.GetContentString(), content)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_08_Files_Update_String(self):
+    def test_Files_Update_String(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("preupdatetestfile")
@@ -213,11 +230,10 @@ class GoogleDriveFileTest(unittest.TestCase):
         pydrive_retry(file1.Upload)  # Files.update
         self.assertEqual(file1.metadata["title"], newfilename)
         self.assertEqual(file1.GetContentString(), newcontent)
-        self.assertEqual(file1.GetContentString(), newcontent)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_09_Files_Update_File(self):
+    def test_Files_Update_File(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("preupdatetestfile")
@@ -248,7 +264,29 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_10_Files_Download_Service(self):
+    def test_Files_Update_By_Id(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile()
+        filename = self.getTempFile("preupdatetestfile")
+        newfilename = self.getTempFile("updatetestfile")
+        content = "hello world!"
+        newcontent = "hello new world!"
+
+        file1["title"] = filename
+        file1.SetContentString(content)
+        pydrive_retry(file1.Upload)  # Files.insert
+
+        file2 = drive.CreateFile({"id": file1["id"]})
+        file2["title"] = newfilename
+        file2.SetContentString(newcontent)
+        pydrive_retry(file2.Upload)  # Files.update
+
+        file3 = drive.CreateFile({"id": file1["id"]})
+        pydrive_retry(file3.FetchContent)
+        self.assertEqual(file3.GetContentString(), newcontent)
+        self.assertEqual(file3["title"], newfilename)
+
+    def test_Files_Download_Service(self):
         """
         Tests that a fresh GoogleDrive object can correctly authenticate
         and download from a file ID.
@@ -278,7 +316,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_11_Files_Get_Content_Buffer(self):
+    def test_Files_Get_Content_Buffer(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile()
@@ -298,7 +336,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_12_Upload_Download_Empty_File(self):
+    def test_Upload_Download_Empty_File(self):
         filename = os.path.join(self.tmpdir, str(time()))
         create_file(filename, "")
 
@@ -313,7 +351,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
-    def test_13_Upload_Download_Empty_String(self):
+    def test_Upload_Download_Empty_String(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         file1.SetContentString("")
