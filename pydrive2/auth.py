@@ -1,7 +1,6 @@
 import json
 import webbrowser
 import httplib2
-import json
 import threading
 
 from googleapiclient.discovery import build
@@ -50,7 +49,7 @@ class RefreshError(AuthError):
 def LoadAuth(decoratee):
     """
     Decorator to check the self.auth & self.http object in a decorated API call.
-    Loads a new GoogleAuth or Http object if not the needed.
+    Loads a new GoogleAuth or Http object if not needed.
     """
 
     @wraps(decoratee)
@@ -138,10 +137,6 @@ class GoogleAuth(ApiAttributeMixin):
         self._default_storage = None
         self._credentials = None
 
-    # Lazy loading, read-only properties
-    # these look like functions but are actually getters for the read only properties
-    # e.g. self.service would retrun self._service
-    # however self.service = <something> would fail
     @property
     def service(self):
         if not self._service:
@@ -328,7 +323,7 @@ class GoogleAuth(ApiAttributeMixin):
         elif keyfile_name:
             self._credentials = google.oauth2.service_account.Credentials.from_service_account_file(
                 keyfile_name, **additional_config
-            )       
+            )
         else:
             raise AuthenticationError("Invalid service credentials")
 
@@ -645,7 +640,7 @@ class GoogleAuth(ApiAttributeMixin):
         :raises: RefreshError
         """
         raise DeprecationWarning(
-            "Manual refresh will be deprecated as the"
+            "Manual refresh had been deprecated as the"
             "new google auth library handles refresh automatically"
         )
 
