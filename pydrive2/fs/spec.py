@@ -551,10 +551,15 @@ class GDriveFileSystem(AbstractFileSystem):
             raise NotImplementedError("Max depth move is not supported")
 
         file1_name = posixpath.basename(path1)
-        file2_name = posixpath.basename(path2)
 
         file1_parent = self._parent(path1)
-        file2_parent = self._parent(path2)
+
+        if self.exists(path2):
+            file2_name = file1_name
+            file2_parent = path2
+        else:
+            file2_name = posixpath.basename(path2)
+            file2_parent = self._parent(path2)
 
         file1_id = self._get_item_id(path1)
 
