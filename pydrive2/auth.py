@@ -49,7 +49,7 @@ class RefreshError(AuthError):
 def LoadAuth(decoratee):
     """
     Decorator to check the self.auth & self.http object in a decorated API call.
-    Loads a new GoogleAuth or Http object if not needed.
+    Loads a new GoogleAuth or Http object if needed.
     """
 
     @wraps(decoratee)

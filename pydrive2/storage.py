@@ -19,7 +19,7 @@ def validate_file(filename):
 
 
 class CredentialBackend(object):
-    """Adapter that provides a consistent interface to read and write credential files"""
+    """Adapter that provides a consistent interface to read and write credentials"""
 
     def __init__(self, thread_lock=None):
         self._thread_lock = thread_lock
