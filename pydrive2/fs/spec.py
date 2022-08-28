@@ -569,6 +569,8 @@ class GDriveFileSystem(AbstractFileSystem):
 
         file1._FilesUpdate()
 
+        # TODO need to invalidate the cache for the old path
+
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
         return self._gdrive_get_file(
