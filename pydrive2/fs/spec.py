@@ -541,12 +541,23 @@ class GDriveFileSystem(AbstractFileSystem):
         file = self.client.CreateFile({"id": file_id})
 
         if file["mimeType"] == FOLDER_MIME_TYPE:
-            dst_id = self._get_item_id(self._parent(rpath))
-            self._gdrive_create_dir(dst_id, posixpath.basename(rpath))
+            self.mkdir(rpath)
         else:
             dst_parent_id = self._get_item_id(self._parent(rpath), create=True)
             dst_parent = self.client.CreateFile({"id": dst_parent_id})
-            file.Copy(dst_parent, posixpath.basename(rpath))
+            file.Copy(dst_parent, posixpath.basename(rpath.rstrip("/")))
+
+    def mkdir(self, path, create_parents=True, **kwargs):
+        """
+        Create directory entry at path
+        """
+
+        if self.exists(path):
+            raise FileExistsError(path)
+
+        dst_id = self._get_item_id(self._parent(path), create=create_parents)
+        basename = posixpath.basename(path.rstrip("/"))
+        self._gdrive_create_dir(dst_id, basename)
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
