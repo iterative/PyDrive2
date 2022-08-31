@@ -572,7 +572,7 @@ class GDriveFileSystem(AbstractFileSystem):
             file2_parent_id = self._get_item_id(file2_parent)
             file1["parents"] = [{"id": file2_parent_id}]
 
-        file1._FilesUpdate()
+        file1.Upload()
 
         # TODO need to invalidate the cache for the old path
 
