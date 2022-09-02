@@ -548,9 +548,7 @@ class GDriveFileSystem(AbstractFileSystem):
             file.Copy(dst_parent, posixpath.basename(rpath.rstrip("/")))
 
     def mkdir(self, path, create_parents=True, **kwargs):
-        """
-        Create directory entry at path
-        """
+        """Create directory entry at path"""
 
         if self.exists(path):
             raise FileExistsError(path)
