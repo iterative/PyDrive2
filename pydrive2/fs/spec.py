@@ -545,10 +545,13 @@ class GDriveFileSystem(AbstractFileSystem):
     @_gdrive_retry
     def mv(self, path1, path2, recursive=False, maxdepth=None, **kwargs):
 
-        if recursive:
-            raise NotImplementedError("Recursive move is not supported")
         if maxdepth:
             raise NotImplementedError("Max depth move is not supported")
+
+        if self.isdir(path1) and not recursive:
+            raise AttributeError(
+                "Cannot move a directory without recursive flag"
+            )
 
         file1_name = posixpath.basename(path1)
 
