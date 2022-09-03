@@ -24,81 +24,67 @@ class CredentialBackend(object):
     def __init__(self, thread_lock=None):
         self._thread_lock = thread_lock
 
-    def _read_credentials(self, rpath):
-        """Specific implementation of how the storage object should retrieve a file."""
+    def _read_credentials(self, **kwargs):
+        """Specific implementation of how credentials are retrieved from backend"""
         return NotImplementedError
 
-    def _store_credentials(self, credential, rpath):
-        """Specific implementation of how the storage object should write a file"""
+    def _store_credentials(self, credential, **kwargs):
+        """Specific implementation of how credentials are written to backend"""
         return NotImplementedError
 
-    def _delete_credentials(self, rpath):
-        """Specific implementation of how the storage object should delete a file."""
+    def _delete_credentials(self, **kwargs):
+        """Specific implementation of how credentials are deleted from backend"""
         return NotImplementedError
 
-    def read_credentials(self, rpath):
-        """Reads a credential config file and returns the config as a dictionary
-        :param fname: host name of the local web server.
-        :type host_name: str.`
-        :return: A credential file
+    def read_credentials(self, **kwargs):
+        """Reads a credential config from the backend and
+        returns the config as a dictionary
+        :return: A dictionary of the credentials
         """
-        return self._read_credentials(rpath)
+        return self._read_credentials(**kwargs)
 
-    def store_credentials(self, credential, rpath):
-        """Write a credential to
-        The Storage lock must be held when this is called.
-        Args:
-            credentials: Credentials, the credentials to store.
-        """
-        self._store_credentials(credential, rpath)
+    def store_credentials(self, credential, **kwargs):
+        """Write a credential to the backend as a json file"""
+        self._store_credentials(credential, **kwargs)
 
-    def delete_credentials(self, rpath):
+    def delete_credentials(self, **kwargs):
         """Delete credential.
-        Frees any resources associated with storing the credential.
-        The Storage lock must *not* be held when this is called.
-
-        Returns:
-            None
+        Frees any resources associated with storing the credential
         """
-        self._delete_credentials(rpath)
+        self._delete_credentials(**kwargs)
 
 
 class FileBackend(CredentialBackend):
-    """Read and write credentials to a file backend with Thread-locking"""
+    """Read and write credential to a specific file backend with Thread-locking"""
 
-    def __init__(self):
-        super().__init__(thread_lock=threading.Lock())
+    def __init__(self, filename):
+        self._filename = filename
+        self._thread_lock = threading.Lock()
 
-    def _create_file_if_needed(self, rpath):
+    def _create_file_if_needed(self, filename):
         """Create an empty file if necessary.
         This method will not initialize the file. Instead it implements a
         simple version of "touch" to ensure the file has been created.
         """
-        if not os.path.exists(rpath):
+        if not os.path.exists(filename):
             old_umask = os.umask(0o177)
             try:
-                open(rpath, "a+b").close()
+                open(filename, "a+b").close()
             finally:
                 os.umask(old_umask)
 
-    def _read_credentials(self, rpath):
-        """Reads a local json file and parses the information into a info dictionary.
-        Returns:
-        Raises:
-        """
+    def _read_credentials(self, **kwargs):
+        """Reads a local json file and parses the information into a info dictionary."""
         with self._thread_lock:
-            validate_file(rpath)
-            with open(rpath, "r") as json_file:
+            validate_file(self._filename)
+            with open(self._filename, "r") as json_file:
                 return json.load(json_file)
 
-    def _store_credentials(self, credentials, rpath):
-        """Writes current credentials to a local json file.
-        Args:
-        Raises:
-        """
+    def _store_credentials(self, credentials, **kwargs):
+        """Writes current credentials to a local json file."""
         with self._thread_lock:
             # write new credentials to the temp file
-            dirname, filename = os.path.split(rpath)
+            dirname, filename = os.path.split(self._filename)
             temp_path = os.path.join(dirname, "temp_{}".format(filename))
             self._create_file_if_needed(temp_path)
 
@@ -106,15 +92,12 @@ class FileBackend(CredentialBackend):
                 json_file.write(credentials.to_json())
 
             # replace the existing credential file
-            os.replace(temp_path, rpath)
+            os.replace(temp_path, self._filename)
 
-    def _delete_credentials(self, rpath):
-        """Delete Credentials file.
-        Args:
-            credentials: Credentials, the credentials to store.
-        """
+    def _delete_credentials(self, **kwargs):
+        """Delete credentials file."""
         with self._thread_lock:
-            os.unlink(rpath)
+            os.unlink(self._filename)
 
 
 class DictionaryBackend(CredentialBackend):
@@ -124,23 +107,14 @@ class DictionaryBackend(CredentialBackend):
         super().__init__(thread_lock=thread_lock)
         self._dictionary = dictionary
 
-    def _read_credentials(self, rpath):
-        """Reads a local json file and parses the information into a info dictionary.
-        Returns:
-        Raises:
-        """
-        return self._dictionary.get(rpath)
+    def _read_credentials(self, key):
+        """Reads a local json file and parses the information into a info dictionary."""
+        return self._dictionary.get(key)
 
-    def _store_credentials(self, credentials, rpath):
-        """Writes current credentials to a local json file.
-        Args:
-        Raises:
-        """
-        self._dictionary[rpath] = credentials.to_json()
+    def _store_credentials(self, credentials, key):
+        """Writes current credentials to a local json file."""
+        self._dictionary[key] = credentials.to_json()
 
-    def _delete_credentials(self, rpath):
-        """Delete Credentials file.
-        Args:
-            credentials: Credentials, the credentials to store.
-        """
-        self._dictionary.pop(rpath, None)
+    def _delete_credentials(self, key):
+        """Delete Credentials file."""
+        self._dictionary.pop(key, None)

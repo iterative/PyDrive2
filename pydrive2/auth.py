@@ -326,7 +326,7 @@ class GoogleAuth:
                     "Please specify credentials file to read"
                 )
 
-            self._storage_registry[backend] = FileBackend()
+            self._storage_registry[backend] = FileBackend(credentials_file)
 
         elif backend == "dictionary":
             creds_dict = self.settings.get("save_credentials_dict")
@@ -383,10 +383,10 @@ class GoogleAuth:
                     "file or pass an explicit value"
                 )
         else:
-            self._default_storage = FileBackend()
+            self._default_storage = FileBackend(credentials_file)
 
         try:
-            auth_info = self.default_storage.read_credentials(credentials_file)
+            auth_info = self.default_storage.read_credentials()
         except FileNotFoundError:
             # if credential was not found, raise the error for handling
             raise
@@ -468,7 +468,7 @@ class GoogleAuth:
         storage = self._storage_registry["file"]
 
         try:
-            storage.store_credentials(self._credentials, credentials_file)
+            storage.store_credentials(self._credentials)
 
         except OSError:
             raise InvalidCredentialsError(
