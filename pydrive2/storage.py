@@ -21,9 +21,6 @@ def validate_file(filename):
 class CredentialBackend(object):
     """Adapter that provides a consistent interface to read and write credentials"""
 
-    def __init__(self, thread_lock=None):
-        self._thread_lock = thread_lock
-
     def _read_credentials(self, **kwargs):
         """Specific implementation of how credentials are retrieved from backend"""
         return NotImplementedError
@@ -44,7 +41,7 @@ class CredentialBackend(object):
         return self._read_credentials(**kwargs)
 
     def store_credentials(self, credential, **kwargs):
-        """Write a credential to the backend as a json file"""
+        """Write a credential to the backend"""
         self._store_credentials(credential, **kwargs)
 
     def delete_credentials(self, **kwargs):
@@ -103,8 +100,7 @@ class FileBackend(CredentialBackend):
 class DictionaryBackend(CredentialBackend):
     """Read and write credentials to a dictionary backend"""
 
-    def __init__(self, dictionary, thread_lock=None):
-        super().__init__(thread_lock=thread_lock)
+    def __init__(self, dictionary):
         self._dictionary = dictionary
 
     def _read_credentials(self, key):
