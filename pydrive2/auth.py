@@ -629,7 +629,7 @@ class GoogleAuth:
         :raises: RefreshError
         """
         raise DeprecationWarning(
-            "Manual refresh had been deprecated as the"
+            "Manual refresh is deprecated as the"
             "new google auth library handles refresh automatically"
         )
 
@@ -653,7 +653,6 @@ class GoogleAuth:
         :raises: AuthenticationError
         """
         self.Authenticate(code)
-        self.Authorize()
 
     def Authenticate(self, code):
         """Authenticates given authentication code back from user.
