@@ -1,5 +1,4 @@
 import json
-import webbrowser
 import httplib2
 import threading
 
@@ -9,8 +8,6 @@ import google.oauth2.credentials
 import google.oauth2.service_account
 from .storage import FileBackend, DictionaryBackend
 
-from .apiattr import ApiAttribute
-from .apiattr import ApiAttributeMixin
 from .settings import LoadSettingsFile
 from .settings import ValidateSettings
 from .settings import SettingsError
@@ -79,7 +76,7 @@ def LoadAuth(decoratee):
     return _decorated
 
 
-class GoogleAuth(ApiAttributeMixin):
+class GoogleAuth:
     """Wrapper class for oauth2client library in google-api-python-client.
 
     Loads all settings and credentials from one 'settings.yaml' file
@@ -95,13 +92,6 @@ class GoogleAuth(ApiAttributeMixin):
     }
 
     SERVICE_CONFIGS_LIST = ["client_user_email"]
-    settings = ApiAttribute("settings")
-    client_config = ApiAttribute("client_config")
-    flow = ApiAttribute("flow")
-    credentials = ApiAttribute("credentials")
-    http = ApiAttribute("http")
-    service = ApiAttribute("service")
-    auth_method = ApiAttribute("auth_method")
 
     def __init__(
         self, settings_file="settings.yaml", http_timeout=None, settings=None
@@ -117,7 +107,6 @@ class GoogleAuth(ApiAttributeMixin):
         :type settings: dict.
         """
         self.http_timeout = http_timeout
-        ApiAttributeMixin.__init__(self)
         self.thread_local = threading.local()
 
         if settings is None and settings_file:

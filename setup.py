@@ -30,7 +30,8 @@ setup(
     long_description_content_type="text/x-rst",
     install_requires=[
         "google-api-python-client >= 1.12.5",
-        "oauth2client >= 4.0.0",
+        "google-auth",
+        "google-auth-oauthlib",
         "PyYAML >= 3.0",
         "pyOpenSSL >= 19.1.0",
     ],
