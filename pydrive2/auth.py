@@ -633,7 +633,7 @@ class GoogleAuth:
             "new google auth library handles refresh automatically"
         )
 
-    def GetAuthUrl(self):
+    def GetAuthUrl(self, redirect_uri="http://localhost:8080/"):
         """Creates authentication url where user visits to grant access.
 
         :returns: str -- Authentication url.
@@ -642,6 +642,8 @@ class GoogleAuth:
             raise AuthenticationError(
                 "Authentication is not required for service client type."
             )
+
+        self.flow.redirect_uri = redirect_uri
 
         return self.flow.authorization_url()
 
@@ -661,13 +663,15 @@ class GoogleAuth:
         :type code: str.
         :raises: AuthenticationError
         """
+        from urllib.parse import unquote
+
         if self.oauth_type == "service":
             raise AuthenticationError(
                 "Authentication is not required for service client type."
             )
 
         try:
-            self.flow.fetch_token(code=code)
+            self.flow.fetch_token(code=unquote(code))
 
         except MissingCodeError as e:
             # if code is not found in the redirect uri's query parameters
@@ -680,7 +684,13 @@ class GoogleAuth:
         except OAuth2Error as e:
             # catch oauth 2 errors
             print("Authentication request was rejected")
-            raise AuthenticationRejected("User rejected authentication")
+            raise AuthenticationRejected("User rejected authentication") from e
+
+        self._credentials = self.flow.credentials
+
+        # save credentials if there's a default storage
+        if self.default_storage:
+            self.SaveCredentials()
 
         print("Authentication successful.")
 
