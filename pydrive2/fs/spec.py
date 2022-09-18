@@ -543,15 +543,10 @@ class GDriveFileSystem(AbstractFileSystem):
             self.upload_fobj(buffer, rpath)
 
     @_gdrive_retry
-    def mv(self, path1, path2, recursive=False, maxdepth=None, **kwargs):
+    def mv(self, path1, path2, maxdepth=None, **kwargs):
 
         if maxdepth is not None:
             raise NotImplementedError("Max depth move is not supported")
-
-        if self.isdir(path1) and not recursive:
-            raise AttributeError(
-                "Cannot move a directory without recursive flag"
-            )
 
         src_name = posixpath.basename(path1)
 
