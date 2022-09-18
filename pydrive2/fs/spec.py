@@ -542,6 +542,37 @@ class GDriveFileSystem(AbstractFileSystem):
             buffer = io.BytesIO(stream.read())
             self.upload_fobj(buffer, rpath)
 
+    @_gdrive_retry
+    def mv(self, path1, path2, maxdepth=None, **kwargs):
+
+        if maxdepth is not None:
+            raise NotImplementedError("Max depth move is not supported")
+
+        src_name = posixpath.basename(path1)
+
+        src_parent = self._parent(path1)
+
+        if self.exists(path2):
+            dst_name = src_name
+            dst_parent = path2
+        else:
+            dst_name = posixpath.basename(path2)
+            dst_parent = self._parent(path2)
+
+        file1_id = self._get_item_id(path1)
+
+        file1 = self.client.CreateFile({"id": file1_id})
+
+        if src_name != dst_name:
+            file1["title"] = dst_name
+
+        if src_parent != dst_parent:
+            file2_parent_id = self._get_item_id(dst_parent)
+            file1["parents"] = [{"id": file2_parent_id}]
+
+        # TODO need to invalidate the cache for the old path, see #232
+        file1.Upload()
+
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
         return self._gdrive_get_file(
