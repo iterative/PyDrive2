@@ -575,7 +575,7 @@ class GDriveFileSystem(AbstractFileSystem):
             file2_parent_id = self._get_item_id(dst_parent)
             file1["parents"] = [{"id": file2_parent_id}]
 
-        # TODO need to invalidate the cache for the old path
+        # TODO need to invalidate the cache for the old path, see #232
         file1.Upload()
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
