@@ -545,7 +545,7 @@ class GDriveFileSystem(AbstractFileSystem):
     @_gdrive_retry
     def mv(self, path1, path2, recursive=False, maxdepth=None, **kwargs):
 
-        if maxdepth:
+        if maxdepth is not None:
             raise NotImplementedError("Max depth move is not supported")
 
         if self.isdir(path1) and not recursive:
@@ -553,31 +553,30 @@ class GDriveFileSystem(AbstractFileSystem):
                 "Cannot move a directory without recursive flag"
             )
 
-        file1_name = posixpath.basename(path1)
+        src_name = posixpath.basename(path1)
 
-        file1_parent = self._parent(path1)
+        src_parent = self._parent(path1)
 
         if self.exists(path2):
-            file2_name = file1_name
-            file2_parent = path2
+            dst_name = src_name
+            dst_parent = path2
         else:
-            file2_name = posixpath.basename(path2)
-            file2_parent = self._parent(path2)
+            dst_name = posixpath.basename(path2)
+            dst_parent = self._parent(path2)
 
         file1_id = self._get_item_id(path1)
 
         file1 = self.client.CreateFile({"id": file1_id})
 
-        if file1_name != file2_name:
-            file1["title"] = file2_name
+        if src_name != dst_name:
+            file1["title"] = dst_name
 
-        if file1_parent != file2_parent:
-            file2_parent_id = self._get_item_id(file2_parent)
+        if src_parent != dst_parent:
+            file2_parent_id = self._get_item_id(dst_parent)
             file1["parents"] = [{"id": file2_parent_id}]
 
-        file1.Upload()
-
         # TODO need to invalidate the cache for the old path
+        file1.Upload()
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
