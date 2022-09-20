@@ -172,6 +172,27 @@ one permission at a time by providing the permission's ID.
 
     file1.DeletePermission(permission_id)  # Delete the permission.
 
+Get files by complex queries
+--------------------------------------
+
+We can get a file by name and by other constraints, usually a filename will be unique but
+we can have two equal names with different extensions, e.g.,  *123.jpeg and 123.mp3*. So if you
+expect only one file add more constraints to the query, see `q_parameters`_,
+as a result we get a list of `GoogleDriveFile`_ instances.
+
+.. code-block:: python
+
+    from pydrive2.drive import GoogleDrive
+    # Create GoogleDrive instance with authenticated GoogleAuth instance.
+    drive = GoogleDrive(gauth)
+    filename = 'file_test'
+    # query
+    query = {'q': f"title = '{filename}'"}
+    # more specific query
+    # query = {'q': f"title = '{filename}' and mimeType='{mimetype}'"}
+    # get list of files that match against the query
+    files = drive.ListFile(query).GetList()
+
 Upload and update file content
 ------------------------------
 
@@ -207,6 +228,54 @@ like so:
 .. code-block:: python
 
     content_string = file4.GetContentString(encoding='ISO-8859-1')
+
+Upload data as bytes in memory buffer
+--------------------------------------
+
+Data can be kept as bytes in an in-memory buffer when we use the io module’s
+Byte IO operations, we can upload files that reside in memory, for
+example we have a base64 image, we can decode the string and upload it to drive
+without the need to save as a file and use `SetContentFile(filename)`_
+
+.. code-block:: python
+
+    import io
+    from pydrive2.drive import GoogleDrive
+
+    # create GoogleDrive instance with authenticated GoogleAuth instance.
+    drive = GoogleDrive(gauth)
+    # define file name and type
+    metadata = {
+        'title': 'image_test',
+        'mimeType': 'image/jpeg'
+    }
+    # create file
+    file = drive.CreateFile(metadata=metadata)
+    # Buffered I/O implementation using an in-memory bytes buffer.
+    image_file = io.BytesIO(image_bytes)
+    # set the content of the file
+    file.content = image_file
+    # upload the file to google drive
+    file.Upload()
+
+Upload file to specific folder
+--------------------------------------
+
+In order to upload a file into a specific drive folder we need to pass the
+id of the folder in the metadata param from `CreateFile()`_.
+Save the image from the previous example into a specific folder
+
+.. code-block:: python
+
+    metadata = {
+        'parents': [
+            {"kind": "drive#fileLink", "id": id_drive_folder}
+        ],
+        'title': 'image_test',
+        'mimeType': 'image/jpeg'
+    }
+    # create file
+    file = drive.CreateFile(metadata=metadata)
 
 Download file content
 ---------------------
@@ -260,3 +329,4 @@ it you indicate that you acknowledge the risks of downloading potential malware.
 .. _`official documentation`: https://developers.google.com/drive/v2/reference/files#resource-representations
 .. _`known`: https://productforums.google.com/forum/#!topic/docs/BJLimQDGtjQ
 .. _`abusive`: https://support.google.com/docs/answer/148505
+.. _`q_parameters`: https://developers.google.com/drive/api/guides/search-files#examples
