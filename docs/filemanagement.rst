@@ -173,7 +173,7 @@ one permission at a time by providing the permission's ID.
     file1.DeletePermission(permission_id)  # Delete the permission.
 
 Get files by complex queries
---------------------------------------
+----------------------------
 
 We can get a file by name and by other constraints, usually a filename will be unique but
 we can have two equal names with different extensions, e.g.,  *123.jpeg and 123.mp3*. So if you
@@ -187,9 +187,7 @@ as a result we get a list of `GoogleDriveFile`_ instances.
     drive = GoogleDrive(gauth)
     filename = 'file_test'
     # query
-    query = {'q': f"title = '{filename}'"}
-    # more specific query
-    # query = {'q': f"title = '{filename}' and mimeType='{mimetype}'"}
+    query = {'q': f"title = '{filename}' and mimeType='{mimetype}'"}
     # get list of files that match against the query
     files = drive.ListFile(query).GetList()
 
@@ -232,7 +230,7 @@ like so:
 Upload data as bytes in memory buffer
 --------------------------------------
 
-Data can be kept as bytes in an in-memory buffer when we use the io module’s
+Data can be kept as bytes in an in-memory buffer when we use the ``io`` module’s
 Byte IO operations, we can upload files that reside in memory, for
 example we have a base64 image, we can decode the string and upload it to drive
 without the need to save as a file and use `SetContentFile(filename)`_
@@ -258,24 +256,25 @@ without the need to save as a file and use `SetContentFile(filename)`_
     # upload the file to google drive
     file.Upload()
 
-Upload file to specific folder
---------------------------------------
+Upload file to a specific folder
+--------------------------------
 
 In order to upload a file into a specific drive folder we need to pass the
-id of the folder in the metadata param from `CreateFile()`_.
+``id`` of the folder in the metadata ``param`` from `CreateFile()`_.
 Save the image from the previous example into a specific folder
 
 .. code-block:: python
 
     metadata = {
         'parents': [
-            {"kind": "drive#fileLink", "id": id_drive_folder}
+            {"id": id_drive_folder}
         ],
         'title': 'image_test',
         'mimeType': 'image/jpeg'
     }
     # create file
     file = drive.CreateFile(metadata=metadata)
+    file.Upload()
 
 Download file content
 ---------------------
