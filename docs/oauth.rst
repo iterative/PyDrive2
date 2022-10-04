@@ -160,3 +160,52 @@ Here is a sample code for your customized authentication flow
 
 .. _`GetAuthUrl()`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.GetAuthUrl
 .. _`Auth(code)`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.Auth
+
+
+Authentication with a service account
+--------------------------------------
+
+A `Service account`_ is a special type of Google account intended to represent a
+non-human user that needs to authenticate and be authorized to access data in
+Google APIs.
+
+Typically, service accounts are used in scenarios such as:
+
+- Running workloads on virtual machines (VMs).
+- Running workloads on data centers that call Google APIs.
+- Running workloads which are not tied to the lifecycle of a human user.
+
+If we use OAuth client ID we need to do one manual login into the account with
+`LocalWebserverAuth()`_. if we use a service account the login is automatic.
+
+
+.. code-block:: python
+
+    from pydrive2.auth import GoogleAuth
+    from pydrive2.drive import GoogleDrive
+
+    def login_with_service_account():
+        """
+        Google Drive service with a service account.
+        note: for the service account to work, you need to share the folder or
+        files with the service account email.
+
+        :return: google auth
+        """
+        # Define the settings dict to use a service account
+        # We also can use all options available for the settings dict like
+        # oauth_scope,save_credentials,etc.
+        settings = {
+                    "client_config_backend": "service",
+                    "service_config": {
+                        "client_json_file_path": "service-secrets.json",
+                    }
+                }
+        # Create instance of GoogleAuth
+        gauth = GoogleAuth(settings=settings)
+        # Authenticate
+        gauth.ServiceAuth()
+        return gauth
+
+
+.. _`Service account`: https://developers.google.com/workspace/guides/create-credentials#service-account
