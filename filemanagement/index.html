@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 <link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="File listing made easy" href="../filelist/" /><link rel="prev" title="OAuth made easy" href="../oauth/" />
 
-    <meta name="generator" content="sphinx-5.1.1, furo 2022.09.15"/>
+    <meta name="generator" content="sphinx-5.2.3, furo 2022.09.29"/>
         <title>File management made easy - PyDrive2 1.14.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=9ec31e2665bf879c1d47d93a8ec4893870ee1e45" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
     
@@ -181,7 +181,8 @@
           <span>Back to top</span>
         </a>
         <div class="content-icon-container">
-          <div class="theme-toggle-container theme-toggle-content">
+          
+<div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -343,6 +344,24 @@ one permission at a time by providing the permission’s ID.</p>
 </div>
 </section>
 </section>
+<section id="get-files-by-complex-queries">
+<h2>Get files by complex queries<a class="headerlink" href="#get-files-by-complex-queries" title="Permalink to this heading">#</a></h2>
+<p>We can get a file by name and by other constraints, usually a filename will be
+unique but we can have two equal names with different extensions, e.g.,
+<em>123.jpeg and 123.mp3</em>. So if you expect only one file add more constraints to
+the query, see <a class="reference external" href="query_parameters">Query string examples</a>, as a result we get
+a list of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instances.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+<span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance.</span>
+<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
+<span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;file_test&#39;</span>
+<span class="c1"># Query</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;q&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;title = &#39;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&#39; and mimeType=&#39;</span><span class="si">{</span><span class="n">mimetype</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">}</span>
+<span class="c1"># Get list of files that match against the query</span>
+<span class="n">files</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">(</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
 <section id="upload-and-update-file-content">
 <h2>Upload and update file content<a class="headerlink" href="#upload-and-update-file-content" title="Permalink to this heading">#</a></h2>
 <p>Managing file content is as easy as managing file metadata. You can set file
@@ -370,6 +389,51 @@ parameter <cite>encoding</cite>.</p>
 Drive which is encoded with ISO-8859-1, then you can get the content string
 like so:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">content_string</span> <span class="o">=</span> <span class="n">file4</span><span class="o">.</span><span class="n">GetContentString</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;ISO-8859-1&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="upload-data-as-bytes-in-memory-buffer">
+<h2>Upload data as bytes in memory buffer<a class="headerlink" href="#upload-data-as-bytes-in-memory-buffer" title="Permalink to this heading">#</a></h2>
+<p>Data can be kept as bytes in an in-memory buffer when we use the <code class="docutils literal notranslate"><span class="pre">io</span></code> module’s
+Byte IO operations, we can upload files that reside in memory, for
+example we have a base64 image, we can decode the string and upload it to drive
+without the need to save as a file and use <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile">SetContentFile(filename)</a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+
+<span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance.</span>
+<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
+<span class="c1"># Define file name and type</span>
+<span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;image_test&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;mimeType&#39;</span><span class="p">:</span> <span class="s1">&#39;image/jpeg&#39;</span>
+<span class="p">}</span>
+<span class="c1"># Create file</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
+<span class="c1"># Buffered I/O implementation using an in-memory bytes buffer.</span>
+<span class="n">image_file</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">image_bytes</span><span class="p">)</span>
+<span class="c1"># Set the content of the file</span>
+<span class="n">file</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="n">image_file</span>
+<span class="c1"># Upload the file to google drive</span>
+<span class="n">file</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="upload-file-to-a-specific-folder">
+<h2>Upload file to a specific folder<a class="headerlink" href="#upload-file-to-a-specific-folder" title="Permalink to this heading">#</a></h2>
+<p>In order to upload a file into a specific drive folder we need to pass the
+<code class="docutils literal notranslate"><span class="pre">id</span></code> of the folder in the metadata <code class="docutils literal notranslate"><span class="pre">param</span></code> from <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.drive.GoogleDrive.CreateFile">CreateFile()</a>.
+Save the image from the previous example into a specific folder``:``</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s1">&#39;parents&#39;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">id_drive_folder</span><span class="p">}</span>
+    <span class="p">],</span>
+    <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;image_test&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;mimeType&#39;</span><span class="p">:</span> <span class="s1">&#39;image/jpeg&#39;</span>
+<span class="p">}</span>
+<span class="c1"># Create file</span>
+<span class="n">file</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
+<span class="n">file</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
 </pre></div>
 </div>
 </section>
@@ -478,7 +542,10 @@ it you indicate that you acknowledge the risks of downloading potential malware.
 <li><a class="reference internal" href="#remove-a-permission">Remove a Permission</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#get-files-by-complex-queries">Get files by complex queries</a></li>
 <li><a class="reference internal" href="#upload-and-update-file-content">Upload and update file content</a></li>
+<li><a class="reference internal" href="#upload-data-as-bytes-in-memory-buffer">Upload data as bytes in memory buffer</a></li>
+<li><a class="reference internal" href="#upload-file-to-a-specific-folder">Upload file to a specific folder</a></li>
 <li><a class="reference internal" href="#download-file-content">Download file content</a></li>
 <li><a class="reference internal" href="#abusive-files">Abusive files</a></li>
 </ul>
@@ -497,6 +564,7 @@ it you indicate that you acknowledge the risks of downloading potential malware.
     <script src="../_static/underscore.js"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/scripts/furo.js"></script>
     </body>
 </html>

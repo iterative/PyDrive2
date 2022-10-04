@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 <link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="Index" href="../genindex/" /><link rel="prev" title="fsspec filesystem" href="../fsspec/" />
 
-    <meta name="generator" content="sphinx-5.1.1, furo 2022.09.15"/>
+    <meta name="generator" content="sphinx-5.2.3, furo 2022.09.29"/>
         <title>pydrive2 package - PyDrive2 1.14.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=9ec31e2665bf879c1d47d93a8ec4893870ee1e45" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
     
@@ -181,7 +181,8 @@
           <span>Back to top</span>
         </a>
         <div class="content-icon-container">
-          <div class="theme-toggle-container theme-toggle-content">
+          
+<div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -1186,12 +1187,128 @@ Sets mimeType to be ‘text/plain’ if not specified.</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">pydrive2 package</a><ul>
-<li><a class="reference internal" href="#module-pydrive2.apiattr">pydrive2.apiattr module</a></li>
-<li><a class="reference internal" href="#module-pydrive2.auth">pydrive2.auth module</a></li>
-<li><a class="reference internal" href="#module-pydrive2.drive">pydrive2.drive module</a></li>
-<li><a class="reference internal" href="#module-pydrive2.files">pydrive2.files module</a></li>
-<li><a class="reference internal" href="#module-pydrive2.settings">pydrive2.settings module</a></li>
-<li><a class="reference internal" href="#pydrive2-fs-module">pydrive2.fs module</a></li>
+<li><a class="reference internal" href="#module-pydrive2.apiattr">pydrive2.apiattr module</a><ul>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiAttribute"><code class="docutils literal notranslate"><span class="pre">ApiAttribute</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiAttributeMixin"><code class="docutils literal notranslate"><span class="pre">ApiAttributeMixin</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResource"><code class="docutils literal notranslate"><span class="pre">ApiResource</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.GetChanges"><code class="docutils literal notranslate"><span class="pre">ApiResource.GetChanges()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.UpdateMetadata"><code class="docutils literal notranslate"><span class="pre">ApiResource.UpdateMetadata()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.auth"><code class="docutils literal notranslate"><span class="pre">ApiResource.auth</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.update"><code class="docutils literal notranslate"><span class="pre">ApiResource.update()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResourceList"><code class="docutils literal notranslate"><span class="pre">ApiResourceList</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResourceList.GetList"><code class="docutils literal notranslate"><span class="pre">ApiResourceList.GetList()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResourceList.Reset"><code class="docutils literal notranslate"><span class="pre">ApiResourceList.Reset()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.apiattr.ApiResourceList.metadata"><code class="docutils literal notranslate"><span class="pre">ApiResourceList.metadata</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-pydrive2.auth">pydrive2.auth module</a><ul>
+<li><a class="reference internal" href="#pydrive2.auth.AuthError"><code class="docutils literal notranslate"><span class="pre">AuthError</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.AuthenticationError"><code class="docutils literal notranslate"><span class="pre">AuthenticationError</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.AuthenticationRejected"><code class="docutils literal notranslate"><span class="pre">AuthenticationRejected</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.CheckAuth"><code class="docutils literal notranslate"><span class="pre">CheckAuth()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.CheckServiceAuth"><code class="docutils literal notranslate"><span class="pre">CheckServiceAuth()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Auth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Auth()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Authenticate"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Authenticate()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Authorize"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Authorize()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.CLIENT_CONFIGS_LIST"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.CLIENT_CONFIGS_LIST</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.CommandLineAuth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.CommandLineAuth()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.DEFAULT_SETTINGS"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.DEFAULT_SETTINGS</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.GetAuthUrl"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.GetAuthUrl()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.GetFlow"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.GetFlow()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Get_Http_Object"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Get_Http_Object()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LoadClientConfig"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LoadClientConfig()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LoadClientConfigFile"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LoadClientConfigFile()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LoadClientConfigSettings"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LoadClientConfigSettings()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LoadCredentials"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LoadCredentials()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LoadCredentialsFile"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LoadCredentialsFile()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LoadServiceConfigSettings"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LoadServiceConfigSettings()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LocalWebserverAuth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LocalWebserverAuth()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Refresh"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Refresh()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.SERVICE_CONFIGS_LIST"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.SERVICE_CONFIGS_LIST</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.SaveCredentials"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.SaveCredentials()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.SaveCredentialsFile"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.SaveCredentialsFile()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.ServiceAuth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.ServiceAuth()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.access_token_expired"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.access_token_expired</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.auth_method"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.auth_method</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.client_config"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.client_config</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.credentials"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.credentials</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.flow"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.flow</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.http"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.http</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.service"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.service</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.settings"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.settings</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pydrive2.auth.InvalidCredentialsError"><code class="docutils literal notranslate"><span class="pre">InvalidCredentialsError</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.LoadAuth"><code class="docutils literal notranslate"><span class="pre">LoadAuth()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.auth.RefreshError"><code class="docutils literal notranslate"><span class="pre">RefreshError</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-pydrive2.drive">pydrive2.drive module</a><ul>
+<li><a class="reference internal" href="#pydrive2.drive.GoogleDrive"><code class="docutils literal notranslate"><span class="pre">GoogleDrive</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.drive.GoogleDrive.CreateFile"><code class="docutils literal notranslate"><span class="pre">GoogleDrive.CreateFile()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.drive.GoogleDrive.GetAbout"><code class="docutils literal notranslate"><span class="pre">GoogleDrive.GetAbout()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.drive.GoogleDrive.ListFile"><code class="docutils literal notranslate"><span class="pre">GoogleDrive.ListFile()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-pydrive2.files">pydrive2.files module</a><ul>
+<li><a class="reference internal" href="#pydrive2.files.ApiRequestError"><code class="docutils literal notranslate"><span class="pre">ApiRequestError</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.files.ApiRequestError.GetField"><code class="docutils literal notranslate"><span class="pre">ApiRequestError.GetField()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pydrive2.files.FileNotDownloadableError"><code class="docutils literal notranslate"><span class="pre">FileNotDownloadableError</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.FileNotUploadedError"><code class="docutils literal notranslate"><span class="pre">FileNotUploadedError</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.Copy"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.Copy()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.Delete"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.Delete()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.DeletePermission"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.DeletePermission()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.FetchContent"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.FetchContent()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.FetchMetadata"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.FetchMetadata()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetContentFile"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetContentFile()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetContentIOBuffer"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetContentIOBuffer()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetContentString"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetContentString()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetPermissions"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetPermissions()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.InsertPermission"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.InsertPermission()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.SetContentFile"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.SetContentFile()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.SetContentString"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.SetContentString()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.Trash"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.Trash()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.UnTrash"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.UnTrash()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.Upload"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.Upload()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.content"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.content</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.metadata"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.metadata</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.uploaded"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.uploaded</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFileList"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFileList</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.IoBuffer"><code class="docutils literal notranslate"><span class="pre">IoBuffer</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.files.IoBuffer.read"><code class="docutils literal notranslate"><span class="pre">IoBuffer.read()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.IoBuffer.write"><code class="docutils literal notranslate"><span class="pre">IoBuffer.write()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pydrive2.files.LoadMetadata"><code class="docutils literal notranslate"><span class="pre">LoadMetadata()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.MediaIoReadable"><code class="docutils literal notranslate"><span class="pre">MediaIoReadable</span></code></a><ul>
+<li><a class="reference internal" href="#pydrive2.files.MediaIoReadable.read"><code class="docutils literal notranslate"><span class="pre">MediaIoReadable.read()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-pydrive2.settings">pydrive2.settings module</a><ul>
+<li><a class="reference internal" href="#pydrive2.settings.InvalidConfigError"><code class="docutils literal notranslate"><span class="pre">InvalidConfigError</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.settings.LoadSettingsFile"><code class="docutils literal notranslate"><span class="pre">LoadSettingsFile()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.settings.SettingsError"><code class="docutils literal notranslate"><span class="pre">SettingsError</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.settings.ValidateSettings"><code class="docutils literal notranslate"><span class="pre">ValidateSettings()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pydrive2-fs-module">pydrive2.fs module</a><ul>
+<li><a class="reference internal" href="#pydrive2.fs.GDriveFileSystem"><code class="docutils literal notranslate"><span class="pre">GDriveFileSystem</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -1208,6 +1325,7 @@ Sets mimeType to be ‘text/plain’ if not specified.</p>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/scripts/furo.js"></script>
     </body>
 </html>

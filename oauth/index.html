@@ -5,10 +5,10 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 <link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="File management made easy" href="../filemanagement/" /><link rel="prev" title="Quickstart" href="../quickstart/" />
 
-    <meta name="generator" content="sphinx-5.1.1, furo 2022.09.15"/>
+    <meta name="generator" content="sphinx-5.2.3, furo 2022.09.29"/>
         <title>OAuth made easy - PyDrive2 1.14.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=9ec31e2665bf879c1d47d93a8ec4893870ee1e45" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=d81277517bee4d6b0349d71bb2661d4890b5617c" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
     
@@ -181,7 +181,8 @@
           <span>Back to top</span>
         </a>
         <div class="content-icon-container">
-          <div class="theme-toggle-container theme-toggle-content">
+          
+<div class="theme-toggle-container theme-toggle-content">
             <button class="theme-toggle">
               <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
               <svg class="theme-icon-when-auto"><use href="#svg-sun-half"></use></svg>
@@ -377,6 +378,47 @@ customize authentication flow as follwing:</p>
 </pre></div>
 </div>
 </section>
+<section id="authentication-with-a-service-account">
+<h2>Authentication with a service account<a class="headerlink" href="#authentication-with-a-service-account" title="Permalink to this heading">#</a></h2>
+<p>A <a class="reference external" href="https://developers.google.com/workspace/guides/create-credentials#service-account">Service account</a> is a special type of Google account intended to represent a
+non-human user that needs to authenticate and be authorized to access data in
+Google APIs.</p>
+<p>Typically, service accounts are used in scenarios such as:</p>
+<ul class="simple">
+<li><p>Running workloads on virtual machines (VMs).</p></li>
+<li><p>Running workloads on data centers that call Google APIs.</p></li>
+<li><p>Running workloads which are not tied to the lifecycle of a human user.</p></li>
+</ul>
+<p>If we use OAuth client ID we need to do one manual login into the account with
+<a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth">LocalWebserverAuth()</a>. if we use a service account the login is automatic.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.auth</span> <span class="kn">import</span> <span class="n">GoogleAuth</span>
+<span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+
+<span class="k">def</span> <span class="nf">login_with_service_account</span><span class="p">():</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Google Drive service with a service account.</span>
+<span class="sd">    note: for the service account to work, you need to share the folder or</span>
+<span class="sd">    files with the service account email.</span>
+
+<span class="sd">    :return: google auth</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Define the settings dict to use a service account</span>
+    <span class="c1"># We also can use all options available for the settings dict like</span>
+    <span class="c1"># oauth_scope,save_credentials,etc.</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;client_config_backend&quot;</span><span class="p">:</span> <span class="s2">&quot;service&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;service_config&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;client_json_file_path&quot;</span><span class="p">:</span> <span class="s2">&quot;service-secrets.json&quot;</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+    <span class="c1"># Create instance of GoogleAuth</span>
+    <span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">(</span><span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span>
+    <span class="c1"># Authenticate</span>
+    <span class="n">gauth</span><span class="o">.</span><span class="n">ServiceAuth</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">gauth</span>
+</pre></div>
+</div>
+</section>
 </section>
 
         </article>
@@ -443,6 +485,7 @@ customize authentication flow as follwing:</p>
 </ul>
 </li>
 <li><a class="reference internal" href="#building-your-own-authentication-flow">Building your own authentication flow</a></li>
+<li><a class="reference internal" href="#authentication-with-a-service-account">Authentication with a service account</a></li>
 </ul>
 </li>
 </ul>
@@ -459,6 +502,7 @@ customize authentication flow as follwing:</p>
     <script src="../_static/underscore.js"></script>
     <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
     <script src="../_static/doctools.js"></script>
+    <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/scripts/furo.js"></script>
     </body>
 </html>
