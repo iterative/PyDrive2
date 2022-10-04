@@ -187,31 +187,25 @@ If we use OAuth client ID we need to do one manual login into the account with
     def login_with_service_account():
         """
         Google Drive service with a service account.
-        note: for the service account to work, you need to share the folder or files
-        with the service account email.
+        note: for the service account to work, you need to share the folder or
+        files with the service account email.
 
         :return: google auth
         """
-        # define the settings dict to use a service account
-        # We also can use all options available for the settings
-        # dict like oauth_scope,save_credentials,etc.
+        # Define the settings dict to use a service account
+        # We also can use all options available for the settings dict like
+        # oauth_scope,save_credentials,etc.
         settings = {
                     "client_config_backend": "service",
                     "service_config": {
                         "client_json_file_path": "service-secrets.json",
                     }
                 }
-        # create instance of GoogleAuth
+        # Create instance of GoogleAuth
         gauth = GoogleAuth(settings=settings)
-        # authenticate
+        # Authenticate
         gauth.ServiceAuth()
         return gauth
-
-    gauth = login_with_service_account()
-    drive = GoogleDrive(gauth)
-
-
-
 
 
 .. _`Service account`: https://developers.google.com/workspace/guides/create-credentials#service-account

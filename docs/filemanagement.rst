@@ -175,10 +175,11 @@ one permission at a time by providing the permission's ID.
 Get files by complex queries
 ----------------------------
 
-We can get a file by name and by other constraints, usually a filename will be unique but
-we can have two equal names with different extensions, e.g.,  *123.jpeg and 123.mp3*. So if you
-expect only one file add more constraints to the query, see `q_parameters`_,
-as a result we get a list of `GoogleDriveFile`_ instances.
+We can get a file by name and by other constraints, usually a filename will be
+unique but we can have two equal names with different extensions, e.g.,
+*123.jpeg and 123.mp3*. So if you expect only one file add more constraints to
+the query, see `Query string examples <query_parameters>`_, as a result we get
+a list of `GoogleDriveFile`_ instances.
 
 .. code-block:: python
 
@@ -186,9 +187,9 @@ as a result we get a list of `GoogleDriveFile`_ instances.
     # Create GoogleDrive instance with authenticated GoogleAuth instance.
     drive = GoogleDrive(gauth)
     filename = 'file_test'
-    # query
+    # Query
     query = {'q': f"title = '{filename}' and mimeType='{mimetype}'"}
-    # get list of files that match against the query
+    # Get list of files that match against the query
     files = drive.ListFile(query).GetList()
 
 Upload and update file content
@@ -240,20 +241,20 @@ without the need to save as a file and use `SetContentFile(filename)`_
     import io
     from pydrive2.drive import GoogleDrive
 
-    # create GoogleDrive instance with authenticated GoogleAuth instance.
+    # Create GoogleDrive instance with authenticated GoogleAuth instance.
     drive = GoogleDrive(gauth)
-    # define file name and type
+    # Define file name and type
     metadata = {
         'title': 'image_test',
         'mimeType': 'image/jpeg'
     }
-    # create file
+    # Create file
     file = drive.CreateFile(metadata=metadata)
     # Buffered I/O implementation using an in-memory bytes buffer.
     image_file = io.BytesIO(image_bytes)
-    # set the content of the file
+    # Set the content of the file
     file.content = image_file
-    # upload the file to google drive
+    # Upload the file to google drive
     file.Upload()
 
 Upload file to a specific folder
@@ -261,7 +262,7 @@ Upload file to a specific folder
 
 In order to upload a file into a specific drive folder we need to pass the
 ``id`` of the folder in the metadata ``param`` from `CreateFile()`_.
-Save the image from the previous example into a specific folder
+Save the image from the previous example into a specific folder``:``
 
 .. code-block:: python
 
@@ -272,7 +273,7 @@ Save the image from the previous example into a specific folder
         'title': 'image_test',
         'mimeType': 'image/jpeg'
     }
-    # create file
+    # Create file
     file = drive.CreateFile(metadata=metadata)
     file.Upload()
 
@@ -328,4 +329,4 @@ it you indicate that you acknowledge the risks of downloading potential malware.
 .. _`official documentation`: https://developers.google.com/drive/v2/reference/files#resource-representations
 .. _`known`: https://productforums.google.com/forum/#!topic/docs/BJLimQDGtjQ
 .. _`abusive`: https://support.google.com/docs/answer/148505
-.. _`q_parameters`: https://developers.google.com/drive/api/guides/search-files#examples
+.. _`query_parameters`: https://developers.google.com/drive/api/guides/search-files#examples
