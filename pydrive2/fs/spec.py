@@ -575,7 +575,8 @@ class GDriveFileSystem(AbstractFileSystem):
         with suppress(KeyError):
             del self._ids_cache["ids"][file1_id]
         with suppress(KeyError):
-            del self._ids_cache["dirs"][path1]
+            _, base = self.split_path(path1)
+            del self._ids_cache["dirs"][base]
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
@@ -629,7 +630,8 @@ class GDriveFileSystem(AbstractFileSystem):
         with suppress(KeyError):
             del self._ids_cache["ids"][item_id]
         with suppress(KeyError):
-            del self._ids_cache["dirs"][path]
+            _, base = self.split_path(path)
+            del self._ids_cache["dirs"][base]
 
     @_gdrive_retry
     def _gdrive_delete_file(self, item_id):
