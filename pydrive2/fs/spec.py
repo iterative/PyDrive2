@@ -6,7 +6,7 @@ import os
 import posixpath
 import threading
 from collections import defaultdict
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 
 from fsspec.spec import AbstractFileSystem
 from funcy import cached_property, retry, wrap_prop, wrap_with
@@ -570,8 +570,12 @@ class GDriveFileSystem(AbstractFileSystem):
             file2_parent_id = self._get_item_id(dst_parent)
             file1["parents"] = [{"id": file2_parent_id}]
 
-        # TODO need to invalidate the cache for the old path, see #232
         file1.Upload()
+
+        with suppress(KeyError):
+            del self._ids_cache["ids"][file1_id]
+        with suppress(KeyError):
+            del self._ids_cache["dirs"][path1]
 
     def get_file(self, lpath, rpath, callback=None, block_size=None, **kwargs):
         item_id = self._get_item_id(lpath)
@@ -621,6 +625,11 @@ class GDriveFileSystem(AbstractFileSystem):
     def rm_file(self, path):
         item_id = self._get_item_id(path)
         self._gdrive_delete_file(item_id)
+
+        with suppress(KeyError):
+            del self._ids_cache["ids"][item_id]
+        with suppress(KeyError):
+            del self._ids_cache["dirs"][path]
 
     @_gdrive_retry
     def _gdrive_delete_file(self, item_id):
