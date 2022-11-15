@@ -8,6 +8,7 @@ tests_requirements = [
     "flake8",
     "flake8-docstrings",
     "pytest-mock",
+    "pyinstaller",
 ]
 
 tests_requirements.append("black==22.10.0")
@@ -18,7 +19,12 @@ setup(
     author_email="jgwak@dreamylab.com",
     maintainer="DVC team",
     maintainer_email="support@dvc.org",
-    packages=["pydrive2", "pydrive2.test", "pydrive2.fs"],
+    packages=[
+        "pydrive2",
+        "pydrive2.test",
+        "pydrive2.fs",
+        "pydrive2.__pyinstaller",
+    ],
     url="https://github.com/iterative/PyDrive2",
     project_urls={
         "Documentation": "https://docs.iterative.ai/PyDrive2",
@@ -52,4 +58,10 @@ setup(
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
+    entry_points={
+        "pyinstaller40": [
+            "hook-dirs = pydrive2.__pyinstaller:get_hook_dirs",
+            "tests = pydrive2.__pyinstaller:get_PyInstaller_tests",
+        ]
+    },
 )
