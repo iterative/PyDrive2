@@ -9,6 +9,7 @@ tests_requirements = [
     "flake8-docstrings",
     "pytest-mock",
     "pyinstaller",
+    "importlib_resources; python_version < '3.10'",
 ]
 
 tests_requirements.append("black==22.10.0")
