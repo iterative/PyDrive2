@@ -16,6 +16,8 @@ from oauth2client.file import Storage
 from oauth2client.tools import ClientRedirectHandler
 from oauth2client.tools import ClientRedirectServer
 from oauth2client._helpers import scopes_to_string
+
+from pydrive2.storage.redis.storage import RedisStorage
 from .apiattr import ApiAttribute
 from .apiattr import ApiAttributeMixin
 from .settings import LoadSettingsFile
@@ -65,11 +67,11 @@ def LoadAuth(decoratee):
 
         # Ensure that a thread-safe HTTP object is provided.
         if (
-            kwargs is not None
-            and "param" in kwargs
-            and kwargs["param"] is not None
-            and "http" in kwargs["param"]
-            and kwargs["param"]["http"] is not None
+            kwargs is not None and
+            "param" in kwargs and
+            kwargs["param"] is not None and
+            "http" in kwargs["param"] and
+            kwargs["param"]["http"] is not None
         ):
             self.http = kwargs["param"]["http"]
             del kwargs["param"]["http"]
@@ -362,6 +364,10 @@ class GoogleAuth(ApiAttributeMixin):
                 raise InvalidConfigError("Please specify credentials key")
 
             result[backend] = DictionaryStorage(creds_dict, creds_key)
+        elif backend == "redis":
+            result[backend] = RedisStorage(
+                self.settings.get('redis_client'), self.settings.get('redis_key'))
+            pass
         elif save_credentials:
             raise InvalidConfigError(
                 "Unknown save_credentials_backend: %s" % backend
@@ -383,6 +389,8 @@ class GoogleAuth(ApiAttributeMixin):
             self.LoadCredentialsFile()
         elif backend == "dictionary":
             self._LoadCredentialsDictionary()
+        elif backend == 'redis':
+            self.LoadCredentialsRedis()
         else:
             raise InvalidConfigError("Unknown save_credentials_backend")
 
@@ -429,6 +437,19 @@ class GoogleAuth(ApiAttributeMixin):
         if self.credentials:
             self.credentials.set_store(self._default_storage)
 
+    def LoadCredentialsRedis(self):
+        self._default_storage = self._storages["redis"]
+        if self._default_storage is None:
+            raise InvalidConfigError(
+                "Backend `redis` is not configured, specify "
+                "credentials dict and key to read in the settings file"
+            )
+
+        self.credentials = self._default_storage.get()
+
+        if self.credentials:
+            self.credentials.set_store(self._default_storage)
+
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
 
@@ -447,8 +468,15 @@ class GoogleAuth(ApiAttributeMixin):
             self.SaveCredentialsFile()
         elif backend == "dictionary":
             self._SaveCredentialsDictionary()
+        elif backend == "redis":
+            self.SaveCredentialsRedis()
         else:
             raise InvalidConfigError("Unknown save_credentials_backend")
+
+    def SaveCredentialsRedis(self):
+        storage: RedisStorage = self._storages['redis']
+
+        storage.put(self.credentials)
 
     def SaveCredentialsFile(self, credentials_file=None):
         """Saves credentials to the file in JSON format.
@@ -652,8 +680,8 @@ class GoogleAuth(ApiAttributeMixin):
         if self.credentials is None:
             raise RefreshError("No credential to refresh.")
         if (
-            self.credentials.refresh_token is None
-            and self.auth_method != "service"
+            self.credentials.refresh_token is None and
+            self.auth_method != "service"
         ):
             raise RefreshError(
                 "No refresh_token found."
