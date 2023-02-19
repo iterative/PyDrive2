@@ -449,11 +449,12 @@ class GDriveFileSystem(AbstractFileSystem):
                     }
                 )
             else:
+                size = item.get("fileSize")
                 contents.append(
                     {
                         "type": "file",
                         "name": item_path,
-                        "size": int(item["fileSize"]),
+                        "size": int(size) if size is not None else size,
                         "checksum": item.get("md5Checksum"),
                     }
                 )
@@ -493,12 +494,12 @@ class GDriveFileSystem(AbstractFileSystem):
                     new_query_ids[item["id"]] = item_path
                     self._cache_path_id(item_path, item["id"])
                     continue
-
+                size = item.get("fileSize")
                 contents.append(
                     {
                         "name": posixpath.join(bucket, item_path),
                         "type": "file",
-                        "size": int(item["fileSize"]),
+                        "size": int(size) if size is not None else size,
                         "checksum": item.get("md5Checksum"),
                     }
                 )
