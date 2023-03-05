@@ -25,6 +25,7 @@ setup(
         "pydrive2.test",
         "pydrive2.fs",
         "pydrive2.storage",
+        "pydrive2.storage.redis",
         "pydrive2.__pyinstaller",
     ],
     url="https://github.com/iterative/PyDrive2",
