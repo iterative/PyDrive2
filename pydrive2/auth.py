@@ -17,7 +17,7 @@ from oauth2client.tools import ClientRedirectHandler
 from oauth2client.tools import ClientRedirectServer
 from oauth2client._helpers import scopes_to_string
 
-from pydrive2.storage.redis.storage import RedisStorage
+from .storage.redis.storage import RedisStorage
 from .apiattr import ApiAttribute
 from .apiattr import ApiAttributeMixin
 from .settings import LoadSettingsFile
@@ -94,6 +94,29 @@ def CheckServiceAuth(decoratee):
     @wraps(decoratee)
     def _decorated(self, *args, **kwargs):
         self.auth_method = "service"
+        dirty = False
+        save_credentials = self.settings.get("save_credentials")
+        if self.credentials is None and save_credentials:
+            self.LoadCredentials()
+        if self.credentials is None:
+            decoratee(self, *args, **kwargs)
+            self.Authorize()
+            dirty = True
+        elif self.access_token_expired:
+            self.Refresh()
+            dirty = True
+        self.credentials.set_store(self._default_storage)
+        if dirty and save_credentials:
+            self.SaveCredentials()
+
+    return _decorated
+
+def CheckDeviceAuth(decoratee):
+    """Decorator to authorize device."""
+
+    @wraps(decoratee)
+    def _decorated(self, *args, **kwargs):
+        self.auth_method = "device"
         dirty = False
         save_credentials = self.settings.get("save_credentials")
         if self.credentials is None and save_credentials:
