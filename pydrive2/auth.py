@@ -17,7 +17,7 @@ from oauth2client.tools import ClientRedirectHandler
 from oauth2client.tools import ClientRedirectServer
 from oauth2client._helpers import scopes_to_string
 
-from .storage.redis.storage import RedisStorage
+from .storage.redis import RedisStorage
 from .apiattr import ApiAttribute
 from .apiattr import ApiAttributeMixin
 from .settings import LoadSettingsFile
