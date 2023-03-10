@@ -42,6 +42,7 @@ setup(
         "oauth2client >= 4.0.0",
         "PyYAML >= 3.0",
         "pyOpenSSL >= 19.1.0",
+        "redis >= 4.5.1"
     ],
     extras_require={
         "fsspec": [

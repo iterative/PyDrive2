@@ -1,4 +1,5 @@
 import json
+import redis
 import webbrowser
 import httplib2
 import oauth2client.clientsecrets as clientsecrets
@@ -389,7 +390,12 @@ class GoogleAuth(ApiAttributeMixin):
             result[backend] = DictionaryStorage(creds_dict, creds_key)
         elif backend == "redis":
             result[backend] = RedisStorage(
-                self.settings.get('redis_client'), self.settings.get('redis_key'))
+                redis.Redis(
+                    host=self.settings.get('redis_host') if self.settings.get('redis_host') is not None else "127.0.0.1", 
+                    port=self.settings.get('redis_port') if self.settings.get('redis_port') is not None else 6379
+                ),
+                self.settings.get('redis_key')
+            )
             pass
         elif save_credentials:
             raise InvalidConfigError(
