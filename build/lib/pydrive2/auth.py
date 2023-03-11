@@ -325,8 +325,6 @@ class GoogleAuth(ApiAttributeMixin):
 
     @CheckAuth
     def DeviceAuth(self):
-        self.flow.client_id = self.client_config.get("client_id")
-        self.flow.scope = scopes_to_string(self.settings.get("oauth_scope"))
         if self.flow.client_id is None:
             raise InvalidConfigError(
                 "client_id is required for Device Authentication"
