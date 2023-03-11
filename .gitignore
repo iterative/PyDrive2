@@ -8,3 +8,6 @@ dist
 .env
 .idea
 pip-wheel-metadata
+
+build/
+build/*

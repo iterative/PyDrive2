@@ -1,5 +1,6 @@
 import json
 import redis
+import requests
 import webbrowser
 import httplib2
 import oauth2client.clientsecrets as clientsecrets
@@ -8,6 +9,7 @@ import threading
 from googleapiclient.discovery import build
 from functools import wraps
 from oauth2client.service_account import ServiceAccountCredentials
+from oauth2client.client import OAuth2Credentials
 from oauth2client.client import FlowExchangeError
 from oauth2client.client import AccessTokenRefreshError
 from oauth2client.client import OAuth2WebServerFlow
@@ -117,18 +119,25 @@ def CheckDeviceAuth(decoratee):
 
     @wraps(decoratee)
     def _decorated(self, *args, **kwargs):
-        self.auth_method = "device"
         dirty = False
+        code = None
         save_credentials = self.settings.get("save_credentials")
         if self.credentials is None and save_credentials:
             self.LoadCredentials()
+        if self.flow is None:
+            self.GetFlow()
         if self.credentials is None:
-            decoratee(self, *args, **kwargs)
-            self.Authorize()
+            code = decoratee(self, *args, **kwargs)
             dirty = True
-        elif self.access_token_expired:
-            self.Refresh()
-            dirty = True
+        else:
+            if self.access_token_expired:
+                if self.credentials.refresh_token is not None:
+                    self.Refresh()
+                else:
+                    code = decoratee(self, *args, **kwargs)
+                dirty = True
+        if code is not None:
+            self.Auth(code)
         self.credentials.set_store(self._default_storage)
         if dirty and save_credentials:
             self.SaveCredentials()
@@ -323,7 +332,7 @@ class GoogleAuth(ApiAttributeMixin):
         print()
         return input("Enter verification code: ").strip()
 
-    @CheckAuth
+    @CheckDeviceAuth
     def DeviceAuth(self):
         self.flow.client_id = self.client_config.get("client_id")
         self.flow.scope = scopes_to_string(self.settings.get("oauth_scope"))
@@ -341,7 +350,20 @@ class GoogleAuth(ApiAttributeMixin):
         print(user_and_device_code.verification_url)
         print("Enter this code: {}".format(user_and_device_code.user_code))
         input("Press Enter to continue...")
-        return self.flow.step2_exchange(user_and_device_code.device_code)
+        resp = requests.post(
+            url=self.flow.token_uri,
+            data={
+                "client_id": self.flow.client_id,
+                "client_secret": self.flow.client_secret,
+                "device_code": user_and_device_code.device_code,
+                "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+            }
+        )
+        if resp.status_code != 200:
+            raise AuthenticationError("Failed to get access token")
+        self.credentials = (
+            OAuth2Credentials.from_json(resp.json())
+        )
     
 
     @CheckServiceAuth
