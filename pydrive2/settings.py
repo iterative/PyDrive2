@@ -40,7 +40,7 @@ SETTINGS_STRUCT = {
             {"value": "file", "attribute": ["save_credentials_file"]},
             {"value": "dictionary", "attribute": ["save_credentials_dict"]},
             {"value": "dictionary", "attribute": ["save_credentials_key"]},
-            {"value": "redis", "attribute": ["redis_client"]},
+            {"value": "redis", "attribute": ["redis_host", "redis_port"]},
         ],
     },
     "client_config": {
