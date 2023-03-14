@@ -3,7 +3,7 @@ from redis import Redis
 
 
 class RedisStorage(client.Storage):
-    def __init__(self, redis: Redis, key: str = None):
+    def __init__(self, redis: Redis, key: str = "pydrive_oauth"):
         super(RedisStorage, self).__init__()
         self.redis = redis
         self.key = key

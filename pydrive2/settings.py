@@ -96,8 +96,9 @@ SETTINGS_STRUCT = {
     "save_credentials_file": {"type": str, "required": False},
     "save_credentials_dict": {"type": dict, "required": False, "struct": {}},
     "save_credentials_key": {"type": str, "required": False},
-    "redis_host": {"type": str, "required": False},
-    "redis_port": {"type": int, "required": False},
+    "redis_host": {"type": str, "required": True},
+    "redis_port": {"type": int, "required": True},
+    "redis_key": {"type": str, "required": False}
 }
 
 
