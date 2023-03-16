@@ -218,6 +218,7 @@ If you are using a limited-input device, such as a Raspberry Pi, you can use the
 This flow is designed for devices that do not have a browser or a keyboard. The user must manually enter the authorization code on the device to complete the authentication process.
 
 .. code-block:: python
+
     from pydrive2.auth import GoogleAuth
     from pydrive2.drive import GoogleDrive
 
