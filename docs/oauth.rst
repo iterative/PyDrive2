@@ -209,3 +209,38 @@ If we use OAuth client ID we need to do one manual login into the account with
 
 
 .. _`Service account`: https://developers.google.com/workspace/guides/create-credentials#service-account
+
+
+Authentication with a Limited-Input Device 
+-------------------------------------------
+
+If you are using a limited-input device, such as a Raspberry Pi, you can use the `Limited-input device`_ to authenticate your application. 
+This flow is designed for devices that do not have a browser or a keyboard. The user must manually enter the authorization code on the device to complete the authentication process.
+
+.. code-block:: python
+  from pydrive2.auth import GoogleAuth
+  from pydrive2.drive import GoogleDrive
+
+  def login_with_device_flow():
+      """
+      Google Drive service with a limited-input device.
+      :return: google auth
+      """
+      scopes = ["https://www.googleapis.com/auth/drive.file"]
+      settings = {
+        "client_config_backend": "settings",
+        "client_config": {
+            "client_id": "GDRIVE_CLIENT_ID",
+            "client_secret": "GDRIVE_CLIENT_SECRET",
+        },
+        "get_refresh_token": True,
+        "oauth_scope": scopes,
+      }
+
+      # Create instance of GoogleAuth
+      gauth = GoogleAuth()
+      # Authenticate
+      gauth.DeviceAuth()
+      return gauth
+
+.. _`Device Flow`: https://developers.google.com/identity/protocols/oauth2/limited-input-device
