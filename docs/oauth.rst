@@ -214,10 +214,8 @@ If we use OAuth client ID we need to do one manual login into the account with
 Authentication with a Limited-Input Device 
 -------------------------------------------
 
-If you are using a limited-input device, such as a Raspberry Pi, you can use the `Limited-input device`_ to authenticate your application.
-
+If you are using a limited-input device, such as a Raspberry Pi, you can use the `Limited-input device`_ to authenticate your application. 
 This flow is designed for devices that do not have a browser or a keyboard. 
-
 The user must manually enter the authorization code on the device to complete the authentication process.
 
 .. code-block:: python
@@ -247,4 +245,4 @@ The user must manually enter the authorization code on the device to complete th
         gauth.DeviceAuth()
         return gauth
 
-.. _`Device Flow`: https://developers.google.com/identity/protocols/oauth2/limited-input-device
+.. _`Limited-input device`: https://developers.google.com/identity/protocols/oauth2/limited-input-device
