@@ -28,6 +28,7 @@ Create *quickstart.py* file and copy and paste the following code.
 
     gauth = GoogleAuth()
     gauth.LocalWebserverAuth() # Creates local webserver and auto handles authentication.
+    gauth.SaveCredentialsFile("creds.json") # store newly created credentials to a file 
 
 Run this code with *python quickstart.py* and you will see a web browser asking you for authentication. Click *Accept* and you are done with authentication. For more details, take a look at documentation: `OAuth made easy`_
 
@@ -44,6 +45,7 @@ There are many methods to create and update file metadata and contents. With *Py
 
     from pydrive2.drive import GoogleDrive
 
+    gauth.LoadCredentialsFile("creds.json")
     drive = GoogleDrive(gauth)
 
     file1 = drive.CreateFile({'title': 'Hello.txt'})  # Create GoogleDriveFile instance with title 'Hello.txt'.
