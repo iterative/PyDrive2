@@ -361,8 +361,20 @@ class GoogleAuth(ApiAttributeMixin):
         )
         if resp.status_code != 200:
             raise AuthenticationError("Failed to get access token")
+        
+        json_resp = resp.json()
+        
         self.credentials = (
-            OAuth2Credentials.from_json(resp.json())
+            OAuth2Credentials(
+                client_id=self.flow.client_id,
+                client_secret=self.flow.client_secret,
+                user_agent=self.flow.user_agent,
+                scopes=self.flow.scope,
+                access_token=json_resp["access_token"],
+                refresh_token=json_resp["refresh_token"],
+                token_expiry=int(json_resp["expires_in"]),
+                token_uri=self.flow.token_uri,
+            )
         )
     
 
