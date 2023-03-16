@@ -1,5 +1,6 @@
 import json
 import redis
+import datetime
 import requests
 import webbrowser
 import httplib2
@@ -363,7 +364,7 @@ class GoogleAuth(ApiAttributeMixin):
             raise AuthenticationError("Failed to get access token")
         
         json_resp = resp.json()
-        
+
         self.credentials = (
             OAuth2Credentials(
                 client_id=self.flow.client_id,
@@ -372,7 +373,7 @@ class GoogleAuth(ApiAttributeMixin):
                 scopes=self.flow.scope,
                 access_token=json_resp["access_token"],
                 refresh_token=json_resp["refresh_token"],
-                token_expiry=int(json_resp["expires_in"]),
+                token_expiry=datetime.datetime.fromtimestamp(json_resp["expires_in"] / 1e3),
                 token_uri=self.flow.token_uri,
             )
         )
