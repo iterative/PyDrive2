@@ -98,7 +98,7 @@ SETTINGS_STRUCT = {
     "save_credentials_key": {"type": str, "required": False},
     "redis_host": {"type": str, "required": True},
     "redis_port": {"type": int, "required": True},
-    "redis_key": {"type": str, "required": False}
+    "redis_key": {"type": str, "required": False},
 }
 
 

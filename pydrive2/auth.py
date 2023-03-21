@@ -71,11 +71,11 @@ def LoadAuth(decoratee):
 
         # Ensure that a thread-safe HTTP object is provided.
         if (
-            kwargs is not None and
-            "param" in kwargs and
-            kwargs["param"] is not None and
-            "http" in kwargs["param"] and
-            kwargs["param"]["http"] is not None
+            kwargs is not None
+            and "param" in kwargs
+            and kwargs["param"] is not None
+            and "http" in kwargs["param"]
+            and kwargs["param"]["http"] is not None
         ):
             self.http = kwargs["param"]["http"]
             del kwargs["param"]["http"]
@@ -109,36 +109,6 @@ def CheckServiceAuth(decoratee):
         elif self.access_token_expired:
             self.Refresh()
             dirty = True
-        self.credentials.set_store(self._default_storage)
-        if dirty and save_credentials:
-            self.SaveCredentials()
-
-    return _decorated
-
-def CheckDeviceAuth(decoratee):
-    """Decorator to authorize device."""
-
-    @wraps(decoratee)
-    def _decorated(self, *args, **kwargs):
-        dirty = False
-        code = None
-        save_credentials = self.settings.get("save_credentials")
-        if self.credentials is None and save_credentials:
-            self.LoadCredentials()
-        if self.flow is None:
-            self.GetFlow()
-        if self.credentials is None:
-            code = decoratee(self, *args, **kwargs)
-            dirty = True
-        else:
-            if self.access_token_expired:
-                if self.credentials.refresh_token is not None:
-                    self.Refresh()
-                else:
-                    code = decoratee(self, *args, **kwargs)
-                dirty = True
-        if code is not None:
-            self.Auth(code)
         self.credentials.set_store(self._default_storage)
         if dirty and save_credentials:
             self.SaveCredentials()
@@ -333,7 +303,7 @@ class GoogleAuth(ApiAttributeMixin):
         print()
         return input("Enter verification code: ").strip()
 
-    @CheckDeviceAuth
+    @CheckAuth
     def DeviceAuth(self):
         self.flow.client_id = self.client_config.get("client_id")
         self.flow.scope = scopes_to_string(self.settings.get("oauth_scope"))
@@ -345,7 +315,7 @@ class GoogleAuth(ApiAttributeMixin):
             raise InvalidConfigError(
                 "oauth_scope is required for Device Authentication"
             )
-        
+
         user_and_device_code = self.GetDeviceCode()
         print("Go to the following link in your browser:")
         print(user_and_device_code.verification_url)
@@ -359,13 +329,13 @@ class GoogleAuth(ApiAttributeMixin):
                 "client_secret": self.flow.client_secret,
                 "device_code": user_and_device_code.device_code,
                 "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-            }
+            },
         )
         if resp.status_code != 200:
             raise AuthenticationError("Failed to get access token")
-        
+
         json_resp = resp.json()
-        self.credentials = (OAuth2Credentials.from_json(
+        self.credentials = OAuth2Credentials.from_json(
             json_data=dict(
                 client_id=self.flow.client_id,
                 client_secret=self.flow.client_secret,
@@ -373,11 +343,13 @@ class GoogleAuth(ApiAttributeMixin):
                 scopes=self.flow.scope,
                 access_token=json_resp["access_token"],
                 refresh_token=json_resp["refresh_token"],
-                token_expiry=datetime.datetime.fromtimestamp(json_resp["expires_in"] / 1e3),
-                token_uri=self.flow.token_uri,            
+                token_expiry=datetime.datetime.fromtimestamp(
+                    json_resp["expires_in"] / 1e3
+                ),
+                token_uri=self.flow.token_uri,
             )
-        ))
-    
+        )
+
     @CheckServiceAuth
     def ServiceAuth(self):
         """Authenticate and authorize using P12 private key, client id
@@ -446,10 +418,14 @@ class GoogleAuth(ApiAttributeMixin):
         elif backend == "redis":
             result[backend] = RedisStorage(
                 redis.Redis(
-                    host=self.settings.get('redis_host') if self.settings.get('redis_host') is not None else "127.0.0.1", 
-                    port=self.settings.get('redis_port') if self.settings.get('redis_port') is not None else 6379
+                    host=self.settings.get("redis_host")
+                    if self.settings.get("redis_host") is not None
+                    else "127.0.0.1",
+                    port=self.settings.get("redis_port")
+                    if self.settings.get("redis_port") is not None
+                    else 6379,
                 ),
-                self.settings.get('redis_key')
+                self.settings.get("redis_key"),
             )
             pass
         elif save_credentials:
@@ -473,7 +449,7 @@ class GoogleAuth(ApiAttributeMixin):
             self.LoadCredentialsFile()
         elif backend == "dictionary":
             self._LoadCredentialsDictionary()
-        elif backend == 'redis':
+        elif backend == "redis":
             self.LoadCredentialsRedis()
         else:
             raise InvalidConfigError("Unknown save_credentials_backend")
@@ -558,7 +534,7 @@ class GoogleAuth(ApiAttributeMixin):
             raise InvalidConfigError("Unknown save_credentials_backend")
 
     def SaveCredentialsRedis(self):
-        storage: RedisStorage = self._storages['redis']
+        storage: RedisStorage = self._storages["redis"]
 
         storage.put(self.credentials)
 
@@ -764,8 +740,8 @@ class GoogleAuth(ApiAttributeMixin):
         if self.credentials is None:
             raise RefreshError("No credential to refresh.")
         if (
-            self.credentials.refresh_token is None and
-            self.auth_method != "service"
+            self.credentials.refresh_token is None
+            and self.auth_method != "service"
         ):
             raise RefreshError(
                 "No refresh_token found."
@@ -785,10 +761,9 @@ class GoogleAuth(ApiAttributeMixin):
         """
         if self.flow is None:
             self.GetFlow()
-    
+
         user_and_device_code = self.flow.step1_get_device_and_user_codes()
         return user_and_device_code
-
 
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.

@@ -545,7 +545,6 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @_gdrive_retry
     def mv(self, path1, path2, maxdepth=None, **kwargs):
-
         if maxdepth is not None:
             raise NotImplementedError("Max depth move is not supported")
 
