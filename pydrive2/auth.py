@@ -351,6 +351,7 @@ class GoogleAuth(ApiAttributeMixin):
         print(user_and_device_code.verification_url)
         print("Enter this code: {}".format(user_and_device_code.user_code))
         input("Press Enter to continue...")
+
         resp = requests.post(
             url=self.flow.token_uri,
             data={
@@ -364,9 +365,8 @@ class GoogleAuth(ApiAttributeMixin):
             raise AuthenticationError("Failed to get access token")
         
         json_resp = resp.json()
-
-        self.credentials = (
-            OAuth2Credentials(
+        self.credentials = (OAuth2Credentials.from_json(
+            json_data=dict(
                 client_id=self.flow.client_id,
                 client_secret=self.flow.client_secret,
                 user_agent=self.flow.user_agent,
@@ -374,11 +374,10 @@ class GoogleAuth(ApiAttributeMixin):
                 access_token=json_resp["access_token"],
                 refresh_token=json_resp["refresh_token"],
                 token_expiry=datetime.datetime.fromtimestamp(json_resp["expires_in"] / 1e3),
-                token_uri=self.flow.token_uri,
+                token_uri=self.flow.token_uri,            
             )
-        )
+        ))
     
-
     @CheckServiceAuth
     def ServiceAuth(self):
         """Authenticate and authorize using P12 private key, client id
