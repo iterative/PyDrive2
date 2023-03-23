@@ -17,6 +17,9 @@ class RedisStorage(client.Storage):
     def locked_get(self):
         serialized = self.redis.get(self.key)
 
+        if serialized is None:
+            return None
+
         credentials = client.OAuth2Credentials.from_json(serialized)
         credentials.set_store(self)
 
