@@ -71,11 +71,11 @@ def LoadAuth(decoratee):
 
         # Ensure that a thread-safe HTTP object is provided.
         if (
-            kwargs is not None
-            and "param" in kwargs
-            and kwargs["param"] is not None
-            and "http" in kwargs["param"]
-            and kwargs["param"]["http"] is not None
+            kwargs is not None and
+            "param" in kwargs and
+            kwargs["param"] is not None and
+            "http" in kwargs["param"] and
+            kwargs["param"]["http"] is not None
         ):
             self.http = kwargs["param"]["http"]
             del kwargs["param"]["http"]
@@ -335,19 +335,17 @@ class GoogleAuth(ApiAttributeMixin):
             raise AuthenticationError("Failed to get access token")
 
         json_resp = resp.json()
-        self.credentials = OAuth2Credentials.from_json(
-            json_data=dict(
-                client_id=self.flow.client_id,
-                client_secret=self.flow.client_secret,
-                user_agent=self.flow.user_agent,
-                scopes=self.flow.scope,
-                access_token=json_resp["access_token"],
-                refresh_token=json_resp["refresh_token"],
-                token_expiry=datetime.datetime.fromtimestamp(
-                    json_resp["expires_in"] / 1e3
-                ),
-                token_uri=self.flow.token_uri,
-            )
+        self.credentials = OAuth2Credentials(
+            client_id=self.flow.client_id,
+            client_secret=self.flow.client_secret,
+            user_agent=self.flow.user_agent,
+            scopes=self.flow.scope,
+            access_token=json_resp["access_token"],
+            refresh_token=json_resp["refresh_token"],
+            token_expiry=datetime.datetime.fromtimestamp(
+                json_resp["expires_in"] / 1e3
+            ),
+            token_uri=self.flow.token_uri,
         )
 
     @CheckServiceAuth
@@ -740,8 +738,8 @@ class GoogleAuth(ApiAttributeMixin):
         if self.credentials is None:
             raise RefreshError("No credential to refresh.")
         if (
-            self.credentials.refresh_token is None
-            and self.auth_method != "service"
+            self.credentials.refresh_token is None and
+            self.auth_method != "service"
         ):
             raise RefreshError(
                 "No refresh_token found."
