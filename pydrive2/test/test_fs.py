@@ -203,7 +203,6 @@ def test_concurrent_operations(fs, remote_dir):
             return stream.read()
 
     with futures.ThreadPoolExecutor() as executor:
-
         write_futures, _ = futures.wait(
             [executor.submit(create_random_file) for _ in range(64)],
             return_when=futures.ALL_COMPLETED,
