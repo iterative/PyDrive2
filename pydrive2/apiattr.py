@@ -80,7 +80,10 @@ class ApiResource(dict):
 
     def update(self, *args, **kwargs):
         """Overwritten method of dictionary."""
+        BAD_URL_PREFIX = "https://www.googleapis.comhttps:"
         for k, v in dict(*args, **kwargs).items():
+            if k == "downloadUrl" and v.startswith(BAD_URL_PREFIX):
+                v = v.replace(BAD_URL_PREFIX, "https://www.googleapis.com", 1)
             self[k] = v
 
     def UpdateMetadata(self, metadata=None):
