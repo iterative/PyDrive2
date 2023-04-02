@@ -12,7 +12,7 @@ tests_requirements = [
     "importlib_resources; python_version < '3.10'",
 ]
 
-tests_requirements.append("black==23.1.0")
+tests_requirements.append("black==23.3.0")
 
 setup(
     name="PyDrive2",
