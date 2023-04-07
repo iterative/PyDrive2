@@ -257,8 +257,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type filename: str.
         """
         self.content = open(filename, "rb")
-        if self.get("title") is None:
-            self["title"] = filename
         if self.get("mimeType") is None:
             self["mimeType"] = mimetypes.guess_type(filename)[0]
 
