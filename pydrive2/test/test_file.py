@@ -264,6 +264,26 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
+    def test_Files_Update_File_Keeps_Filename(self):
+        # Tests https://github.com/iterative/PyDrive2/issues/272
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile()
+        filename = self.getTempFile("preupdatetestfile")
+        contentFile = self.getTempFile("actual_content", "some string")
+        contentFile2 = self.getTempFile("actual_content_2", "some string")
+
+        file1["title"] = filename
+        file1.SetContentFile(contentFile)
+        pydrive_retry(file1.Upload)  # Files.insert
+        self.assertEqual(file1.metadata["title"], filename)
+
+        same_file = drive.CreateFile({"id": file1["id"]})
+        same_file.SetContentFile(contentFile2)
+        pydrive_retry(same_file.Upload)  # Files.update
+        self.assertEqual(same_file.metadata["title"], filename)
+
+        self.DeleteUploadedFiles(drive, [file1["id"]])
+
     def test_Files_Update_By_Id(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
