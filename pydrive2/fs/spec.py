@@ -7,10 +7,10 @@ import posixpath
 import threading
 from collections import defaultdict
 from contextlib import contextmanager
+from itertools import chain
 
 from fsspec.spec import AbstractFileSystem
 from funcy import cached_property, retry, wrap_prop, wrap_with
-from funcy.py3 import cat
 from tqdm.utils import CallbackIOWrapper
 
 from pydrive2.drive import GoogleDrive
@@ -314,7 +314,7 @@ class GDriveFileSystem(AbstractFileSystem):
         get_list = _gdrive_retry(lambda: next(file_list, None))
 
         # Fetch pages until None is received, lazily flatten the thing.
-        return cat(iter(get_list, None))
+        return chain.from_iterable(iter(get_list, None))
 
     def _gdrive_list_ids(self, query_ids):
         query = " or ".join(
