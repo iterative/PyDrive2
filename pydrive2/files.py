@@ -235,7 +235,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """Set content of this file to be a string.
 
         Creates io.BytesIO instance of utf-8 encoded string.
-        Sets mimeType to be 'text/plain' if not specified.
+        Sets mimeType to be 'text/plain' if not specified and file id is not
+        set (means that we are uploading this file for the first time).
 
         :param encoding: The encoding to use when setting the content of this file.
         :type encoding: str
@@ -243,7 +244,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type content: str
         """
         self.content = io.BytesIO(content.encode(encoding))
-        if self.get("mimeType") is None:
+        if self.get("mimeType") is None and self.get("id") is None:
             self["mimeType"] = "text/plain"
 
     def SetContentFile(self, filename):
@@ -251,14 +252,18 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         Opens the file specified by this method.
         Will be read, uploaded, and closed by Upload() method.
-        Sets metadata 'title' and 'mimeType' automatically if not specified.
+        Sets metadata 'title' and 'mimeType' automatically if not specified and
+        the file is uploaded for the first time (id is not set).
 
         :param filename: name of the file to be uploaded.
         :type filename: str.
         """
         self.content = open(filename, "rb")
-        if self.get("mimeType") is None:
-            self["mimeType"] = mimetypes.guess_type(filename)[0]
+        if self.get("id") is None:
+            if self.get("title") is None:
+                self["title"] = filename
+            if self.get("mimeType") is None:
+                self["mimeType"] = mimetypes.guess_type(filename)[0]
 
     def GetContentString(
         self, mimetype=None, encoding="utf-8", remove_bom=False
