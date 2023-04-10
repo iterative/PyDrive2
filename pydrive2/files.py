@@ -1,4 +1,5 @@
 import io
+import os
 import mimetypes
 import json
 
@@ -261,7 +262,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self.content = open(filename, "rb")
         if self.get("id") is None:
             if self.get("title") is None:
-                self["title"] = filename
+                self["title"] = os.path.basename(filename)
             if self.get("mimeType") is None:
                 self["mimeType"] = mimetypes.guess_type(filename)[0]
 
