@@ -938,7 +938,8 @@ for details.</p></li>
 <dd><p>Set content of this file from a file.</p>
 <p>Opens the file specified by this method.
 Will be read, uploaded, and closed by Upload() method.
-Sets metadata ‘title’ and ‘mimeType’ automatically if not specified.</p>
+Sets metadata ‘title’ and ‘mimeType’ automatically if not specified and
+the file is uploaded for the first time (id is not set).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>filename</strong> (<em>str.</em>) – name of the file to be uploaded.</p>
@@ -951,7 +952,8 @@ Sets metadata ‘title’ and ‘mimeType’ automatically if not specified.</p>
 <span class="sig-name descname"><span class="pre">SetContentString</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">content</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'utf-8'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.SetContentString" title="Permalink to this definition">#</a></dt>
 <dd><p>Set content of this file to be a string.</p>
 <p>Creates io.BytesIO instance of utf-8 encoded string.
-Sets mimeType to be ‘text/plain’ if not specified.</p>
+Sets mimeType to be ‘text/plain’ if not specified and file id is not
+set (means that we are uploading this file for the first time).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
