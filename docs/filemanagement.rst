@@ -9,8 +9,7 @@ Manipulate file metadata and contents from `GoogleDriveFile`_ object and call
 Upload a new file
 -----------------
 
-Here is a sample code to upload a file. ``gauth`` is an authenticated
-`GoogleAuth`_ object.
+Here is a sample code to upload a file. ``gauth`` is an authenticated `GoogleAuth`_ object.
 
 .. code-block:: python
 
@@ -25,13 +24,9 @@ Here is a sample code to upload a file. ``gauth`` is an authenticated
     print('title: %s, id: %s' % (file1['title'], file1['id']))
     # title: Hello.txt, id: {{FILE_ID}}
 
-Now, you will have a file 'Hello.txt' uploaded to your Google Drive. You can
-open it from web interface to check its content, 'Hello World!'.
+Now, you will have a file 'Hello.txt' uploaded to your Google Drive. You can open it from web interface to check its content, 'Hello World!'.
 
-Note that `CreateFile()`_ will create `GoogleDriveFile`_ instance but not
-actually upload a file to Google Drive. You can initialize `GoogleDriveFile`_
-object by itself. However, it is not recommended to do so in order to keep
-authentication consistent.
+Note that `CreateFile()`_ will create `GoogleDriveFile`_ instance but not actually upload a file to Google Drive. You can initialize `GoogleDriveFile`_ object by itself. However, it is not recommended to do so in order to keep authentication consistent.
 
 Delete, Trash and un-Trash files
 --------------------------------
@@ -54,9 +49,8 @@ You may want to delete, trash, or un-trash a file. To do this use ``Delete()``,
 Update file metadata
 --------------------
 
-You can manipulate file metadata from a `GoogleDriveFile`_ object just as you
-manipulate a ``dict``. The format of file metadata can be found in the Google
-Drive API documentation: `Files resource`_.
+You can manipulate file metadata from a `GoogleDriveFile`_ object just as you manipulate a ``dict``.
+The format of file metadata can be found in the Google Drive API documentation: `Files resource`_.
 
 Sample code continues from `Upload a new file`_:
 
@@ -222,8 +216,8 @@ Sample code continues from `Download file metadata from file ID`_:
     print('title: %s, mimeType: %s' % (file5['title'], file5['mimeType']))
     # title: cat.png, mimeType: image/png
 
-**Advanced Users:** If you call ``SetContentFile`` and ``GetContentFile`` you
-can define which character encoding is to be used by using the optional
+**Advanced Users:** If you call SetContentFile and GetContentFile you can can
+define which character encoding is to be used by using the optional
 parameter `encoding`.
 
 If you, for example, are retrieving a file which is stored on your Google
