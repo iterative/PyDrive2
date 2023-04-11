@@ -129,13 +129,13 @@ class GoogleDriveFileTest(unittest.TestCase):
     def test_Files_Insert_Content_File(self):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
-        filename = self.getTempFile("filecontent")
-        file1["title"] = filename
         contentFile = self.getTempFile("actual_content", "some string")
         file1.SetContentFile(contentFile)
         pydrive_retry(file1.Upload)  # Files.insert
 
-        self.assertEqual(file1.metadata["title"], filename)
+        self.assertEqual(
+            file1.metadata["title"], os.path.basename(contentFile)
+        )
         pydrive_retry(
             file1.FetchContent
         )  # Force download and double check content.
