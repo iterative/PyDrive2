@@ -212,7 +212,11 @@ class GoogleAuth(ApiAttributeMixin):
 
     @CheckAuth
     def LocalWebserverAuth(
-        self, host_name="localhost", port_numbers=None, launch_browser=True
+        self,
+        host_name="localhost",
+        port_numbers=None,
+        launch_browser=True,
+        bind_addr=None,
     ):
         """Authenticate and authorize from user by creating local web server and
         retrieving authentication code.
@@ -226,6 +230,10 @@ class GoogleAuth(ApiAttributeMixin):
         :type port_numbers: list.
         :param launch_browser: should browser be launched automatically
         :type launch_browser: bool
+        :param bind_addr: optional IP address for the local web server to listen on.
+            If not specified, it will listen on the address specified in the
+            host_name parameter.
+        :type bind_addr: str.
         :returns: str -- code returned from local web server
         :raises: AuthenticationRejected, AuthenticationError
         """
@@ -241,7 +249,7 @@ class GoogleAuth(ApiAttributeMixin):
             port_number = port
             try:
                 httpd = ClientRedirectServer(
-                    (host_name, port), ClientRedirectHandler
+                    (bind_addr or host_name, port), ClientRedirectHandler
                 )
             except OSError:
                 pass
