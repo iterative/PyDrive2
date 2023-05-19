@@ -5,7 +5,7 @@
     <meta name="color-scheme" content="light dark"><meta name="generator" content="Docutils 0.19: https://docutils.sourceforge.io/" />
 <link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="Index" href="../genindex/" /><link rel="prev" title="fsspec filesystem" href="../fsspec/" />
 
-    <!-- Generated with Sphinx 6.1.3 and Furo 2023.03.27 -->
+    <!-- Generated with Sphinx 6.2.1 and Furo 2023.03.27 -->
         <title>pydrive2 package - PyDrive2 1.14.0 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=fad236701ea90a88636c2a8c73b44ae642ed2a53" />
@@ -503,7 +503,7 @@ don’t use this function and use the corresponding function you want.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth.LocalWebserverAuth">
-<span class="sig-name descname"><span class="pre">LocalWebserverAuth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'localhost'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">launch_browser</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.auth.GoogleAuth.LocalWebserverAuth" title="Permalink to this definition">#</a></dt>
+<span class="sig-name descname"><span class="pre">LocalWebserverAuth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">host_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'localhost'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">port_numbers</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">launch_browser</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bind_addr</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.auth.GoogleAuth.LocalWebserverAuth" title="Permalink to this definition">#</a></dt>
 <dd><p>Authenticate and authorize from user by creating local web server and
 retrieving authentication code.</p>
 <p>This function is not for web server application. It creates local web
@@ -514,6 +514,9 @@ server for user from standalone application.</p>
 <li><p><strong>host_name</strong> (<em>str.</em>) – host name of the local web server.</p></li>
 <li><p><strong>port_numbers</strong> (<em>list.</em>) – list of port numbers to be tried to used.</p></li>
 <li><p><strong>launch_browser</strong> (<em>bool</em>) – should browser be launched automatically</p></li>
+<li><p><strong>bind_addr</strong> (<em>str.</em>) – optional IP address for the local web server to listen on.
+If not specified, it will listen on the address specified in the
+host_name parameter.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
