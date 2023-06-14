@@ -138,6 +138,11 @@ def test_ls(fs, remote_dir):
     assert dirs == expected
 
 
+def test_ls_non_existing_dir(fs, remote_dir):
+    with pytest.raises(FileNotFoundError):
+        fs.ls(remote_dir + "dir/")
+
+
 def test_find(fs, remote_dir):
     fs.mkdir(remote_dir + "/dir")
 
