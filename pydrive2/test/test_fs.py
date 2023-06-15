@@ -118,6 +118,7 @@ def test_rm(fs, remote_dir):
 
 def test_ls(fs, remote_dir):
     fs.mkdir(remote_dir + "dir/")
+    assert fs.ls(remote_dir + "dir/") == []
     files = set()
     for no in range(8):
         file = remote_dir + f"dir/test_{no}"
