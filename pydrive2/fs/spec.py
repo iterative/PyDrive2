@@ -469,48 +469,6 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             return [content["name"] for content in contents]
 
-    def find(self, path, detail=False, **kwargs):
-        bucket, base = self.split_path(path)
-
-        seen_paths = set()
-        dir_ids = [self._ids_cache["ids"].copy()]
-        contents = []
-        while dir_ids:
-            query_ids = {
-                dir_id: dir_name
-                for dir_id, dir_name in dir_ids.pop().items()
-                if posixpath.commonpath([base, dir_name]) == base
-                if dir_id not in seen_paths
-            }
-            if not query_ids:
-                continue
-
-            seen_paths |= query_ids.keys()
-
-            new_query_ids = {}
-            dir_ids.append(new_query_ids)
-            for item in self._gdrive_list_ids(query_ids):
-                parent_id = item["parents"][0]["id"]
-                item_path = posixpath.join(query_ids[parent_id], item["title"])
-                if item["mimeType"] == FOLDER_MIME_TYPE:
-                    new_query_ids[item["id"]] = item_path
-                    self._cache_path_id(item_path, item["id"])
-                    continue
-                size = item.get("fileSize")
-                contents.append(
-                    {
-                        "name": posixpath.join(bucket, item_path),
-                        "type": "file",
-                        "size": int(size) if size is not None else size,
-                        "checksum": item.get("md5Checksum"),
-                    }
-                )
-
-        if detail:
-            return {content["name"]: content for content in contents}
-        else:
-            return [content["name"] for content in contents]
-
     def upload_fobj(self, stream, rpath, callback=None, **kwargs):
         parent_id = self._get_item_id(self._parent(rpath), create=True)
         if callback:
