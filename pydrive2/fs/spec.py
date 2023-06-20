@@ -441,12 +441,14 @@ class GDriveFileSystem(AbstractFileSystem):
         root_path = posixpath.join(bucket, base)
         contents = []
         for item in self._gdrive_list_ids(dir_ids):
-            item_path = posixpath.join(root_path, item["title"])
+            item_path = posixpath.join(base, item["title"])
+            full_path = posixpath.join(root_path, item["title"])
             if item["mimeType"] == FOLDER_MIME_TYPE:
+                self._cache_path_id(item_path, item["id"])
                 contents.append(
                     {
                         "type": "directory",
-                        "name": item_path.rstrip("/") + "/",
+                        "name": full_path.rstrip("/") + "/",
                         "size": 0,
                     }
                 )
@@ -455,7 +457,7 @@ class GDriveFileSystem(AbstractFileSystem):
                 contents.append(
                     {
                         "type": "file",
-                        "name": item_path,
+                        "name": full_path,
                         "size": int(size) if size is not None else size,
                         "checksum": item.get("md5Checksum"),
                     }
