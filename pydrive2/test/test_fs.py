@@ -116,8 +116,11 @@ def test_rm(fs, remote_dir):
     assert not fs.exists(remote_dir + "/dir/c/a")
 
 
-def test_ls(fs, remote_dir):
-    fs.mkdir(remote_dir + "dir/")
+def test_ls(fs: GDriveFileSystem, remote_dir):
+    _, base = fs.split_path(remote_dir + "dir/")
+    fs._path_to_item_ids(base, create=True)
+    assert fs.ls(remote_dir + "dir/") == []
+
     files = set()
     for no in range(8):
         file = remote_dir + f"dir/test_{no}"
@@ -136,6 +139,11 @@ def test_ls(fs, remote_dir):
     expected.sort(key=by_name)
 
     assert dirs == expected
+
+
+def test_ls_non_existing_dir(fs, remote_dir):
+    with pytest.raises(FileNotFoundError):
+        fs.ls(remote_dir + "dir/")
 
 
 def test_find(fs, remote_dir):
