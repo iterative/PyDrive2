@@ -24,7 +24,7 @@ jobs:
       max-parallel: 3
       matrix:
         os: [ubuntu-22.04, macos-11, windows-2019]
-        pyv: ["3.7", "3.8", "3.9", "3.10"]
+        pyv: ["3.7.16", "3.8", "3.9", "3.10"]
 
     steps:
     - uses: actions/checkout@v3
