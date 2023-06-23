@@ -265,6 +265,7 @@ class GDriveFileSystem(AbstractFileSystem):
 
         return cache
 
+    @wrap_prop(threading.RLock())
     def _cache_path_id(self, path, *item_ids, cache=None):
         cache = cache or self._ids_cache
         for item_id in item_ids:
