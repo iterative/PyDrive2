@@ -167,7 +167,7 @@ def _ValidateSettingsElement(data, struct, key):
         else:
             data[key] = default
     # If data exists, Check type of the data
-    elif type(value) is not data_type:
+    elif not isinstance(value, data_type):
         raise InvalidConfigError(f"Setting {key} should be type {data_type}")
     # If type of this data is dict, check if structure of the data is valid.
     if data_type is dict:
@@ -175,7 +175,7 @@ def _ValidateSettingsElement(data, struct, key):
     # If type of this data is list, check if all values in the list is valid.
     elif data_type is list:
         for element in data[key]:
-            if type(element) is not struct[key]["struct"]:
+            if not isinstance(element, struct[key]["struct"]):
                 raise InvalidConfigError(
                     "Setting %s should be list of %s"
                     % (key, struct[key]["struct"])

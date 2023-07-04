@@ -285,7 +285,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """
         if (
             self.content is None
-            or type(self.content) is not io.BytesIO
+            or not isinstance(self.content, io.BytesIO)
             or self.has_bom == remove_bom
         ):
             self.FetchContent(mimetype, remove_bom)
