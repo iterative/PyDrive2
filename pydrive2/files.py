@@ -650,6 +650,35 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """
         return self._DeletePermission(permission_id)
 
+    @LoadAuth
+    def GetRevisions(self):
+        """Get file's or shared drive's revisions.
+
+    For files in a shared drive, at most 100 results will be returned.
+    It doesn't paginate and collect all results.
+
+    :return: A list of the revision objects.
+    :rtype: object[]
+    """
+        file_id = self.metadata.get("id") or self.get("id")
+
+        # We can't do FetchMetada call (which would nicely update
+        # local metada cache, etc) here since it  doesn't return
+        # revisions for the team drive use case.
+        revisions = (
+            self.auth.service.revisions()
+            .list(
+                fileId=file_id,
+            )
+            .execute(http=self.http)
+        ).get("items")
+
+        if revisions:
+            self["revisions"] = revisions
+            self.metadata["revisions"] = revisions
+
+        return revisions
+
     def _WrapRequest(self, request):
         """Replaces request.http with self.http.
 
