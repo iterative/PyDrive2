@@ -654,12 +654,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def GetRevisions(self):
         """Get file's or shared drive's revisions.
 
-    For files in a shared drive, at most 100 results will be returned.
-    It doesn't paginate and collect all results.
+        For files in a shared drive, at most 100 results will be returned.
+        It doesn't paginate and collect all results.
 
-    :return: A list of the revision objects.
-    :rtype: object[]
-    """
+        :return: A list of the revision objects.
+        :rtype: object[]
+        """
         file_id = self.metadata.get("id") or self.get("id")
 
         # We can't do FetchMetada call (which would nicely update
