@@ -914,6 +914,22 @@ It doesn’t paginate and collect all results.</p>
 </dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.GetRevisions">
+<span class="sig-name descname"><span class="pre">GetRevisions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.GetRevisions" title="Permalink to this definition">#</a></dt>
+<dd><p>Get file’s or shared drive’s revisions.</p>
+<p>For files in a shared drive, at most 100 results will be returned.
+It doesn’t paginate and collect all results.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>A list of the revision objects.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>object[]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.InsertPermission">
 <span class="sig-name descname"><span class="pre">InsertPermission</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">new_permission</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.InsertPermission" title="Permalink to this definition">#</a></dt>
 <dd><p>Insert a new permission. Re-fetches all permissions after call.</p>
@@ -1277,6 +1293,7 @@ set (means that we are uploading this file for the first time).</p>
 <li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetContentIOBuffer"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetContentIOBuffer()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetContentString"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetContentString()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetPermissions"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetPermissions()</span></code></a></li>
+<li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.GetRevisions"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.GetRevisions()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.InsertPermission"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.InsertPermission()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.SetContentFile"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.SetContentFile()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.files.GoogleDriveFile.SetContentString"><code class="docutils literal notranslate"><span class="pre">GoogleDriveFile.SetContentString()</span></code></a></li>

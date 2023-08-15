@@ -192,6 +192,23 @@ a list of `GoogleDriveFile`_ instances.
     # Get list of files that match against the query
     files = drive.ListFile(query).GetList()
 
+List revisions
+________________
+
+Revisions can be fetched using the ``GetRevisions()`` function of a
+``GoogleDriveFile``, and can be used like so:
+
+.. code-block:: python
+
+    # Create a new file
+    file1 = drive.CreateFile()
+    # Fetch revisions.
+    revisions = file1.GetRevisions()
+    print(revisions)
+
+Not all files objects have revisions. If GetRevisions is called on a
+file object that does not have revisions, an exception will be raised.
+
 Upload and update file content
 ------------------------------
 

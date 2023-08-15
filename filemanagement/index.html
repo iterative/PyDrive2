@@ -361,6 +361,20 @@ a list of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files
 <span class="n">files</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">(</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
 </pre></div>
 </div>
+<section id="list-revisions">
+<h3>List revisions<a class="headerlink" href="#list-revisions" title="Permalink to this heading">#</a></h3>
+<p>Revisions can be fetched using the <code class="docutils literal notranslate"><span class="pre">GetRevisions()</span></code> function of a
+<code class="docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code>, and can be used like so:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a new file</span>
+<span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">()</span>
+<span class="c1"># Fetch revisions.</span>
+<span class="n">revisions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetRevisions</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">revisions</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Not all files objects have revisions. If GetRevisions is called on a
+file object that does not have revisions, an exception will be raised.</p>
+</section>
 </section>
 <section id="upload-and-update-file-content">
 <h2>Upload and update file content<a class="headerlink" href="#upload-and-update-file-content" title="Permalink to this heading">#</a></h2>
@@ -540,7 +554,10 @@ it you indicate that you acknowledge the risks of downloading potential malware.
 <li><a class="reference internal" href="#remove-a-permission">Remove a Permission</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#get-files-by-complex-queries">Get files by complex queries</a></li>
+<li><a class="reference internal" href="#get-files-by-complex-queries">Get files by complex queries</a><ul>
+<li><a class="reference internal" href="#list-revisions">List revisions</a></li>
+</ul>
+</li>
 <li><a class="reference internal" href="#upload-and-update-file-content">Upload and update file content</a></li>
 <li><a class="reference internal" href="#upload-data-as-bytes-in-memory-buffer">Upload data as bytes in memory buffer</a></li>
 <li><a class="reference internal" href="#upload-file-to-a-specific-folder">Upload file to a specific folder</a></li>
