@@ -598,6 +598,19 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         pydrive_retry(file1.Delete)
 
+    def test_Files_Get_Revisions(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile()
+        pydrive_retry(file1.Upload)
+
+        self.assertFalse("revisions" in file1)
+
+        revisions = pydrive_retry(file1.GetRevisions)
+        self.assertTrue(revisions is not None)
+        self.assertTrue("revisions" in file1)
+
+        pydrive_retry(file1.Delete)
+
     def test_ApiRequestError_HttpError_Propagation(self):
         file = GoogleDrive(self.ga).CreateFile()
         pydrive_retry(file.Upload)
