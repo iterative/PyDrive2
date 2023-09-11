@@ -10,6 +10,10 @@ name: Publish
 
 jobs:
   publish:
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-latest
 
     steps:
@@ -30,5 +34,3 @@ jobs:
     - name: Publish
       if: startsWith(github.ref, 'refs/tags')
       uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.PYPI_TOKEN }}
