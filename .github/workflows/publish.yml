@@ -32,5 +32,5 @@ jobs:
         --outdir dist/ .
 
     - name: Publish
-      if: startsWith(github.ref, 'refs/tags')
+      if: github.event.action == 'published'
       uses: pypa/gh-action-pypi-publish@release/v1
