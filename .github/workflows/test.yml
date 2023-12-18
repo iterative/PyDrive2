@@ -27,7 +27,7 @@ jobs:
         pyv: ["3.8", "3.9", "3.10", "3.11"]
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         # NOTE: needed for pull_request_target to use PR code
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
