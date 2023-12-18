@@ -256,13 +256,6 @@ class GDriveFileSystem(AbstractFileSystem):
         }
 
         self._cache_path_id(self.base, cache["root_id"], cache=cache)
-
-        for item in self._gdrive_list(
-            "'{}' in parents and trashed=false".format(cache["root_id"])
-        ):
-            item_path = posixpath.join(self.base, item["title"])
-            self._cache_path_id(item_path, item["id"], cache=cache)
-
         return cache
 
     def _cache_path_id(self, path, *item_ids, cache=None):
@@ -392,9 +385,7 @@ class GDriveFileSystem(AbstractFileSystem):
             return cached[0]
 
         item = self._gdrive_create_dir(parent_id, title)
-
-        if parent_id == self._ids_cache["root_id"]:
-            self._cache_path_id(remote_path, item["id"])
+        self._cache_path_id(remote_path, item["id"])
 
         return item["id"]
 

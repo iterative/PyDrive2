@@ -176,7 +176,7 @@ Typically, service accounts are used in scenarios such as:
 - Running workloads which are not tied to the lifecycle of a human user.
 
 If we use OAuth client ID we need to do one manual login into the account with
-`LocalWebserverAuth()`_. if we use a service account the login is automatic.
+`LocalWebserverAuth()`_. If we use a service account the login is automatic.
 
 
 .. code-block:: python
