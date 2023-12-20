@@ -261,8 +261,8 @@ class GDriveFileSystem(AbstractFileSystem):
     def _cache_path_id(self, path, *item_ids, cache=None):
         cache = cache or self._ids_cache
         for item_id in item_ids:
-            cache["dirs"][path].append(item_id)
             cache["ids"][item_id] = path
+            cache["dirs"][path].append(item_id)
 
     @cached_property
     def _list_params(self):
@@ -316,7 +316,9 @@ class GDriveFileSystem(AbstractFileSystem):
         query = f"({query}) and trashed=false"
         return self._gdrive_list(query)
 
-    def _get_remote_item_ids(self, parent_ids, title):
+    def _get_remote_item_ids(
+        self, parent_ids, parent_path, title, use_cache=True
+    ):
         if not parent_ids:
             return None
         query = "trashed=false and ({})".format(
@@ -326,13 +328,19 @@ class GDriveFileSystem(AbstractFileSystem):
         )
         query += " and title='{}'".format(title.replace("'", "\\'"))
 
-        # GDrive list API is case insensitive, we need to compare
-        # all results and pick the ones with the right title
-        return [
-            item["id"]
-            for item in self._gdrive_list(query)
-            if item["title"] == title
-        ]
+        res = []
+        for item in self._gdrive_list(query):
+            # GDrive list API is case insensitive, we need to compare
+            # all results and pick the ones with the right title
+            if item["title"] == title:
+                res.append(item["id"])
+
+                if item["mimeType"] == FOLDER_MIME_TYPE and use_cache:
+                    self._cache_path_id(
+                        posixpath.join(parent_path, item["title"]), item["id"]
+                    )
+
+        return res
 
     def _get_cached_item_ids(self, path, use_cache):
         if not path:
@@ -348,7 +356,9 @@ class GDriveFileSystem(AbstractFileSystem):
 
         parent_path, title = posixpath.split(path)
         parent_ids = self._path_to_item_ids(parent_path, create, use_cache)
-        item_ids = self._get_remote_item_ids(parent_ids, title)
+        item_ids = self._get_remote_item_ids(
+            parent_ids, parent_path, title, use_cache
+        )
         if item_ids:
             return item_ids
 
@@ -418,11 +428,7 @@ class GDriveFileSystem(AbstractFileSystem):
     def ls(self, path, detail=False):
         bucket, base = self.split_path(path)
 
-        cached = base in self._ids_cache["dirs"]
-        if cached:
-            dir_ids = self._ids_cache["dirs"][base]
-        else:
-            dir_ids = self._path_to_item_ids(base)
+        dir_ids = self._path_to_item_ids(base)
 
         if not dir_ids:
             raise FileNotFoundError(
@@ -452,9 +458,6 @@ class GDriveFileSystem(AbstractFileSystem):
                     }
                 )
 
-        if not cached:
-            self._cache_path_id(root_path, *dir_ids)
-
         if detail:
             return contents
         else:
@@ -464,10 +467,10 @@ class GDriveFileSystem(AbstractFileSystem):
         bucket, base = self.split_path(path)
 
         seen_paths = set()
-        cached = base in self._ids_cache["dirs"]
-        if not cached:
-            dir_ids = self._path_to_item_ids(base)
-            self._cache_path_id(base, *dir_ids)
+
+        # Make sure the base path is cached and dir_ids below has some
+        # dirs revelant to this call
+        self._path_to_item_ids(base)
 
         dir_ids = [self._ids_cache["ids"].copy()]
         contents = []
