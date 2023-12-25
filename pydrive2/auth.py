@@ -1,3 +1,4 @@
+import os
 import json
 import webbrowser
 import httplib2
@@ -224,6 +225,9 @@ class GoogleAuth(ApiAttributeMixin):
         This function is not for web server application. It creates local web
         server for user from standalone application.
 
+        If GDRIVE_NON_INTERACTIVE environment variable is set, this function
+        raises AuthenticationError.
+
         :param host_name: host name of the local web server.
         :type host_name: str.
         :param port_numbers: list of port numbers to be tried to used.
@@ -237,6 +241,11 @@ class GoogleAuth(ApiAttributeMixin):
         :returns: str -- code returned from local web server
         :raises: AuthenticationRejected, AuthenticationError
         """
+        if os.getenv("GDRIVE_NON_INTERACTIVE"):
+            raise AuthenticationError(
+                "Non interactive mode (GDRIVE_NON_INTERACTIVE env) is enabled"
+            )
+
         if port_numbers is None:
             port_numbers = [
                 8080,
