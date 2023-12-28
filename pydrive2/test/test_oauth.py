@@ -3,7 +3,6 @@ import os
 import re
 import time
 import pytest
-from pytest import MonkeyPatch
 
 from pydrive2.auth import AuthenticationError, GoogleAuth
 from pydrive2.test.test_util import (
@@ -190,7 +189,7 @@ def test_12_ServiceAuthFromJsonDictNoCredentialsSaving():
     time.sleep(1)
 
 
-def test_13_LocalWebServerAuthNonInterativeRaises():
+def test_13_LocalWebServerAuthNonInterativeRaises(monkeypatch):
     settings = {
         "client_config_backend": "file",
         "client_config_file": "client_secrets.json",
@@ -198,17 +197,16 @@ def test_13_LocalWebServerAuthNonInterativeRaises():
     }
     ga = GoogleAuth(settings=settings)
 
-    with MonkeyPatch.context() as m:
-        m.setenv("GDRIVE_NON_INTERACTIVE", "true")
-        # Test that exception is raised on trying to do browser auth if
-        # we are running in a non interactive environment.
-        with pytest.raises(
-            AuthenticationError,
-            match=re.escape(
-                "Non interactive mode (GDRIVE_NON_INTERACTIVE env) is enabled"
-            ),
-        ):
-            ga.LocalWebserverAuth()
+    monkeypatch.setenv("GDRIVE_NON_INTERACTIVE", "true")
+    # Test that exception is raised on trying to do browser auth if
+    # we are running in a non interactive environment.
+    with pytest.raises(
+        AuthenticationError,
+        match=re.escape(
+            "Non interactive mode (GDRIVE_NON_INTERACTIVE env) is enabled"
+        ),
+    ):
+        ga.LocalWebserverAuth()
 
 
 def CheckCredentialsFile(credentials, no_file=False):
