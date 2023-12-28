@@ -1,3 +1,4 @@
+from pathlib import Path
 import random
 import re
 import os
@@ -29,7 +30,8 @@ def setup_credentials(credentials_path=DEFAULT_USER_CREDENTIALS_FILE):
 
 def settings_file_path(settings_file, wkdir=LOCAL_PATH):
     template_path = SETTINGS_PATH + settings_file
-    local_path = wkdir + settings_file
+    wkdir = Path(wkdir)
+    local_path = wkdir / settings_file
     assert os.path.exists(template_path)
     if not os.path.exists(wkdir):
         os.makedirs(wkdir, exist_ok=True)

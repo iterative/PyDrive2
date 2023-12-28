@@ -1,3 +1,4 @@
+from io import StringIO
 import os
 import posixpath
 import secrets
@@ -25,17 +26,39 @@ def remote_dir(base_remote_dir):
     return base_remote_dir + "/" + str(uuid.uuid4())
 
 
-@pytest.fixture
-def fs(tmpdir, base_remote_dir):
+@pytest.fixture(scope="module")
+def service_auth(tmp_path_factory):
     setup_credentials()
-    auth = GoogleAuth(settings_file_path("default.yaml", tmpdir / ""))
+    tmpdir = tmp_path_factory.mktemp("settings")
+    auth = GoogleAuth(settings_file_path("default.yaml", wkdir=tmpdir))
     auth.ServiceAuth()
+    return auth
 
-    bucket, base = base_remote_dir.split("/", 1)
-    fs = GDriveFileSystem(base_remote_dir, auth)
-    fs._gdrive_create_dir("root", base)
 
-    return fs
+@pytest.fixture(scope="module")
+def fs_factory(base_remote_dir, service_auth):
+    base_item = None
+    GDriveFileSystem.cachable = False
+
+    def _create_fs():
+        nonlocal base_item
+        _, base = base_remote_dir.split("/", 1)
+        fs = GDriveFileSystem(base_remote_dir, service_auth)
+        if base_item is None:
+            base_item = fs._gdrive_create_dir("root", base)
+
+        return fs, base_item
+
+    yield _create_fs
+
+    GDriveFileSystem.cachable = True
+    fs = GDriveFileSystem(base_remote_dir, service_auth)
+    fs.rm_file(base_remote_dir)
+
+
+@pytest.fixture
+def fs(fs_factory):
+    return fs_factory()[0]
 
 
 @pytest.mark.manual
@@ -66,7 +89,7 @@ def test_fs_service_json(base_remote_dir):
     )
 
 
-def test_info(fs, tmpdir, remote_dir):
+def test_info(fs, remote_dir):
     fs.touch(remote_dir + "/info/a.txt")
     fs.touch(remote_dir + "/info/b.txt")
     details = fs.info(remote_dir + "/info/a.txt")
@@ -116,20 +139,20 @@ def test_rm(fs, remote_dir):
     assert not fs.exists(remote_dir + "/dir/c/a")
 
 
-def test_ls(fs: GDriveFileSystem, remote_dir):
-    _, base = fs.split_path(remote_dir + "dir/")
+def test_ls(fs, remote_dir):
+    _, base = fs.split_path(remote_dir + "/dir/")
     fs._path_to_item_ids(base, create=True)
-    assert fs.ls(remote_dir + "dir/") == []
+    assert fs.ls(remote_dir + "/dir/") == []
 
     files = set()
     for no in range(8):
-        file = remote_dir + f"dir/test_{no}"
+        file = remote_dir + f"/dir/test_{no}"
         fs.touch(file)
         files.add(file)
 
-    assert set(fs.ls(remote_dir + "dir/")) == files
+    assert set(fs.ls(remote_dir + "/dir/")) == files
 
-    dirs = fs.ls(remote_dir + "dir/", detail=True)
+    dirs = fs.ls(remote_dir + "/dir/", detail=True)
     expected = [fs.info(file) for file in files]
 
     def by_name(details):
@@ -141,12 +164,95 @@ def test_ls(fs: GDriveFileSystem, remote_dir):
     assert dirs == expected
 
 
+def test_basic_ops_caching(fs_factory, remote_dir, mocker):
+    # Internally we have to derefence names into IDs to call GDrive APIs
+    # we are trying hard to cache those and make sure that operations like
+    # exists, ls, find, etc. don't hit the API more than once per path
+
+    # ListFile (_gdrive_list) is the main operation that we use to retieve file
+    # metadata in all operations like find/ls/exist - etc. It should be fine as
+    # a basic benchmark to count those.
+    # Note: we can't count direct API calls since we have retries, also can't
+    # count even direct calls to the GDrive client - for the same reason
+    fs, _ = fs_factory()
+    spy = mocker.spy(fs, "_gdrive_list")
+
+    dir_path = remote_dir + "/a/b/c/"
+    file_path = dir_path + "test.txt"
+    fs.touch(file_path)
+
+    assert spy.call_count == 5
+    spy.reset_mock()
+
+    fs.exists(file_path)
+    assert spy.call_count == 1
+    spy.reset_mock()
+
+    fs.ls(remote_dir)
+    assert spy.call_count == 1
+    spy.reset_mock()
+
+    fs.ls(dir_path)
+    assert spy.call_count == 1
+    spy.reset_mock()
+
+    fs.find(dir_path)
+    assert spy.call_count == 1
+    spy.reset_mock()
+
+    fs.find(remote_dir)
+    assert spy.call_count == 1
+    spy.reset_mock()
+
+
+def test_ops_work_with_duplicate_names(fs_factory, remote_dir):
+    fs, base_item = fs_factory()
+
+    remote_dir_item = fs._gdrive_create_dir(
+        base_item["id"], remote_dir.split("/")[-1]
+    )
+    dir_name = str(uuid.uuid4())
+    dir1 = fs._gdrive_create_dir(remote_dir_item["id"], dir_name)
+    dir2 = fs._gdrive_create_dir(remote_dir_item["id"], dir_name)
+
+    # Two directories were created with the same name
+    assert dir1["id"] != dir2["id"]
+
+    dir_path = remote_dir + "/" + dir_name + "/"
+
+    # ls returns both of them, even though the names are the same
+    test_fs = fs
+    result = test_fs.ls(remote_dir)
+    assert len(result) == 2
+    assert set(result) == {dir_path}
+
+    # ls returns both of them, even though the names are the same
+    test_fs, _ = fs_factory()
+    result = test_fs.ls(remote_dir)
+    assert len(result) == 2
+    assert set(result) == {dir_path}
+
+    for test_fs in [fs, fs_factory()[0]]:
+        # find by default doesn't return dirs at all
+        result = test_fs.find(remote_dir)
+        assert len(result) == 0
+
+    fs._gdrive_upload_fobj("a.txt", dir1["id"], StringIO(""))
+    fs._gdrive_upload_fobj("b.txt", dir2["id"], StringIO(""))
+
+    for test_fs in [fs, fs_factory()[0]]:
+        # now we should have both files
+        result = test_fs.find(remote_dir)
+        assert len(result) == 2
+        assert set(result) == {dir_path + file for file in ["a.txt", "b.txt"]}
+
+
 def test_ls_non_existing_dir(fs, remote_dir):
     with pytest.raises(FileNotFoundError):
         fs.ls(remote_dir + "dir/")
 
 
-def test_find(fs, remote_dir):
+def test_find(fs, fs_factory, remote_dir):
     fs.mkdir(remote_dir + "/dir")
 
     files = [
@@ -169,12 +275,24 @@ def test_find(fs, remote_dir):
     for file in files:
         fs.touch(file)
 
-    assert set(fs.find(remote_dir)) == set(files)
+    for test_fs in [fs, fs_factory()[0]]:
+        # Test for https://github.com/iterative/PyDrive2/issues/229
+        # It must go first, so that we test with a cache miss as well
+        assert set(test_fs.find(remote_dir + "/dir/c/d/")) == set(
+            [
+                file
+                for file in files
+                if file.startswith(remote_dir + "/dir/c/d/")
+            ]
+        )
 
-    find_results = fs.find(remote_dir, detail=True)
-    info_results = [fs.info(file) for file in files]
-    info_results = {content["name"]: content for content in info_results}
-    assert find_results == info_results
+        # General find test
+        assert set(test_fs.find(remote_dir)) == set(files)
+
+        find_results = test_fs.find(remote_dir, detail=True)
+        info_results = [test_fs.info(file) for file in files]
+        info_results = {content["name"]: content for content in info_results}
+        assert find_results == info_results
 
 
 def test_exceptions(fs, tmpdir, remote_dir):
@@ -199,15 +317,20 @@ def test_open_rw(fs, remote_dir):
         assert stream.read() == data
 
 
-def test_concurrent_operations(fs, remote_dir):
+def test_concurrent_operations(fs, fs_factory, remote_dir):
+    # Include an extra dir name to force upload operations creating it
+    # this way we can also test that only a single directory is created
+    # enven if multiple threads are uploading files into the same dir
+    dir_name = secrets.token_hex(16)
+
     def create_random_file():
         name = secrets.token_hex(16)
-        with fs.open(remote_dir + "/" + name, "w") as stream:
+        with fs.open(remote_dir + f"/{dir_name}/" + name, "w") as stream:
             stream.write(name)
         return name
 
     def read_random_file(name):
-        with fs.open(remote_dir + "/" + name, "r") as stream:
+        with fs.open(remote_dir + f"/{dir_name}/" + name, "r") as stream:
             return stream.read()
 
     with futures.ThreadPoolExecutor() as executor:
@@ -224,6 +347,11 @@ def test_concurrent_operations(fs, remote_dir):
         read_names = {future.result() for future in read_futures}
 
         assert write_names == read_names
+
+    # Test that only a single dir is cretead
+    for test_fs in [fs, fs_factory()[0]]:
+        results = test_fs.ls(remote_dir)
+        assert results == [remote_dir + f"/{dir_name}/"]
 
 
 def test_put_file(fs, tmpdir, remote_dir):
