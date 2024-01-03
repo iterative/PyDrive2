@@ -245,17 +245,18 @@ class GDriveFileSystem(AbstractFileSystem):
     @wrap_prop(threading.RLock())
     @cached_property
     def _ids_cache(self):
-        cache = {
-            "dirs": defaultdict(list),
-            "ids": {},
-            "root_id": self._get_item_id(
-                self.path,
-                use_cache=False,
-                hint="Confirm the directory exists and you can access it.",
-            ),
-        }
+        cache = {"dirs": defaultdict(list), "ids": {}}
 
-        self._cache_path_id(self.base, cache["root_id"], cache=cache)
+        base_item_ids = self._path_to_item_ids(self.base, use_cache=False)
+        if not base_item_ids:
+            raise FileNotFoundError(
+                errno.ENOENT,
+                os.strerror(errno.ENOENT),
+                f"Confirm {self.path} exists and you can access it",
+            )
+
+        self._cache_path_id(self.base, *base_item_ids, cache=cache)
+
         return cache
 
     def _cache_path_id(self, path, *item_ids, cache=None):
@@ -366,7 +367,7 @@ class GDriveFileSystem(AbstractFileSystem):
             [self._create_dir(min(parent_ids), title, path)] if create else []
         )
 
-    def _get_item_id(self, path, create=False, use_cache=True, hint=None):
+    def _get_item_id(self, path, create=False, use_cache=True):
         bucket, base = self.split_path(path)
         assert bucket == self.root
 
@@ -375,9 +376,7 @@ class GDriveFileSystem(AbstractFileSystem):
             return min(item_ids)
 
         assert not create
-        raise FileNotFoundError(
-            errno.ENOENT, os.strerror(errno.ENOENT), hint or path
-        )
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
     @_gdrive_retry
     def _gdrive_create_dir(self, parent_id, title):
@@ -427,9 +426,9 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def ls(self, path, detail=False):
         bucket, base = self.split_path(path)
+        assert bucket == self.root
 
         dir_ids = self._path_to_item_ids(base)
-
         if not dir_ids:
             raise FileNotFoundError(
                 errno.ENOENT, os.strerror(errno.ENOENT), path
@@ -465,14 +464,14 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def find(self, path, detail=False, **kwargs):
         bucket, base = self.split_path(path)
-
-        seen_paths = set()
+        assert bucket == self.root
 
         # Make sure the base path is cached and dir_ids below has some
         # dirs revelant to this call
         self._path_to_item_ids(base)
 
         dir_ids = [self._ids_cache["ids"].copy()]
+        seen_paths = set()
         contents = []
         while dir_ids:
             query_ids = {
