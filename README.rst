@@ -136,9 +136,10 @@ compatible `GDriveFileSystem`_.
 
     from pydrive2.fs import GDriveFileSystem
 
+    # replace `root` with ID of a drive or directory and give service account access to it
     fs = GDriveFileSystem("root", client_id=my_id, client_secret=my_secret)
 
-    for root, dnames, fnames in fs.walk(""):
+    for root, dnames, fnames in fs.walk("root"):
         ...
 
 .. _`GDriveFileSystem`: https://docs.iterative.ai/PyDrive2/fsspec/
