@@ -260,6 +260,7 @@ avoids interactive auth):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="c1"># replace with ID of a drive or directory and give service account access to it</span>
     <span class="s2">&quot;root&quot;</span><span class="p">,</span>
     <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">client_json_file_path</span><span class="o">=</span><span class="s2">&quot;/path/to/keyfile.json&quot;</span><span class="p">,</span>
@@ -270,6 +271,7 @@ avoids interactive auth):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.fs</span> <span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
+    <span class="c1"># replace with ID of a drive or directory and give service account access to it</span>
     <span class="s2">&quot;root&quot;</span><span class="p">,</span>
     <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">client_json</span><span class="o">=</span><span class="n">json_string</span><span class="p">,</span>
@@ -291,7 +293,8 @@ avoids interactive auth):</p>
 </section>
 <section id="using-filesystem">
 <h2>Using filesystem<a class="headerlink" href="#using-filesystem" title="Permalink to this heading">#</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dnames</span><span class="p">,</span> <span class="n">fnames</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># replace `root` with ID of a drive or directory and give service account access to it</span>
+<span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dnames</span><span class="p">,</span> <span class="n">fnames</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">):</span>
     <span class="k">for</span> <span class="n">dname</span> <span class="ow">in</span> <span class="n">dnames</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;dir: </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">dname</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
