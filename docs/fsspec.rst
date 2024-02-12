@@ -76,6 +76,7 @@ Using json keyfile path:
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
+        # replace with ID of a drive or directory and give service account access to it
         "root",
         use_service_account=True,
         client_json_file_path="/path/to/keyfile.json",
@@ -88,6 +89,7 @@ Using json keyfile string:
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
+        # replace with ID of a drive or directory and give service account access to it
         "root",
         use_service_account=True,
         client_json=json_string,
@@ -106,7 +108,8 @@ Using filesystem
 
 .. code-block:: python
 
-    for root, dnames, fnames in fs.walk(""):
+    # replace `root` with ID of a drive or directory and give service account access to it
+    for root, dnames, fnames in fs.walk("root"):
         for dname in dnames:
             print(f"dir: {root}/{dname}")
         
