@@ -139,7 +139,7 @@ Building your own authentication flow
 
 You might want to build your own authentication flow. For example, you might
 want to integrate your existing website with Drive API. In that case, you can
-customize authentication flow as follwing:
+customize an authentication flow as follows:
 
 1. Get authentication Url from `GetAuthUrl()`_.
 2. Ask users to visit the authentication Url and grant access to your application. Retrieve authentication code manually by user or automatically by building your own oauth2callback.
