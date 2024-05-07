@@ -342,7 +342,7 @@ it you indicate that you acknowledge the risks of downloading potential malware.
 .. _`SetContentFile(filename)`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile
 .. _`SetContentString(content)`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentString
 .. _`GetContentFile(filename)`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentFile
-.. _`GetContentString()`: ./PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentString
+.. _`GetContentString()`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentString
 .. _`official documentation`: https://developers.google.com/drive/v2/reference/files#resource-representations
 .. _`known`: https://productforums.google.com/forum/#!topic/docs/BJLimQDGtjQ
 .. _`abusive`: https://support.google.com/docs/answer/148505
