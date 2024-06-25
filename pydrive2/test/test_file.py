@@ -356,6 +356,87 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
+    def test_Files_Get_Content_Buffer_resourceKey_missing(self):
+        """404 expected for file secured with resourceKey when not provided."""
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+            }
+        )
+        with self.assertRaisesRegex(
+            ApiRequestError, "HttpError 404 when requesting"
+        ):
+            pydrive_retry(file1.GetContentIOBuffer)
+
+    def test_Files_Get_Content_Buffer_resourceKey(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+                "resourceKey": "0-vjzOveuin3fnf4LUlfsD3A",
+            }
+        )
+
+        buffer1 = pydrive_retry(file1.GetContentIOBuffer)
+
+        self.assertEqual(len(buffer1), 6128902)
+
+    def test_Files_Get_Content_File_resourceKey_missing(self):
+        """404 expected for file secured with resourceKey when not provided."""
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+            }
+        )
+        fileOut = self.getTempFile()
+        with self.assertRaisesRegex(
+            ApiRequestError, "HttpError 404 when requesting"
+        ):
+            pydrive_retry(file1.GetContentFile, fileOut)
+
+    def test_Files_Get_Content_File_resourceKey(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+                "resourceKey": "0-vjzOveuin3fnf4LUlfsD3A",
+            }
+        )
+
+        fileOut = self.getTempFile()
+        pydrive_retry(file1.GetContentFile, fileOut)
+
+        with open(fileOut, "rb") as f:
+            self.assertEqual(len(f.read()), 6128902)
+
+    def test_Files_Fetch_Metadata_resourceKey_missing(self):
+        """404 expected for file secured with resourceKey when not provided."""
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+            }
+        )
+        with self.assertRaisesRegex(
+            ApiRequestError, "HttpError 404 when requesting"
+        ):
+            pydrive_retry(file1.FetchMetadata)
+
+    def test_Files_Fetch_Metadata_Buffer_resourceKey(self):
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+                "resourceKey": "0-vjzOveuin3fnf4LUlfsD3A",
+            }
+        )
+
+        pydrive_retry(file1.FetchMetadata)
+
+        self.assertEqual(file1.metadata["title"], "N48E012.zip")
+
     def test_Upload_Download_Empty_File(self):
         filename = os.path.join(self.tmpdir, str(time()))
         create_file(filename, "")
