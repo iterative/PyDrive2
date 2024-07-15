@@ -699,9 +699,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         if file_id:
             resourceKey = self.get("resourceKey")
             if resourceKey:
-                request.headers["X-Goog-Drive-Resource-Keys"] = (
-                    f"{file_id}/{resourceKey}"
-                )
+                request.headers[
+                    "X-Goog-Drive-Resource-Keys"
+                ] = f"{file_id}/{resourceKey}"
         return request
 
     @LoadAuth
