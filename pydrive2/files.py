@@ -453,16 +453,14 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         if file_id:
             try:
-                metadata = (
-                    self.auth.service.files()
-                    .get(
-                        fileId=file_id,
-                        fields=fields,
-                        # Teamdrive support
-                        supportsAllDrives=True,
-                    )
-                    .execute(http=self.http)
+                request = self.auth.service.files().get(
+                    fileId=file_id,
+                    fields=fields,
+                    # Teamdrive support
+                    supportsAllDrives=True,
                 )
+                request = self._AddResourceKeyHeaders(request)
+                metadata = request.execute(http=self.http)
             except errors.HttpError as error:
                 raise ApiRequestError(error)
             else:
@@ -687,6 +685,23 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """
         if self.http:
             request.http = self.http
+        request = self._AddResourceKeyHeaders(request)
+        return request
+
+    def _AddResourceKeyHeaders(self, request):
+        """Add resourceKey headers to request if file is secured with resourceKey and
+        its available (from a list for example).
+
+        :param request: request to add headers to.
+        :type request: googleapiclient.http.HttpRequest
+        """
+        file_id = self.metadata.get("id") or self.get("id")
+        if file_id:
+            resourceKey = self.get("resourceKey")
+            if resourceKey:
+                request.headers["X-Goog-Drive-Resource-Keys"] = (
+                    f"{file_id}/{resourceKey}"
+                )
         return request
 
     @LoadAuth

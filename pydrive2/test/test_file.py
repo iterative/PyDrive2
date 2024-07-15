@@ -1,6 +1,9 @@
 import filecmp
+import json
 import os
 import unittest
+from unittest.mock import MagicMock
+import httplib2
 import pytest
 import sys
 from io import BytesIO
@@ -23,6 +26,59 @@ from pydrive2.test.test_util import (
     delete_file,
     settings_file_path,
 )
+
+
+def auth_with_resource_key_mock() -> GoogleAuth:
+    """
+    Create GoogleAuth with mocked inner httplib2.Http simulating need
+    for resourceKey header.
+    """
+    http_mock = MagicMock()
+
+    def resource_key_request(
+        uri,
+        method="GET",
+        body=None,
+        headers=None,
+        redirections=1,
+        connection_type=None,
+    ):
+        """httplib2.Http.request mock."""
+        # If "media" is not requested, it means we expect metadata
+        fetch_meta_data = "alt=media" not in uri
+        if (
+            headers
+            and "X-Goog-Drive-Resource-Keys" in headers
+            and headers["X-Goog-Drive-Resource-Keys"]
+            == "0BxphPoRgwhnodHNjS3JESnFNS1E/0-vjzOveuin3fnf4LUlfsD3A"
+        ):
+            if fetch_meta_data:
+                # Fake meta data query response
+                content = json.dumps({"title": "N48E012.zip"}).encode()
+            else:
+                # Fake file content query response
+                content = b"some content"
+            return (
+                httplib2.Response(
+                    {"status": "200", "content-length": str(len(content))}
+                ),
+                content,
+            )
+        # Simulate 404 response for file not found; body must be valid error JSON
+        return (
+            httplib2.Response({"status": "404"}),
+            json.dumps({"error": {"code": 404}}).encode(),
+        )
+
+    http_mock.request.side_effect = resource_key_request
+    ga = GoogleAuth(
+        settings_file_path(
+            "default.yaml", os.path.join(os.path.dirname(__file__), "")
+        )
+    )
+    ga.thread_local.http = http_mock
+    ga.ServiceAuth()
+    return ga
 
 
 class GoogleDriveFileTest(unittest.TestCase):
@@ -355,6 +411,128 @@ class GoogleDriveFileTest(unittest.TestCase):
         self.assertEqual("".join(iter(buffer2)), content)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
+
+    def test_Files_Get_Content_Buffer_resourceKey_missing(self):
+        """404 expected for file secured with resourceKey when not provided."""
+
+        ga = auth_with_resource_key_mock()
+
+        drive = GoogleDrive(ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+            }
+        )
+        with self.assertRaisesRegex(
+            ApiRequestError, "HttpError 404 when requesting"
+        ):
+            pydrive_retry(file1.GetContentIOBuffer)
+
+    def test_Files_Get_Content_Buffer_resourceKey(self):
+        """End to end scenario with real file."""
+        ga = auth_with_resource_key_mock()
+        drive = GoogleDrive(ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+                "resourceKey": "0-vjzOveuin3fnf4LUlfsD3A",
+            }
+        )
+
+        buffer1 = pydrive_retry(file1.GetContentIOBuffer)
+
+        self.assertEqual(len(buffer1), 12)
+
+    @pytest.mark.manual
+    def test_Files_Get_Content_Buffer_resourceKey_missing_real(self):
+        """
+        404 expected for file secured with resourceKey when not provided.
+        End to end scenario with real public file.
+        """
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+            }
+        )
+        with self.assertRaisesRegex(
+            ApiRequestError, "HttpError 404 when requesting"
+        ):
+            pydrive_retry(file1.GetContentIOBuffer)
+
+    @pytest.mark.manual
+    def test_Files_Get_Content_Buffer_resourceKey_real(self):
+        """End to end scenario with real public file."""
+        drive = GoogleDrive(self.ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+                "resourceKey": "0-vjzOveuin3fnf4LUlfsD3A",
+            }
+        )
+
+        buffer1 = pydrive_retry(file1.GetContentIOBuffer)
+
+        self.assertEqual(len(buffer1), 6128902)
+
+    def test_Files_Get_Content_File_resourceKey_missing(self):
+        """404 expected for file secured with resourceKey when not provided."""
+        ga = auth_with_resource_key_mock()
+        drive = GoogleDrive(ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+            }
+        )
+        fileOut = self.getTempFile()
+        with self.assertRaisesRegex(
+            ApiRequestError, "HttpError 404 when requesting"
+        ):
+            pydrive_retry(file1.GetContentFile, fileOut)
+
+    def test_Files_Get_Content_File_resourceKey(self):
+        ga = auth_with_resource_key_mock()
+        drive = GoogleDrive(ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+                "resourceKey": "0-vjzOveuin3fnf4LUlfsD3A",
+            }
+        )
+
+        fileOut = self.getTempFile()
+        pydrive_retry(file1.GetContentFile, fileOut)
+
+        with open(fileOut, "rb") as f:
+            self.assertEqual(len(f.read()), 12)
+
+    def test_Files_Fetch_Metadata_resourceKey_missing(self):
+        """404 expected for file secured with resourceKey when not provided."""
+        ga = auth_with_resource_key_mock()
+        drive = GoogleDrive(ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+            }
+        )
+        with self.assertRaisesRegex(
+            ApiRequestError, "HttpError 404 when requesting"
+        ):
+            pydrive_retry(file1.FetchMetadata)
+
+    def test_Files_Fetch_Metadata_resourceKey(self):
+        ga = auth_with_resource_key_mock()
+        drive = GoogleDrive(ga)
+        file1 = drive.CreateFile(
+            {
+                "id": "0BxphPoRgwhnodHNjS3JESnFNS1E",
+                "resourceKey": "0-vjzOveuin3fnf4LUlfsD3A",
+            }
+        )
+
+        pydrive_retry(file1.FetchMetadata)
+
+        self.assertEqual(file1.metadata["title"], "N48E012.zip")
 
     def test_Upload_Download_Empty_File(self):
         filename = os.path.join(self.tmpdir, str(time()))
