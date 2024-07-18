@@ -132,6 +132,12 @@ Fsspec filesystem
 *PyDrive2* provides easy way to work with your files through `fsspec`_
 compatible `GDriveFileSystem`_.
 
+Install PyDrive2 with the required dependencies
+
+::
+
+    $ pip install PyDrive2[fsspec]
+
 .. code:: python
 
     from pydrive2.fs import GDriveFileSystem
