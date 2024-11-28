@@ -39,7 +39,7 @@ setup(
         "google-api-python-client >= 1.12.5",
         "oauth2client >= 4.0.0",
         "PyYAML >= 3.0",
-        "pyOpenSSL >= 19.1.0",
+        "pyOpenSSL >= 19.1.0, <=24.2.1", # https://github.com/iterative/PyDrive2/issues/361
     ],
     extras_require={
         "fsspec": [
