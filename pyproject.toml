@@ -39,10 +39,10 @@ Changelog = "https://github.com/iterative/PyDrive2/releases"
 
 [project.optional-dependencies]
 fsspec = [
-    "fsspec >= 2021.07.0",
-    "tqdm >= 4.0.0",
-    "funcy >= 1.14",
-    "appdirs >= 1.4.3",
+    "fsspec>=2021.07.0",
+    "tqdm>=4.0.0",
+    "funcy>=1.14",
+    "appdirs>=1.4.3",
 ]
 tests = [
     "pytest>=4.6.0",
