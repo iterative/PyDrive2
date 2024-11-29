@@ -1,5 +1,72 @@
 [build-system]
 requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PyDrive2"
+description = "Google Drive API made easy. Maintained fork of PyDrive."
+readme = "README.rst"
+authors = [
+    {name = "JunYoung Gwak", email = "jgwak@dreamylab.com"},
+]
+maintainers = [
+    {name = "DVC team", email = "support@dvc.org"},
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "google-api-python-client >= 1.12.5",
+    "oauth2client >= 4.0.0",
+    "PyYAML >= 3.0",
+    # https://github.com/iterative/PyDrive2/issues/361
+    "cryptography<44",
+    "pyOpenSSL >= 19.1.0, <=24.2.1",
+]
+license = {text = "Apache License 2.0"}
+dynamic = ["version"]
+
+[project.urls]
+Documentation = "https://docs.iterative.ai/PyDrive2"
+Source = "https://github.com/iterative/PyDrive2"
+Changelog = "https://github.com/iterative/PyDrive2/releases"
+
+[project.optional-dependencies]
+fsspec = [
+    "fsspec >= 2021.07.0",
+    "tqdm >= 4.0.0",
+    "funcy >= 1.14",
+    "appdirs >= 1.4.3",
+]
+tests = [
+    "pytest>=4.6.0",
+    "timeout-decorator",
+    "funcy>=1.14",
+    "flake8",
+    "flake8-docstrings",
+    "pytest-mock",
+    "pyinstaller",
+    "importlib_resources < 6; python_version < '3.10'",
+    "black==24.10.0",
+]
+
+[project.entry-points.pyinstaller40]
+hook-dirs = "pydrive2.__pyinstaller:get_hook_dirs"
+tests = "pydrive2.__pyinstaller:get_PyInstaller_tests"
+
+[tool.setuptools]
+packages=[
+    "pydrive2",
+    "pydrive2.test",
+    "pydrive2.fs",
+    "pydrive2.__pyinstaller",
+]
 
 [tool.setuptools_scm]
 
@@ -20,3 +87,8 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.pytest.ini_options]
+markers = [
+    "manual: mark tests to be runnable only in local environment and require user manual actions.",
+]
