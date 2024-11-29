@@ -22,12 +22,12 @@ classifiers = [
 ]
 requires-python = ">=3.8"
 dependencies = [
-    "google-api-python-client >= 1.12.5",
-    "oauth2client >= 4.0.0",
-    "PyYAML >= 3.0",
+    "google-api-python-client>=1.12.5",
+    "oauth2client>=4.0.0",
+    "PyYAML>=3.0",
     # https://github.com/iterative/PyDrive2/issues/361
     "cryptography<44",
-    "pyOpenSSL >= 19.1.0, <=24.2.1",
+    "pyOpenSSL>=19.1.0,<=24.2.1",
 ]
 license = {text = "Apache License 2.0"}
 dynamic = ["version"]
