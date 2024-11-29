@@ -40,6 +40,7 @@ setup(
         "oauth2client >= 4.0.0",
         "PyYAML >= 3.0",
         # https://github.com/iterative/PyDrive2/issues/361
+        "cryptography<44,
         "pyOpenSSL >= 19.1.0, <=24.2.1",
     ],
     extras_require={
