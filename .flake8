@@ -1,0 +1,10 @@
+[flake8]
+ignore =
+    # Whitespace before ':'
+    E203,
+    # Too many leading '#' for block comment
+    E266,
+    # Line break occurred before a binary operator
+    W503
+max-line-length = 89
+select = B,C,E,F,W,T4,B9
