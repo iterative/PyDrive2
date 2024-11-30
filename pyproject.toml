@@ -27,7 +27,7 @@ dependencies = [
     "PyYAML>=3.0",
     # https://github.com/iterative/PyDrive2/issues/361
     "cryptography<44",
-    "pyOpenSSL>=19.1.0,<=24.2.1",
+    "pyOpenSSL>=19.1.0,<=24.3.0",
 ]
 license = {text = "Apache License 2.0"}
 dynamic = ["version"]
