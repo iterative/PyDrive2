@@ -44,6 +44,7 @@ Table of Contents
    oauth
    filemanagement
    filelist
+   file
    fsspec
    pydrive2
    genindex
