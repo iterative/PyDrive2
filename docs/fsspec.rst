@@ -122,6 +122,6 @@ about and manipulating files, refer to fsspec docs on
 
 .. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
 .. _`GDriveFileSystem`: /PyDrive2/pydrive2/#pydrive2.fs.GDriveFileSystem
-.. _`delegation of authority`: https://developers.google.com/admin-sdk/directory/v1/guides/delegation
+.. _`delegation of authority`: https://developers.google.com/workspace/guides/create-credentials
 .. _`Abusive files`: /PyDrive2/filemanagement/index.html#abusive-files
 .. _`how to use a filesystem`: https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system

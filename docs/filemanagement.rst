@@ -126,7 +126,7 @@ Note: ``InsertPermission()`` calls ``GetPermissions()`` after successfully
 inserting the permission.
 
 You can find more information on the permitted fields of a permission
-`here <https://developers.google.com/drive/v2/reference/permissions/insert#request-body>`_.
+`here <https://developers.google.com/workspace/drive/api/reference/rest/v2/permissions/insert#request-body>`_.
 This file is now shared and anyone with the link can view it. But what if you
 want to check whether a file is already shared?
 
@@ -178,8 +178,9 @@ Get files by complex queries
 We can get a file by name and by other constraints, usually a filename will be
 unique but we can have two equal names with different extensions, e.g.,
 *123.jpeg and 123.mp3*. So if you expect only one file add more constraints to
-the query, see `Query string examples <query_parameters>`_, as a result we get
-a list of `GoogleDriveFile`_ instances.
+the query, see
+`Query string examples <https://developers.google.com/workspace/drive/api/guides/search-files#examples>`_,
+as a result we get a list of `GoogleDriveFile`_ instances.
 
 .. code-block:: python
 
@@ -338,12 +339,11 @@ it you indicate that you acknowledge the risks of downloading potential malware.
 .. _`Upload()`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.Upload
 .. _`GoogleAuth`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth
 .. _`CreateFile()`: /PyDrive2/pydrive2/#pydrive2.drive.GoogleDrive.CreateFile
-.. _`Files resource`: https://developers.google.com/drive/v2/reference/files#resource-representations
+.. _`Files resource`: https://developers.google.com/workspace/drive/api/reference/rest/v2/files#resource-representations
 .. _`SetContentFile(filename)`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile
 .. _`SetContentString(content)`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentString
 .. _`GetContentFile(filename)`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentFile
 .. _`GetContentString()`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentString
-.. _`official documentation`: https://developers.google.com/drive/v2/reference/files#resource-representations
-.. _`known`: https://productforums.google.com/forum/#!topic/docs/BJLimQDGtjQ
+.. _`official documentation`: https://developers.google.com/workspace/drive/api/reference/rest/v2/files#resource-representations
+.. _`known`: https://github.com/googleapis/google-api-nodejs-client/issues/2404
 .. _`abusive`: https://support.google.com/docs/answer/148505
-.. _`query_parameters`: https://developers.google.com/drive/api/guides/search-files#examples

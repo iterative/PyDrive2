@@ -111,7 +111,7 @@ Fields explained:
 :get_refresh_token (bool): True if you want to retrieve refresh token along with access token. **Default**: False. **Required**: No.
 :oauth_scope (list of str): OAuth scope to authenticate. **Default**: ['https://www.googleapis.com/auth/drive']. **Required**: No.
 
-.. _delegated: https://developers.google.com/admin-sdk/directory/v1/guides/delegation
+.. _delegated: https://developers.google.com/workspace/guides/create-credentials
 
 Sample *settings.yaml*
 ______________________
