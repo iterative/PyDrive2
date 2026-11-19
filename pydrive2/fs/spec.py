@@ -7,7 +7,7 @@ import posixpath
 import threading
 from collections import defaultdict
 from contextlib import contextmanager
-from itertools import chain
+from itertools import chain, islice
 
 from fsspec.spec import AbstractFileSystem
 from funcy import cached_property, retry, wrap_prop, wrap_with
@@ -311,11 +311,17 @@ class GDriveFileSystem(AbstractFileSystem):
         return chain.from_iterable(iter(get_list, None))
 
     def _gdrive_list_ids(self, query_ids):
-        query = " or ".join(
-            f"'{query_id}' in parents" for query_id in query_ids
-        )
-        query = f"({query}) and trashed=false"
-        return self._gdrive_list(query)
+        # Large parent queries can exceed Drive's query complexity limit.
+        query_ids = iter(query_ids)
+        while True:
+            batch = list(islice(query_ids, 50))
+            if not batch:
+                return
+            query = " or ".join(
+                f"'{query_id}' in parents" for query_id in batch
+            )
+            query = f"({query}) and trashed=false"
+            yield from self._gdrive_list(query)
 
     def _get_remote_item_ids(
         self, parent_ids, parent_path, title, use_cache=True
