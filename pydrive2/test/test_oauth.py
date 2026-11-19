@@ -4,8 +4,8 @@ import re
 import time
 
 import pytest
-from oauth2client.file import Storage
 
+from pydrive2._credentials import FileStorage
 from pydrive2.auth import AuthenticationError, GoogleAuth
 from pydrive2.test.test_util import (
     GDRIVE_USER_CREDENTIALS_DATA,
@@ -126,7 +126,7 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
     # Delete old credentials file
     delete_file(credentials_file)
     assert not os.path.exists(credentials_file)
-    spy = mocker.spy(Storage, "__init__")
+    spy = mocker.spy(FileStorage, "__init__")
     ga.ServiceAuth()
     ga.LoadCredentials()
     ga.SaveCredentials()
