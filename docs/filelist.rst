@@ -1,14 +1,18 @@
 File listing made easy
 =============================
 
-*PyDrive* handles paginations and parses response as list of `GoogleDriveFile`_.
+PyDrive2 handles pagination and returns
+:class:`~pydrive2.files.GoogleDriveFile` instances.
 
 Get all files which matches the query
 -------------------------------------
 
-Create `GoogleDriveFileList`_ instance with `parameters of Files.list()`_ as ``dict``. 
-Call `GetList()`_ and you will get all files that matches your query as a list of `GoogleDriveFile`_.
-The syntax and possible option of the query ``q`` parameter can be found in `search for files`_ Google documentation.
+Pass the `files.list query parameters`_ to
+:meth:`~pydrive2.drive.GoogleDrive.ListFile` as a dictionary. It returns a
+:class:`~pydrive2.files.GoogleDriveFileList`. Call
+:meth:`~pydrive2.apiattr.ApiResourceList.GetList` to retrieve all matches.
+Google's `file search guide`_ explains the ``q`` parameter. PyDrive2 uses
+Drive API v2, so use ``title`` where the guide's v3 examples use ``name``.
 
 .. code-block:: python
 
@@ -21,7 +25,7 @@ The syntax and possible option of the query ``q`` parameter can be found in `sea
     for file1 in file_list:
       print('title: %s, id: %s' % (file1['title'], file1['id']))
 
-You can update metadata or content of these `GoogleDriveFile`_ instances if you need it.
+You can update the metadata or content of each returned file.
 
 Paginate and iterate through files
 ----------------------------------
@@ -41,8 +45,7 @@ Sample code continues from above:
           print('title: %s, id: %s' % (file1['title'], file1['id']))
 
 
-.. _`GoogleDriveFile`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile
-.. _`GoogleDriveFileList`: /PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFileList
-.. _`parameters of Files.list()`: https://developers.google.com/workspace/drive/api/reference/rest/v2/files/list#request
-.. _`GetList()`: /PyDrive2/pydrive2/#pydrive2.apiattr.ApiResourceList.GetList
-.. _`search for files`: https://developers.google.com/workspace/drive/api/guides/search-files
+.. _files.list query parameters:
+   https://developers.google.com/workspace/drive/api/reference/rest/v2/files/list#query-parameters
+.. _file search guide:
+   https://developers.google.com/workspace/drive/api/guides/search-files
