@@ -21,12 +21,19 @@ class GoogleDriveFileListTest(unittest.TestCase):
     """
 
     @classmethod
-    def setup_class(cls):
+    def setUpClass(cls):
         setup_credentials()
 
         cls.ga = GoogleAuth(settings_file_path("default.yaml"))
         cls.ga.ServiceAuth()
         cls.drive = GoogleDrive(cls.ga)
+        cls.title = test_util.CreateRandomFileName()
+        cls.file_list = []
+        for _ in range(10):
+            file = cls.drive.CreateFile({"title": cls.title})
+            pydrive_retry(file.Upload)
+            cls.addClassCleanup(pydrive_retry, file.Delete)
+            cls.file_list.append(file)
 
     def test_01_Files_List_GetList(self):
         drive = GoogleDrive(self.ga)
@@ -81,40 +88,12 @@ class GoogleDriveFileListTest(unittest.TestCase):
             }
         )
         pydrive_retry(folder1.Upload)
-        self.file_list.append(folder1)
+        self.addCleanup(pydrive_retry, folder1.Delete)
         query = f"title = '{self.title}' and trashed = false"
-        count = 0
-        for file1 in pydrive_list_item(drive, query):
-            self.assertFileInFileList(file1)
-            count += 1
-
-        self.assertTrue(count == 11)
-
-    # setUp and tearDown methods.
-    # ===========================
-    def setUp(self):
-        title = test_util.CreateRandomFileName()
-        file_list = []
-        for x in range(10):
-            file1 = self.drive.CreateFile()
-            file1["title"] = title
-            pydrive_retry(file1.Upload)
-            file_list.append(file1)
-
-        self.title = title
-        self.file_list = file_list
-
-    def tearDown(self):
-        # Deleting uploaded files.
-        for file1 in self.file_list:
-            pydrive_retry(file1.Delete)
-
-    def assertFileInFileList(self, file_object):
-        found = False
-        for file1 in self.file_list:
-            if file_object["id"] == file1["id"]:
-                found = True
-        self.assertEqual(found, True)
+        self.assertCountEqual(
+            [file["id"] for file in pydrive_list_item(drive, query)],
+            [file["id"] for file in self.file_list] + [folder1["id"]],
+        )
 
     def DeleteOldFile(self, file_name):
         try:
