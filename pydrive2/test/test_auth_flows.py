@@ -1,6 +1,8 @@
 import errno
 import json
 import webbrowser
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from urllib.parse import parse_qs, urlparse
 
 import httplib2
@@ -12,7 +14,11 @@ from google.auth import jwt
 from google.oauth2.credentials import Credentials
 from google_auth_httplib2 import AuthorizedHttp
 
-from pydrive2.auth import GoogleAuth, InvalidCredentialsError
+from pydrive2.auth import (
+    AuthenticationError,
+    GoogleAuth,
+    InvalidCredentialsError,
+)
 
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 EMAIL = "service@example.test"
@@ -105,6 +111,80 @@ def test_automatic_http_refresh_is_saved(monkeypatch):
     monkeypatch.setattr(http.http, "request", request)
     assert http.request("https://example.test/drive")[0].status == 200
     assert json.loads(saved["user"])["refresh_token"] == "rotated"
+
+
+def test_refresh_only_credentials_round_trip(tmp_path, token_endpoint):
+    auth = GoogleAuth(settings_file=None)
+    auth.credentials = Credentials(
+        None,
+        refresh_token="refresh",
+        client_id="id",
+        client_secret="secret",
+        token_uri=TOKEN_URI,
+    )
+    path = tmp_path / "user.json"
+    auth.SaveCredentialsFile(path)
+
+    other = GoogleAuth(settings_file=None)
+    other.LoadCredentialsFile(path)
+    other.LocalWebserverAuth()
+    assert other.credentials.valid
+    assert json.loads(path.read_text())["token"] == "fresh"
+    assert len(token_endpoint) == 1
+
+
+def test_concurrent_login_refreshes_and_saves_once(mocker, token_endpoint):
+    saved = {}
+    auth = GoogleAuth(
+        settings={
+            "client_config_backend": "file",
+            "save_credentials": True,
+            "save_credentials_backend": "dictionary",
+            "save_credentials_dict": saved,
+            "save_credentials_key": "user",
+        }
+    )
+    auth.credentials = Credentials(
+        None,
+        refresh_token="refresh",
+        client_id="id",
+        client_secret="secret",
+        token_uri=TOKEN_URI,
+    )
+    refresh_if_expired = auth._refresh_if_expired
+    workers = Barrier(2)
+
+    def refresh_together():
+        workers.wait(timeout=10)
+        refresh_if_expired()
+
+    mocker.patch.object(
+        auth, "_refresh_if_expired", side_effect=refresh_together
+    )
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        calls = [pool.submit(auth.LocalWebserverAuth) for _ in range(2)]
+        for call in calls:
+            call.result()
+
+    assert len(token_endpoint) == 1
+    assert json.loads(saved["user"])["token"] == "fresh"
+
+
+@pytest.mark.parametrize("local_server", [False, True])
+def test_scope_change_raises_authentication_error(mocker, local_server):
+    auth = GoogleAuth(settings_file=None)
+    auth.flow = mocker.Mock()
+    error = Warning("Scope has changed")
+    if local_server:
+        auth.flow.run_local_server.side_effect = error
+    else:
+        auth.flow.fetch_token.side_effect = error
+    with pytest.raises(AuthenticationError) as raised:
+        if local_server:
+            auth.LocalWebserverAuth(launch_browser=False)
+        else:
+            auth.Authenticate("code")
+    assert raised.value.__cause__ is error
 
 
 @pytest.mark.parametrize(

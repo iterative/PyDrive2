@@ -35,7 +35,13 @@ def load_credentials(serialized, storage):
         return None
     try:
         info = json.loads(serialized)
-        if "token" not in info and info.get("type") != "authorized_user":
+        if (
+            not isinstance(info, dict)
+            or info.get("type", "authorized_user") != "authorized_user"
+            or "_class" in info
+            or "access_token" in info
+            or not (info.get("token") or info.get("refresh_token"))
+        ):
             raise ValueError("Expected google-auth user credentials")
         # Online-only logins have an access token but no refresh token.
         info.setdefault("refresh_token", None)

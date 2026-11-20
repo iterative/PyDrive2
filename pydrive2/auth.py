@@ -10,7 +10,8 @@ import httplib2
 from cryptography.hazmat.primitives.serialization import pkcs12
 from google.auth.crypt import RSASigner
 from google.auth.exceptions import RefreshError as GoogleRefreshError
-from google.oauth2 import credentials as user_credentials, service_account
+from google.oauth2 import credentials as user_credentials
+from google.oauth2 import service_account
 from google_auth_httplib2 import AuthorizedHttp, Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -60,7 +61,7 @@ def LoadAuth(decoratee):
             if self.auth.credentials is not None and not isinstance(
                 self.auth.credentials, user_credentials.Credentials
             ):
-                self.auth.Refresh()
+                self.auth._refresh_if_expired()
             elif self.auth.auth_method == "service":
                 self.auth.ServiceAuth()
             else:
@@ -140,6 +141,7 @@ class GoogleAuth(ApiAttributeMixin):
         self.http_timeout = http_timeout
         ApiAttributeMixin.__init__(self)
         self.thread_local = threading.local()
+        self._refresh_lock = threading.RLock()
         self.client_config = {}
 
         if settings is None and settings_file:
@@ -213,7 +215,7 @@ class GoogleAuth(ApiAttributeMixin):
             not isinstance(self.credentials, user_credentials.Credentials)
             or self.credentials.refresh_token
         ):
-            self.Refresh()
+            self._refresh_if_expired()
             return
         if os.getenv("GDRIVE_NON_INTERACTIVE"):
             raise AuthenticationError(
@@ -245,7 +247,7 @@ class GoogleAuth(ApiAttributeMixin):
                 raise AuthenticationRejected(
                     "User rejected authentication"
                 ) from exc
-            except OAuth2Error as exc:
+            except (OAuth2Error, Warning) as exc:
                 raise AuthenticationError(
                     "OAuth2 authorization failed"
                 ) from exc
@@ -307,8 +309,7 @@ class GoogleAuth(ApiAttributeMixin):
                     )
                 )
             self.service = None
-        if self.access_token_expired:
-            self.Refresh()
+        self._refresh_if_expired()
         if self.service is None:
             self.Authorize()
 
@@ -582,32 +583,44 @@ class GoogleAuth(ApiAttributeMixin):
             return {"access_type": "offline", "prompt": "consent"}
         return {"access_type": "online"}
 
+    def _refresh_if_expired(self):
+        with self._refresh_lock:
+            if self.access_token_expired:
+                self.Refresh()
+
     def Refresh(self):
         """Refreshes the access_token.
 
         :raises: RefreshError
         """
-        if self.credentials is None:
-            raise RefreshError("No credential to refresh.")
-        if (
-            isinstance(self.credentials, user_credentials.Credentials)
-            and self.credentials.refresh_token is None
-        ):
-            raise RefreshError(
-                "No refresh_token found."
-                "Please set access_type of OAuth to offline."
-            )
-        if self.http is None:
-            self.http = self._build_http()
-        try:
+        with self._refresh_lock:
+            if self.credentials is None:
+                raise RefreshError("No credential to refresh.")
+            user = isinstance(self.credentials, user_credentials.Credentials)
+            if user and self.credentials.refresh_token is None:
+                raise RefreshError(
+                    "No refresh_token found. "
+                    "Please set access_type of OAuth to offline."
+                )
+            if self.http is None:
+                self.http = self._build_http()
             http = (
                 self.http.http
                 if isinstance(self.http, AuthorizedHttp)
                 else self.http
             )
-            self.credentials.refresh(Request(http))
-        except GoogleRefreshError as error:
-            raise RefreshError(f"Access token refresh failed: {error}")
+            try:
+                self.credentials.refresh(Request(http))
+            except GoogleRefreshError as exc:
+                raise RefreshError(
+                    f"Access token refresh failed: {exc}"
+                ) from exc
+            if (
+                user
+                and self.settings.get("save_credentials")
+                and getattr(self.credentials, "storage", None) is None
+            ):
+                self.SaveCredentials()
 
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.
@@ -641,8 +654,10 @@ class GoogleAuth(ApiAttributeMixin):
         try:
             self.flow.fetch_token(code=code)
             self._use_flow_credentials(self.flow.credentials)
-        except OAuth2Error as e:
-            raise AuthenticationError(f"OAuth2 code exchange failed: {e}")
+        except (OAuth2Error, Warning) as exc:
+            raise AuthenticationError(
+                f"OAuth2 code exchange failed: {exc}"
+            ) from exc
         print("Authentication successful.")
 
     def _build_http(self):
