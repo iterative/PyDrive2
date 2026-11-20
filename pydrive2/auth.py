@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import errno
 import json
 import os
@@ -314,7 +316,10 @@ class GoogleAuth(ApiAttributeMixin):
             self.Authorize()
 
     def _InitializeStoragesFromSettings(self):
-        result = {"file": None, "dictionary": None}
+        result: dict[str, FileStorage | DictionaryStorage | None] = {
+            "file": None,
+            "dictionary": None,
+        }
         backend = self.settings.get("save_credentials_backend")
         save_credentials = self.settings.get("save_credentials")
         if backend == "file":
