@@ -3,6 +3,7 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, reopened, synchronize, edited]
   workflow_dispatch:
 
 name: Tests
@@ -11,9 +12,25 @@ permissions:
   contents: read
 
 jobs:
+  pending:
+    if: >-
+      github.event_name == 'pull_request' && github.base_ref == 'main' &&
+      (github.event.action != 'edited' || github.event.changes.base.ref.from) &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
+    permissions:
+      statuses: write
+    uses: ./.github/workflows/drive-status.yml
+    with:
+      # Retargeting keeps the head SHA. Bind that run to the new test merge commit.
+      sha: &status-sha ${{ github.event.action == 'edited' && github.sha || github.event.pull_request.head.sha }}
+      state: pending
+
   test:
     name: test (${{ matrix.os }}, ${{ matrix.pyv }})
     runs-on: ${{ matrix.os }}
+    if: github.event.action != 'edited' || github.event.changes.base.ref.from
     outputs:
       live: ${{ steps.live.outcome }}
 
@@ -57,15 +74,11 @@ jobs:
         GDRIVE_USER_CREDENTIALS_DATA: ${{ secrets.GDRIVE_USER_CREDENTIALS_DATA }}
 
   report:
-    needs: test
-    if: >-
-      always() && github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
-      github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
+    needs: [pending, test]
+    if: always() && needs.pending.result == 'success'
     permissions:
       statuses: write
     uses: ./.github/workflows/drive-status.yml
     with:
-      sha: ${{ github.event.pull_request.head.sha }}
+      sha: *status-sha
       state: ${{ needs.test.result == 'success' && needs.test.outputs.live == 'success' && 'success' || 'failure' }}
