@@ -1,5 +1,3 @@
-"""Credential persistence for GoogleAuth's file and dictionary backends."""
-
 import json
 import os
 import tempfile
