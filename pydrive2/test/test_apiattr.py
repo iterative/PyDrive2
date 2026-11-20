@@ -1,5 +1,7 @@
 import unittest
 
+import pytest
+
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 from pydrive2.test.test_util import (
@@ -9,6 +11,7 @@ from pydrive2.test.test_util import (
 )
 
 
+@pytest.mark.drive
 class ApiAttributeTest(unittest.TestCase):
     """Test ApiAttr functions."""
 

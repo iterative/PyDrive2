@@ -16,6 +16,8 @@ from pydrive2.test.test_util import (
     setup_credentials,
 )
 
+pytestmark = pytest.mark.drive
+
 TEST_GDRIVE_REPO_BUCKET = "root"
 
 

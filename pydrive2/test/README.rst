@@ -1,6 +1,16 @@
 Run tests locally
 -----------------
 
+After installing the test dependencies, run the offline tests from the
+repository root.
+
+.. code-block:: console
+
+    python -m pytest -m "not manual and not drive"
+
+Mark tests that need Drive credentials with ``pytest.mark.drive``. To run
+those tests locally, configure a service account as described below.
+
 1. Copy settings files to the :code:`pydrive2/test/settings/local` directory:
 
 ::

@@ -2,22 +2,16 @@ on:
   push:
     branches:
       - main
-  pull_request_target:
+  pull_request:
   workflow_dispatch:
 
 name: Tests
 
+permissions:
+  contents: read
+
 jobs:
-  authorize:
-    environment:
-      ${{ (github.event_name == 'pull_request_target' &&
-      github.event.pull_request.head.repo.full_name != github.repository) &&
-      'external' || 'internal' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo ✓
   test:
-    needs: authorize
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -28,10 +22,9 @@ jobs:
         pyv: ["3.11", "3.12", "3.13", "3.14", "3.15"]
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
       with:
-        # NOTE: needed for pull_request_target to use PR code
-        ref: ${{ github.event.pull_request.head.sha || github.ref }}
+        persist-credentials: false
 
     - uses: actions/setup-python@v7
       with:
@@ -40,7 +33,18 @@ jobs:
     - name: Install dependencies
       run: python -m pip install -e '.[fsspec, tests]'
 
-    - name: Test
-      run: python -m pytest -m "not manual"
+    - name: Run offline tests
+      run: python -m pytest -m "not manual and not drive"
+
+    - name: Run live Drive tests
+      if: >-
+        github.actor != 'dependabot[bot]' &&
+        !startsWith(github.head_ref || github.ref_name, 'dependabot/') &&
+        ((github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          github.event.pull_request.user.login != 'dependabot[bot]') ||
+         ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          github.ref_type == 'branch'))
+      run: python -m pytest -m "not manual and drive"
       env:
         GDRIVE_USER_CREDENTIALS_DATA: ${{ secrets.GDRIVE_USER_CREDENTIALS_DATA }}
