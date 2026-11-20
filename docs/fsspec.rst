@@ -82,7 +82,8 @@ Using json keyfile path:
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
-        # replace with ID of a drive or directory and give service account access to it
+        # replace with ID of a drive or directory and give service account
+        # access to it
         "root",
         use_service_account=True,
         client_json_file_path="/path/to/keyfile.json",
@@ -95,7 +96,8 @@ Using json keyfile string:
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
-        # replace with ID of a drive or directory and give service account access to it
+        # replace with ID of a drive or directory and give service account
+        # access to it
         "root",
         use_service_account=True,
         client_json=json_string,
@@ -106,19 +108,23 @@ Use `client_user_email` if you are using `delegation of authority`_.
 Additional parameters
 ---------------------
 
-:trash_only (bool): Move files to trash instead of deleting.
-:acknowledge_abuse (bool): Acknowledging the risk and download file identified as abusive. See `Abusive files`_ for more info.
+:trash_only (bool):
+    Move files to trash instead of deleting.
+:acknowledge_abuse (bool):
+    Acknowledging the risk and download file identified as abusive. See
+    `Abusive files`_ for more info.
 
 Using filesystem
 ----------------
 
 .. code-block:: python
 
-    # replace `root` with ID of a drive or directory and give service account access to it
+    # replace `root` with ID of a drive or directory and give service account
+    # access to it
     for root, dnames, fnames in fs.walk("root"):
         for dname in dnames:
             print(f"dir: {root}/{dname}")
-        
+
         for fname in fnames:
             print(f"file: {root}/{fname}")
 
@@ -128,6 +134,8 @@ about and manipulating files, refer to fsspec docs on
 
 .. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
 .. _`GDriveFileSystem`: /PyDrive2/pydrive2/#pydrive2.fs.GDriveFileSystem
-.. _`delegation of authority`: https://developers.google.com/admin-sdk/directory/v1/guides/delegation
+.. _`delegation of authority`:
+   https://developers.google.com/admin-sdk/directory/v1/guides/delegation
 .. _`Abusive files`: /PyDrive2/filemanagement/index.html#abusive-files
-.. _`how to use a filesystem`: https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system
+.. _`how to use a filesystem`:
+   https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system
