@@ -19,9 +19,9 @@ Run ``python -m mypy`` to type-check the package for Python 3.11.
 Live Drive tests for external pull requests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Fork and Dependabot PRs run offline tests automatically. To request live
-Drive tests, comment ``/test-drive`` on the PR. CI looks up the commit, and
-an ``external`` reviewer approves it after reviewing the full change. The
-approved code runs with the existing Drive test credential. The PR's
-``Live Drive tests`` check links to the run and must pass before merging.
-If you push a new commit, comment ``/test-drive`` again.
+Fork and Dependabot PRs run offline tests automatically. A repository
+maintainer or admin can comment ``/test-drive`` to request live tests.
+An ``external`` reviewer approves the displayed commit after reviewing the
+full change. The approved code runs with the existing Drive test credential.
+The PR's ``Live Drive tests`` check links to the run and must pass before
+merging. A new commit needs a fresh request and approval.

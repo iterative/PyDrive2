@@ -28,7 +28,13 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          COMMENTER: ${{ github.event.comment.user.login }}
         run: |
+          role=$(gh api "repos/$GITHUB_REPOSITORY/collaborators/$COMMENTER/permission" --jq .role_name)
+          if [[ "$role" != maintain && "$role" != admin ]]; then
+            echo "Only repository maintainers and admins can request Drive tests."
+            exit 0
+          fi
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
             jq -er 'select(.state == "open" and .base.ref == "main" and .head.repo != null)
               | "sha=\(.head.sha)", "repository=\(.head.repo.full_name)",
