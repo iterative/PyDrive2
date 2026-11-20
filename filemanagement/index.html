@@ -1,15 +1,15 @@
 <!doctype html>
-<html class="no-js" lang="en" data-content_root="">
-  <head><meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="File listing made easy" href="../filelist/" /><link rel="prev" title="OAuth made easy" href="../oauth/" />
+<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="File listing made easy" href="../filelist/"><link rel="prev" title="OAuth made easy" href="../oauth/">
 
-    <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
         <title>File management made easy - PyDrive2 1.19.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=302659d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
 
@@ -144,14 +144,10 @@
   </symbol>
 </svg>
 
-<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
-<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
-<label class="overlay sidebar-overlay" for="__navigation">
-  <div class="visually-hidden">Hide navigation sidebar</div>
-</label>
-<label class="overlay toc-overlay" for="__toc">
-  <div class="visually-hidden">Hide table of contents sidebar</div>
-</label>
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
 
 <a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
 
@@ -161,8 +157,7 @@
   <header class="mobile-header">
     <div class="header-left">
       <label class="nav-overlay-icon" for="__navigation">
-        <div class="visually-hidden">Toggle site navigation sidebar</div>
-        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
       </label>
     </div>
     <div class="header-center">
@@ -170,8 +165,7 @@
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
-        <button class="theme-toggle">
-          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
           <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
           <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
           <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
@@ -179,8 +173,7 @@
         </button>
       </div>
       <label class="toc-overlay-icon toc-header-icon" for="__toc">
-        <div class="visually-hidden">Toggle table of contents sidebar</div>
-        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
   </header>
@@ -188,7 +181,6 @@
     <div class="sidebar-container">
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
-  
   
   <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
   
@@ -232,8 +224,7 @@
   </a>
 </div>
 <div class="theme-toggle-container theme-toggle-content">
-            <button class="theme-toggle">
-              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
               <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
               <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
               <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
@@ -241,29 +232,28 @@
             </button>
           </div>
           <label class="toc-overlay-icon toc-content-icon" for="__toc">
-            <div class="visually-hidden">Toggle table of contents sidebar</div>
-            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
           <section id="file-management-made-easy">
-<h1>File management made easy<a class="headerlink" href="#file-management-made-easy" title="Permalink to this heading">¶</a></h1>
+<h1>File management made easy<a class="headerlink" href="#file-management-made-easy" title="Link to this heading">¶</a></h1>
 <p>There are many methods to create and update file metadata and contents.
 With <em>PyDrive</em>, you don’t have to care about any of these different API methods.
 Manipulate file metadata and contents from <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object and call
 <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.Upload">Upload()</a>. <em>PyDrive</em> will make the optimal API call for you.</p>
 <section id="upload-a-new-file">
-<h2>Upload a new file<a class="headerlink" href="#upload-a-new-file" title="Permalink to this heading">¶</a></h2>
+<h2>Upload a new file<a class="headerlink" href="#upload-a-new-file" title="Link to this heading">¶</a></h2>
 <p>Here is a sample code to upload a file. <code class="docutils literal notranslate"><span class="pre">gauth</span></code> is an authenticated <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth">GoogleAuth</a> object.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 
 <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance.</span>
 <span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
 
-<span class="c1"># Create GoogleDriveFile instance with title &#39;Hello.txt&#39;.</span>
-<span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;Hello.txt&#39;</span><span class="p">})</span>
+<span class="c1"># Create GoogleDriveFile instance with title 'Hello.txt'.</span>
+<span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'title'</span><span class="p">:</span> <span class="s1">'Hello.txt'</span><span class="p">})</span>
 <span class="n">file1</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span> <span class="c1"># Upload the file.</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
 <span class="c1"># title: Hello.txt, id: {{FILE_ID}}</span>
 </pre></div>
 </div>
@@ -271,7 +261,7 @@ Manipulate file metadata and contents from <a class="reference external" href="/
 <p>Note that <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.drive.GoogleDrive.CreateFile">CreateFile()</a> will create <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instance but not actually upload a file to Google Drive. You can initialize <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object by itself. However, it is not recommended to do so in order to keep authentication consistent.</p>
 </section>
 <section id="delete-trash-and-un-trash-files">
-<h2>Delete, Trash and un-Trash files<a class="headerlink" href="#delete-trash-and-un-trash-files" title="Permalink to this heading">¶</a></h2>
+<h2>Delete, Trash and un-Trash files<a class="headerlink" href="#delete-trash-and-un-trash-files" title="Link to this heading">¶</a></h2>
 <p>You may want to delete, trash, or un-trash a file. To do this use <code class="docutils literal notranslate"><span class="pre">Delete()</span></code>,
 <code class="docutils literal notranslate"><span class="pre">Trash()</span></code> or <code class="docutils literal notranslate"><span class="pre">UnTrash()</span></code> on a GoogleDriveFile object.</p>
 <p><em>Note:</em> <code class="docutils literal notranslate"><span class="pre">Trash()</span></code> <em>moves a file into the trash and can be recovered,</em>
@@ -287,37 +277,37 @@ Manipulate file metadata and contents from <a class="reference external" href="/
 </div>
 </section>
 <section id="update-file-metadata">
-<h2>Update file metadata<a class="headerlink" href="#update-file-metadata" title="Permalink to this heading">¶</a></h2>
+<h2>Update file metadata<a class="headerlink" href="#update-file-metadata" title="Link to this heading">¶</a></h2>
 <p>You can manipulate file metadata from a <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> object just as you manipulate a <code class="docutils literal notranslate"><span class="pre">dict</span></code>.
 The format of file metadata can be found in the Google Drive API documentation: <a class="reference external" href="https://developers.google.com/drive/v2/reference/files#resource-representations">Files resource</a>.</p>
 <p>Sample code continues from <a class="reference internal" href="#upload-a-new-file">Upload a new file</a>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;HelloWorld.txt&#39;</span> <span class="c1"># Change title of the file.</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">]</span> <span class="o">=</span> <span class="s1">'HelloWorld.txt'</span> <span class="c1"># Change title of the file.</span>
 <span class="n">file1</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span> <span class="c1"># Update metadata.</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;title: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="n">file1</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">])</span> <span class="c1"># title: HelloWorld.txt.</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">])</span> <span class="c1"># title: HelloWorld.txt.</span>
 </pre></div>
 </div>
 <p>Now, the title of your file has changed to ‘HelloWorld.txt’.</p>
 </section>
 <section id="download-file-metadata-from-file-id">
-<h2>Download file metadata from file ID<a class="headerlink" href="#download-file-metadata-from-file-id" title="Permalink to this heading">¶</a></h2>
+<h2>Download file metadata from file ID<a class="headerlink" href="#download-file-metadata-from-file-id" title="Link to this heading">¶</a></h2>
 <p>You might want to get file metadata from file ID. In that case, just initialize
 <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> with file ID and access metadata from <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>
 just as you access <code class="docutils literal notranslate"><span class="pre">dict</span></code>.</p>
 <p>Sample code continues from above:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create GoogleDriveFile instance with file id of file1.</span>
-<span class="n">file2</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">file1</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]})</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;title: </span><span class="si">%s</span><span class="s1">, mimeType: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file2</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">],</span> <span class="n">file2</span><span class="p">[</span><span class="s1">&#39;mimeType&#39;</span><span class="p">]))</span>
+<span class="n">file2</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]})</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, mimeType: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file2</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file2</span><span class="p">[</span><span class="s1">'mimeType'</span><span class="p">]))</span>
 <span class="c1"># title: HelloWorld.txt, mimeType: text/plain</span>
 </pre></div>
 </div>
 </section>
 <section id="handling-special-metadata">
-<h2>Handling special metadata<a class="headerlink" href="#handling-special-metadata" title="Permalink to this heading">¶</a></h2>
+<h2>Handling special metadata<a class="headerlink" href="#handling-special-metadata" title="Link to this heading">¶</a></h2>
 <p>Not all metadata can be set with the methods described above.
 PyDrive gives you access to the metadata of an object through
 <code class="docutils literal notranslate"><span class="pre">file_object.FetchMetadata()</span></code>. This function has two optional parameters:
 <code class="docutils literal notranslate"><span class="pre">fields</span></code> and <code class="docutils literal notranslate"><span class="pre">fetch_all</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;some file ID here&gt;&#39;</span><span class="p">})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="s1">'&lt;some file ID here&gt;'</span><span class="p">})</span>
 
 <span class="c1"># Fetches all basic metadata fields, including file size, last modified etc.</span>
 <span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">()</span>
@@ -325,16 +315,16 @@ PyDrive gives you access to the metadata of an object through
 <span class="c1"># Fetches all metadata available.</span>
 <span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fetch_all</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="c1"># Fetches the &#39;permissions&#39; metadata field.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">&#39;permissions&#39;</span><span class="p">)</span>
+<span class="c1"># Fetches the 'permissions' metadata field.</span>
+<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">'permissions'</span><span class="p">)</span>
 <span class="c1"># You can update a list of specific fields like this:</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">&#39;permissions,labels,mimeType&#39;</span><span class="p">)</span>
+<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">'permissions,labels,mimeType'</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>For more information on available metadata fields have a look at the
 <a class="reference external" href="https://developers.google.com/drive/v2/reference/files#resource-representations">official documentation</a>.</p>
 <section id="insert-permissions">
-<h3>Insert permissions<a class="headerlink" href="#insert-permissions" title="Permalink to this heading">¶</a></h3>
+<h3>Insert permissions<a class="headerlink" href="#insert-permissions" title="Link to this heading">¶</a></h3>
 <p>Insert, retrieving or deleting permissions is illustrated by making a file
 readable to all who have a link to the file.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">()</span>
@@ -342,11 +332,11 @@ readable to all who have a link to the file.</p>
 
 <span class="c1"># Insert the permission.</span>
 <span class="n">permission</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">InsertPermission</span><span class="p">({</span>
-                        <span class="s1">&#39;type&#39;</span><span class="p">:</span> <span class="s1">&#39;anyone&#39;</span><span class="p">,</span>
-                        <span class="s1">&#39;value&#39;</span><span class="p">:</span> <span class="s1">&#39;anyone&#39;</span><span class="p">,</span>
-                        <span class="s1">&#39;role&#39;</span><span class="p">:</span> <span class="s1">&#39;reader&#39;</span><span class="p">})</span>
+                        <span class="s1">'type'</span><span class="p">:</span> <span class="s1">'anyone'</span><span class="p">,</span>
+                        <span class="s1">'value'</span><span class="p">:</span> <span class="s1">'anyone'</span><span class="p">,</span>
+                        <span class="s1">'role'</span><span class="p">:</span> <span class="s1">'reader'</span><span class="p">})</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">&#39;alternateLink&#39;</span><span class="p">])</span>  <span class="c1"># Display the sharable link.</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'alternateLink'</span><span class="p">])</span>  <span class="c1"># Display the sharable link.</span>
 </pre></div>
 </div>
 <p>Note: <code class="docutils literal notranslate"><span class="pre">InsertPermission()</span></code> calls <code class="docutils literal notranslate"><span class="pre">GetPermissions()</span></code> after successfully
@@ -357,7 +347,7 @@ This file is now shared and anyone with the link can view it. But what if you
 want to check whether a file is already shared?</p>
 </section>
 <section id="list-permissions">
-<h3>List permissions<a class="headerlink" href="#list-permissions" title="Permalink to this heading">¶</a></h3>
+<h3>List permissions<a class="headerlink" href="#list-permissions" title="Link to this heading">¶</a></h3>
 <p>Permissions can be fetched using the <code class="docutils literal notranslate"><span class="pre">GetPermissions()</span></code> function of a
 <code class="docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code>, and can be used like so:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a new file</span>
@@ -366,28 +356,28 @@ want to check whether a file is already shared?</p>
 <span class="n">permissions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetPermissions</span><span class="p">()</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">permissions</span><span class="p">)</span>
 
-<span class="c1"># The permissions are also available as file1[&#39;permissions&#39;]:</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">&#39;permissions&#39;</span><span class="p">])</span>
+<span class="c1"># The permissions are also available as file1['permissions']:</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'permissions'</span><span class="p">])</span>
 </pre></div>
 </div>
 <p>For the more advanced user: <code class="docutils literal notranslate"><span class="pre">GetPermissions()</span></code> is a shorthand for:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Fetch Metadata, including the permissions field.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">&#39;permissions&#39;</span><span class="p">)</span>
+<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">'permissions'</span><span class="p">)</span>
 
 <span class="c1"># The permissions array is now available for further use.</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">&#39;permissions&#39;</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'permissions'</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>
 <section id="remove-a-permission">
-<h3>Remove a Permission<a class="headerlink" href="#remove-a-permission" title="Permalink to this heading">¶</a></h3>
+<h3>Remove a Permission<a class="headerlink" href="#remove-a-permission" title="Link to this heading">¶</a></h3>
 <p><em>PyDrive</em> allows you to remove a specific permission using the
 <code class="docutils literal notranslate"><span class="pre">DeletePermission(permission_id)</span></code> function. This function allows you to delete
 one permission at a time by providing the permission’s ID.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="s1">&#39;&lt;file ID here&gt;&#39;</span><span class="p">})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="s1">'&lt;file ID here&gt;'</span><span class="p">})</span>
 <span class="n">permissions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetPermissions</span><span class="p">()</span>  <span class="c1"># Download file permissions.</span>
 
-<span class="n">permission_id</span> <span class="o">=</span> <span class="n">permissions</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">&#39;id&#39;</span><span class="p">]</span>  <span class="c1"># Get a permission ID.</span>
+<span class="n">permission_id</span> <span class="o">=</span> <span class="n">permissions</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">'id'</span><span class="p">]</span>  <span class="c1"># Get a permission ID.</span>
 
 <span class="n">file1</span><span class="o">.</span><span class="n">DeletePermission</span><span class="p">(</span><span class="n">permission_id</span><span class="p">)</span>  <span class="c1"># Delete the permission.</span>
 </pre></div>
@@ -395,24 +385,24 @@ one permission at a time by providing the permission’s ID.</p>
 </section>
 </section>
 <section id="get-files-by-complex-queries">
-<h2>Get files by complex queries<a class="headerlink" href="#get-files-by-complex-queries" title="Permalink to this heading">¶</a></h2>
+<h2>Get files by complex queries<a class="headerlink" href="#get-files-by-complex-queries" title="Link to this heading">¶</a></h2>
 <p>We can get a file by name and by other constraints, usually a filename will be
 unique but we can have two equal names with different extensions, e.g.,
 <em>123.jpeg and 123.mp3</em>. So if you expect only one file add more constraints to
 the query, see <a class="reference external" href="query_parameters">Query string examples</a>, as a result we get
 a list of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instances.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance.</span>
 <span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
-<span class="n">filename</span> <span class="o">=</span> <span class="s1">&#39;file_test&#39;</span>
+<span class="n">filename</span> <span class="o">=</span> <span class="s1">'file_test'</span>
 <span class="c1"># Query</span>
-<span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;q&#39;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;title = &#39;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&#39; and mimeType=&#39;</span><span class="si">{</span><span class="n">mimetype</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">}</span>
+<span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s1">'q'</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"title = '</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">' and mimeType='</span><span class="si">{</span><span class="n">mimetype</span><span class="si">}</span><span class="s2">'"</span><span class="p">}</span>
 <span class="c1"># Get list of files that match against the query</span>
 <span class="n">files</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">(</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
 </pre></div>
 </div>
 <section id="list-revisions">
-<h3>List revisions<a class="headerlink" href="#list-revisions" title="Permalink to this heading">¶</a></h3>
+<h3>List revisions<a class="headerlink" href="#list-revisions" title="Link to this heading">¶</a></h3>
 <p>Revisions can be fetched using the <code class="docutils literal notranslate"><span class="pre">GetRevisions()</span></code> function of a
 <code class="docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code>, and can be used like so:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a new file</span>
@@ -427,22 +417,22 @@ file object that does not have revisions, an exception will be raised.</p>
 </section>
 </section>
 <section id="upload-and-update-file-content">
-<h2>Upload and update file content<a class="headerlink" href="#upload-and-update-file-content" title="Permalink to this heading">¶</a></h2>
+<h2>Upload and update file content<a class="headerlink" href="#upload-and-update-file-content" title="Link to this heading">¶</a></h2>
 <p>Managing file content is as easy as managing file metadata. You can set file
 content with either <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile">SetContentFile(filename)</a> or <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentString">SetContentString(content)</a>
 and call <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.Upload">Upload()</a> just as you did to upload or update file metadata.</p>
 <p>Sample code continues from <a class="reference internal" href="#download-file-metadata-from-file-id">Download file metadata from file ID</a>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file4</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">&#39;title&#39;</span><span class="p">:</span><span class="s1">&#39;appdata.json&#39;</span><span class="p">,</span> <span class="s1">&#39;mimeType&#39;</span><span class="p">:</span><span class="s1">&#39;application/json&#39;</span><span class="p">})</span>
-<span class="n">file4</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">&#39;{&quot;firstname&quot;: &quot;John&quot;, &quot;lastname&quot;: &quot;Smith&quot;}&#39;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file4</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'title'</span><span class="p">:</span><span class="s1">'appdata.json'</span><span class="p">,</span> <span class="s1">'mimeType'</span><span class="p">:</span><span class="s1">'application/json'</span><span class="p">})</span>
+<span class="n">file4</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">'{"firstname": "John", "lastname": "Smith"}'</span><span class="p">)</span>
 <span class="n">file4</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span> <span class="c1"># Upload file.</span>
-<span class="n">file4</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">&#39;{&quot;firstname&quot;: &quot;Claudio&quot;, &quot;lastname&quot;: &quot;Afshar&quot;}&#39;</span><span class="p">)</span>
+<span class="n">file4</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">'{"firstname": "Claudio", "lastname": "Afshar"}'</span><span class="p">)</span>
 <span class="n">file4</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span> <span class="c1"># Update content of the file.</span>
 
 <span class="n">file5</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">()</span>
 <span class="c1"># Read file and set it as a content of this instance.</span>
-<span class="n">file5</span><span class="o">.</span><span class="n">SetContentFile</span><span class="p">(</span><span class="s1">&#39;cat.png&#39;</span><span class="p">)</span>
+<span class="n">file5</span><span class="o">.</span><span class="n">SetContentFile</span><span class="p">(</span><span class="s1">'cat.png'</span><span class="p">)</span>
 <span class="n">file5</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span> <span class="c1"># Upload the file.</span>
-<span class="nb">print</span><span class="p">(</span><span class="s1">&#39;title: </span><span class="si">%s</span><span class="s1">, mimeType: </span><span class="si">%s</span><span class="s1">&#39;</span> <span class="o">%</span> <span class="p">(</span><span class="n">file5</span><span class="p">[</span><span class="s1">&#39;title&#39;</span><span class="p">],</span> <span class="n">file5</span><span class="p">[</span><span class="s1">&#39;mimeType&#39;</span><span class="p">]))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, mimeType: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file5</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file5</span><span class="p">[</span><span class="s1">'mimeType'</span><span class="p">]))</span>
 <span class="c1"># title: cat.png, mimeType: image/png</span>
 </pre></div>
 </div>
@@ -452,25 +442,25 @@ parameter <cite>encoding</cite>.</p>
 <p>If you, for example, are retrieving a file which is stored on your Google
 Drive which is encoded with ISO-8859-1, then you can get the content string
 like so:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">content_string</span> <span class="o">=</span> <span class="n">file4</span><span class="o">.</span><span class="n">GetContentString</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s1">&#39;ISO-8859-1&#39;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">content_string</span> <span class="o">=</span> <span class="n">file4</span><span class="o">.</span><span class="n">GetContentString</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s1">'ISO-8859-1'</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="upload-data-as-bytes-in-memory-buffer">
-<h2>Upload data as bytes in memory buffer<a class="headerlink" href="#upload-data-as-bytes-in-memory-buffer" title="Permalink to this heading">¶</a></h2>
+<h2>Upload data as bytes in memory buffer<a class="headerlink" href="#upload-data-as-bytes-in-memory-buffer" title="Link to this heading">¶</a></h2>
 <p>Data can be kept as bytes in an in-memory buffer when we use the <code class="docutils literal notranslate"><span class="pre">io</span></code> module’s
 Byte IO operations, we can upload files that reside in memory, for
 example we have a base64 image, we can decode the string and upload it to drive
 without the need to save as a file and use <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile">SetContentFile(filename)</a></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">io</span>
-<span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 
 <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance.</span>
 <span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
 <span class="c1"># Define file name and type</span>
 <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;image_test&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;mimeType&#39;</span><span class="p">:</span> <span class="s1">&#39;image/jpeg&#39;</span>
+    <span class="s1">'title'</span><span class="p">:</span> <span class="s1">'image_test'</span><span class="p">,</span>
+    <span class="s1">'mimeType'</span><span class="p">:</span> <span class="s1">'image/jpeg'</span>
 <span class="p">}</span>
 <span class="c1"># Create file</span>
 <span class="n">file</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
@@ -484,16 +474,16 @@ without the need to save as a file and use <a class="reference external" href="/
 </div>
 </section>
 <section id="upload-file-to-a-specific-folder">
-<h2>Upload file to a specific folder<a class="headerlink" href="#upload-file-to-a-specific-folder" title="Permalink to this heading">¶</a></h2>
+<h2>Upload file to a specific folder<a class="headerlink" href="#upload-file-to-a-specific-folder" title="Link to this heading">¶</a></h2>
 <p>In order to upload a file into a specific drive folder we need to pass the
 <code class="docutils literal notranslate"><span class="pre">id</span></code> of the folder in the metadata <code class="docutils literal notranslate"><span class="pre">param</span></code> from <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.drive.GoogleDrive.CreateFile">CreateFile()</a>.
 Save the image from the previous example into a specific folder``:``</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">&#39;parents&#39;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">id_drive_folder</span><span class="p">}</span>
+    <span class="s1">'parents'</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">"id"</span><span class="p">:</span> <span class="n">id_drive_folder</span><span class="p">}</span>
     <span class="p">],</span>
-    <span class="s1">&#39;title&#39;</span><span class="p">:</span> <span class="s1">&#39;image_test&#39;</span><span class="p">,</span>
-    <span class="s1">&#39;mimeType&#39;</span><span class="p">:</span> <span class="s1">&#39;image/jpeg&#39;</span>
+    <span class="s1">'title'</span><span class="p">:</span> <span class="s1">'image_test'</span><span class="p">,</span>
+    <span class="s1">'mimeType'</span><span class="p">:</span> <span class="s1">'image/jpeg'</span>
 <span class="p">}</span>
 <span class="c1"># Create file</span>
 <span class="n">file</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
@@ -502,22 +492,22 @@ Save the image from the previous example into a specific folder``:``</p>
 </div>
 </section>
 <section id="download-file-content">
-<h2>Download file content<a class="headerlink" href="#download-file-content" title="Permalink to this heading">¶</a></h2>
+<h2>Download file content<a class="headerlink" href="#download-file-content" title="Link to this heading">¶</a></h2>
 <p>Just as you uploaded file content, you can download it using
 <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentFile">GetContentFile(filename)</a> or <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.GetContentString">GetContentString()</a>.</p>
 <p>Sample code continues from above:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialize GoogleDriveFile instance with file id.</span>
-<span class="n">file6</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">file5</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]})</span>
-<span class="n">file6</span><span class="o">.</span><span class="n">GetContentFile</span><span class="p">(</span><span class="s1">&#39;catlove.png&#39;</span><span class="p">)</span> <span class="c1"># Download file as &#39;catlove.png&#39;.</span>
+<span class="n">file6</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="n">file5</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]})</span>
+<span class="n">file6</span><span class="o">.</span><span class="n">GetContentFile</span><span class="p">(</span><span class="s1">'catlove.png'</span><span class="p">)</span> <span class="c1"># Download file as 'catlove.png'.</span>
 
 <span class="c1"># Initialize GoogleDriveFile instance with file id.</span>
-<span class="n">file7</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">&#39;id&#39;</span><span class="p">:</span> <span class="n">file4</span><span class="p">[</span><span class="s1">&#39;id&#39;</span><span class="p">]})</span>
+<span class="n">file7</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="n">file4</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]})</span>
 <span class="n">content</span> <span class="o">=</span> <span class="n">file7</span><span class="o">.</span><span class="n">GetContentString</span><span class="p">()</span>
-<span class="c1"># content: &#39;{&quot;firstname&quot;: &quot;Claudio&quot;, &quot;lastname&quot;: &quot;Afshar&quot;}&#39;</span>
+<span class="c1"># content: '{"firstname": "Claudio", "lastname": "Afshar"}'</span>
 
-<span class="n">file7</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;lastname&#39;</span><span class="p">,</span> <span class="s1">&#39;familyname&#39;</span><span class="p">))</span>
+<span class="n">file7</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="n">content</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">'lastname'</span><span class="p">,</span> <span class="s1">'familyname'</span><span class="p">))</span>
 <span class="n">file7</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
-<span class="c1"># Uploaded content: &#39;{&quot;firstname&quot;: &quot;Claudio&quot;, &quot;familyname&quot;: &quot;Afshar&quot;}&#39;</span>
+<span class="c1"># Uploaded content: '{"firstname": "Claudio", "familyname": "Afshar"}'</span>
 </pre></div>
 </div>
 <p><strong>Advanced users</strong>: Google Drive is <a class="reference external" href="https://productforums.google.com/forum/#!topic/docs/BJLimQDGtjQ">known</a> to add BOM (Byte Order Marks) to
@@ -529,7 +519,7 @@ is downloaded. Just set the <cite>remove_bom</cite> parameter in <cite>GetConten
 repository for an example.</p>
 </section>
 <section id="abusive-files">
-<h2>Abusive files<a class="headerlink" href="#abusive-files" title="Permalink to this heading">¶</a></h2>
+<h2>Abusive files<a class="headerlink" href="#abusive-files" title="Link to this heading">¶</a></h2>
 <p>Files identified as <a class="reference external" href="https://support.google.com/docs/answer/148505">abusive</a> (malware, etc.) are only downloadable by the owner.
 If you see a
 ‘This file has been identified as malware or spam and cannot be downloaded’
@@ -624,9 +614,9 @@ it you indicate that you acknowledge the risks of downloading potential malware.
       
     </aside>
   </div>
-</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=436b7c6f"></script>
-    <script src="../_static/doctools.js?v=888ff710"></script>
-    <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
-    <script src="../_static/scripts/furo.js?v=5fa4622c"></script>
+</div><script src="../_static/documentation_options.js?v=947f95a7"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
     </body>
 </html>

@@ -1,15 +1,15 @@
 <!doctype html>
-<html class="no-js" lang="en" data-content_root="">
-  <head><meta charset="utf-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex/" /><link rel="search" title="Search" href="../search/" /><link rel="next" title="File management made easy" href="../filemanagement/" /><link rel="prev" title="Quickstart" href="../quickstart/" />
+<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="File management made easy" href="../filemanagement/"><link rel="prev" title="Quickstart" href="../quickstart/">
 
-    <!-- Generated with Sphinx 7.1.2 and Furo 2024.08.06 -->
+    <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
         <title>OAuth made easy - PyDrive2 1.19.0 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=354aac6f" />
-    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=302659d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
     
     
 
@@ -144,14 +144,10 @@
   </symbol>
 </svg>
 
-<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation">
-<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc">
-<label class="overlay sidebar-overlay" for="__navigation">
-  <div class="visually-hidden">Hide navigation sidebar</div>
-</label>
-<label class="overlay toc-overlay" for="__toc">
-  <div class="visually-hidden">Hide table of contents sidebar</div>
-</label>
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
 
 <a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
 
@@ -161,8 +157,7 @@
   <header class="mobile-header">
     <div class="header-left">
       <label class="nav-overlay-icon" for="__navigation">
-        <div class="visually-hidden">Toggle site navigation sidebar</div>
-        <i class="icon"><svg><use href="#svg-menu"></use></svg></i>
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
       </label>
     </div>
     <div class="header-center">
@@ -170,8 +165,7 @@
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
-        <button class="theme-toggle">
-          <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
           <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
           <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
           <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
@@ -179,8 +173,7 @@
         </button>
       </div>
       <label class="toc-overlay-icon toc-header-icon" for="__toc">
-        <div class="visually-hidden">Toggle table of contents sidebar</div>
-        <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
   </header>
@@ -188,7 +181,6 @@
     <div class="sidebar-container">
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
-  
   
   <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
   
@@ -232,8 +224,7 @@
   </a>
 </div>
 <div class="theme-toggle-container theme-toggle-content">
-            <button class="theme-toggle">
-              <div class="visually-hidden">Toggle Light / Dark / Auto color theme</div>
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
               <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
               <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
               <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
@@ -241,18 +232,17 @@
             </button>
           </div>
           <label class="toc-overlay-icon toc-content-icon" for="__toc">
-            <div class="visually-hidden">Toggle table of contents sidebar</div>
-            <i class="icon"><svg><use href="#svg-toc"></use></svg></i>
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
           <section id="oauth-made-easy">
-<h1>OAuth made easy<a class="headerlink" href="#oauth-made-easy" title="Permalink to this heading">¶</a></h1>
+<h1>OAuth made easy<a class="headerlink" href="#oauth-made-easy" title="Link to this heading">¶</a></h1>
 <section id="authentication-in-two-lines">
-<h2>Authentication in two lines<a class="headerlink" href="#authentication-in-two-lines" title="Permalink to this heading">¶</a></h2>
+<h2>Authentication in two lines<a class="headerlink" href="#authentication-in-two-lines" title="Link to this heading">¶</a></h2>
 <p>OAuth2.0 is complex and difficult to start with. To make it more simple,
 <em>PyDrive2</em> makes all authentication into just two lines.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.auth</span> <span class="kn">import</span> <span class="n">GoogleAuth</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAuth</span>
 
 <span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">()</span>
 <span class="c1"># Create local webserver and auto handles authentication.</span>
@@ -275,7 +265,7 @@ authorizes by itself. You can also use <a class="reference external" href="/PyDr
 takes code from user at command line.</p>
 </section>
 <section id="automatic-and-custom-authentication-with-settings-yaml">
-<h2>Automatic and custom authentication with <em>settings.yaml</em><a class="headerlink" href="#automatic-and-custom-authentication-with-settings-yaml" title="Permalink to this heading">¶</a></h2>
+<h2>Automatic and custom authentication with <em>settings.yaml</em><a class="headerlink" href="#automatic-and-custom-authentication-with-settings-yaml" title="Link to this heading">¶</a></h2>
 <p>Read this section if you need a custom authentication flow, <strong>such as silent
 authentication on a remote machine</strong>. For an example of such a setup have a look
 at <a class="reference internal" href="#sample-settings-yaml">Sample settings.yaml</a>.</p>
@@ -387,7 +377,7 @@ behavior.</p>
 </dd>
 </dl>
 <section id="sample-settings-yaml">
-<h3>Sample <em>settings.yaml</em><a class="headerlink" href="#sample-settings-yaml" title="Permalink to this heading">¶</a></h3>
+<h3>Sample <em>settings.yaml</em><a class="headerlink" href="#sample-settings-yaml" title="Link to this heading">¶</a></h3>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">client_config_backend</span><span class="p">:</span> <span class="n">settings</span>
 <span class="n">client_config</span><span class="p">:</span>
   <span class="n">client_id</span><span class="p">:</span> <span class="mf">9637341109347.</span><span class="n">apps</span><span class="o">.</span><span class="n">googleusercontent</span><span class="o">.</span><span class="n">com</span>
@@ -408,7 +398,7 @@ behavior.</p>
 </section>
 </section>
 <section id="building-your-own-authentication-flow">
-<h2>Building your own authentication flow<a class="headerlink" href="#building-your-own-authentication-flow" title="Permalink to this heading">¶</a></h2>
+<h2>Building your own authentication flow<a class="headerlink" href="#building-your-own-authentication-flow" title="Link to this heading">¶</a></h2>
 <p>You might want to build your own authentication flow. For example, you might
 want to integrate your existing website with Drive API. In that case, you can
 customize an authentication flow as follows:</p>
@@ -419,7 +409,7 @@ customize an authentication flow as follows:</p>
 </ol>
 <p>Your <em>settings.yaml</em> will work for your customized authentication flow, too.</p>
 <p>Here is a sample code for your customized authentication flow</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.auth</span> <span class="kn">import</span> <span class="n">GoogleAuth</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAuth</span>
 
 <span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">()</span>
 <span class="n">auth_url</span> <span class="o">=</span> <span class="n">gauth</span><span class="o">.</span><span class="n">GetAuthUrl</span><span class="p">()</span> <span class="c1"># Create authentication url user needs to visit</span>
@@ -429,7 +419,7 @@ customize an authentication flow as follows:</p>
 </div>
 </section>
 <section id="authentication-with-a-service-account">
-<h2>Authentication with a service account<a class="headerlink" href="#authentication-with-a-service-account" title="Permalink to this heading">¶</a></h2>
+<h2>Authentication with a service account<a class="headerlink" href="#authentication-with-a-service-account" title="Link to this heading">¶</a></h2>
 <p>A <a class="reference external" href="https://developers.google.com/workspace/guides/create-credentials#service-account">Service account</a> is a special type of Google account intended to represent a
 non-human user that needs to authenticate and be authorized to access data in
 Google APIs.</p>
@@ -441,24 +431,24 @@ Google APIs.</p>
 </ul>
 <p>If we use OAuth client ID we need to do one manual login into the account with
 <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth">LocalWebserverAuth()</a>. If we use a service account the login is automatic.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">pydrive2.auth</span> <span class="kn">import</span> <span class="n">GoogleAuth</span>
-<span class="kn">from</span> <span class="nn">pydrive2.drive</span> <span class="kn">import</span> <span class="n">GoogleDrive</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAuth</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 
-<span class="k">def</span> <span class="nf">login_with_service_account</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">login_with_service_account</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Google Drive service with a service account.</span>
 <span class="sd">    note: for the service account to work, you need to share the folder or</span>
 <span class="sd">    files with the service account email.</span>
 
 <span class="sd">    :return: google auth</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="c1"># Define the settings dict to use a service account</span>
     <span class="c1"># We also can use all options available for the settings dict like</span>
     <span class="c1"># oauth_scope,save_credentials,etc.</span>
     <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s2">&quot;client_config_backend&quot;</span><span class="p">:</span> <span class="s2">&quot;service&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;service_config&quot;</span><span class="p">:</span> <span class="p">{</span>
-                    <span class="s2">&quot;client_json_file_path&quot;</span><span class="p">:</span> <span class="s2">&quot;service-secrets.json&quot;</span><span class="p">,</span>
+                <span class="s2">"client_config_backend"</span><span class="p">:</span> <span class="s2">"service"</span><span class="p">,</span>
+                <span class="s2">"service_config"</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">"client_json_file_path"</span><span class="p">:</span> <span class="s2">"service-secrets.json"</span><span class="p">,</span>
                 <span class="p">}</span>
             <span class="p">}</span>
     <span class="c1"># Create instance of GoogleAuth</span>
@@ -545,9 +535,9 @@ Google APIs.</p>
       
     </aside>
   </div>
-</div><script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js?v=436b7c6f"></script>
-    <script src="../_static/doctools.js?v=888ff710"></script>
-    <script src="../_static/sphinx_highlight.js?v=4825356b"></script>
-    <script src="../_static/scripts/furo.js?v=5fa4622c"></script>
+</div><script src="../_static/documentation_options.js?v=947f95a7"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
     </body>
 </html>
