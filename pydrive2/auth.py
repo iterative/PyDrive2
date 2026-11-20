@@ -2,12 +2,15 @@ import errno
 import json
 import os
 import threading
+import webbrowser
 from functools import wraps
 from typing import ClassVar
 
 import httplib2
+from cryptography.hazmat.primitives.serialization import pkcs12
+from google.auth.crypt import RSASigner
 from google.auth.exceptions import RefreshError as GoogleRefreshError
-from google.oauth2 import credentials as user_credentials
+from google.oauth2 import credentials as user_credentials, service_account
 from google_auth_httplib2 import AuthorizedHttp, Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -17,9 +20,7 @@ from ._credentials import (
     DictionaryStorage,
     FileStorage,
     InvalidCredentialsError,
-    ServiceCredentials,
     UserCredentials,
-    p12_key_info,
 )
 from .apiattr import ApiAttribute, ApiAttributeMixin
 from .settings import (
@@ -162,10 +163,6 @@ class GoogleAuth(ApiAttributeMixin):
         """
         return self.credentials is None or not self.credentials.valid
 
-    def _load_saved_credentials(self):
-        if self.credentials is None and self.settings.get("save_credentials"):
-            self.LoadCredentials()
-
     def _use_flow_credentials(self, credentials):
         self.credentials = UserCredentials(
             token=credentials.token,
@@ -208,7 +205,8 @@ class GoogleAuth(ApiAttributeMixin):
         :type bind_addr: str.
         :raises: AuthenticationRejected, AuthenticationError
         """
-        self._load_saved_credentials()
+        if self.credentials is None and self.settings.get("save_credentials"):
+            self.LoadCredentials()
         if not self.access_token_expired:
             return
         if self.credentials is not None and (
@@ -225,6 +223,11 @@ class GoogleAuth(ApiAttributeMixin):
             self.GetFlow()
         if port_numbers is None:
             port_numbers = (8080, 8090)
+        if launch_browser:
+            try:
+                webbrowser.get()
+            except webbrowser.Error:
+                launch_browser = False
         for port in port_numbers:
             try:
                 credentials = self.flow.run_local_server(
@@ -262,31 +265,48 @@ class GoogleAuth(ApiAttributeMixin):
     def ServiceAuth(self):
         """Authenticate with a service account, optionally acting for a user."""
         self.auth_method = "service"
-        self._load_saved_credentials()
-        if self.credentials is None:
+        if not isinstance(self.credentials, service_account.Credentials):
             self.LoadServiceConfigSettings()
             config = self.client_config
-            if "client_json_dict" in config:
-                info = config["client_json_dict"]
-            elif "client_json" in config:
-                info = json.loads(config["client_json"])
-            elif "client_json_file_path" in config:
-                with open(
-                    config["client_json_file_path"], encoding="utf-8"
-                ) as stream:
-                    info = json.load(stream)
-            else:
+            options = {
+                "scopes": self.settings["oauth_scope"],
+                "subject": config.get("client_user_email"),
+            }
+            if "client_pkcs12_file_path" in config:
                 with open(config["client_pkcs12_file_path"], "rb") as stream:
-                    info = p12_key_info(
-                        stream.read(), config["client_service_email"]
+                    key, _, _ = pkcs12.load_key_and_certificates(
+                        stream.read(), b"notasecret"
                     )
-            self.credentials = ServiceCredentials.from_key_info(
-                info,
-                self.settings["oauth_scope"],
-                config.get("client_user_email"),
-            )
-            if self.settings.get("save_credentials"):
-                self.credentials.storage = self._default_storage
+                if key is None:
+                    raise InvalidCredentialsError(
+                        "No private key in PKCS12 file"
+                    )
+                self.credentials = service_account.Credentials(
+                    RSASigner(key),
+                    config["client_service_email"],
+                    "https://oauth2.googleapis.com/token",
+                    **options,
+                )
+            else:
+                if "client_json_dict" in config:
+                    info = config["client_json_dict"]
+                elif "client_json" in config:
+                    info = json.loads(config["client_json"])
+                else:
+                    with open(
+                        config["client_json_file_path"], encoding="utf-8"
+                    ) as stream:
+                        info = json.load(stream)
+                info = {
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    **info,
+                }
+                self.credentials = (
+                    service_account.Credentials.from_service_account_info(
+                        info, **options
+                    )
+                )
+            self.service = None
         if self.access_token_expired:
             self.Refresh()
         if self.service is None:
@@ -397,8 +417,10 @@ class GoogleAuth(ApiAttributeMixin):
         :type credentials_file: str.
         :raises: InvalidConfigError, InvalidCredentialsError
         """
-        if self.credentials is None:
-            raise InvalidCredentialsError("No credentials to save")
+        if not isinstance(self.credentials, user_credentials.Credentials):
+            raise InvalidCredentialsError(
+                "Only signed-in user credentials can be saved"
+            )
 
         if credentials_file is None:
             storage = self._storages["file"]
@@ -414,8 +436,10 @@ class GoogleAuth(ApiAttributeMixin):
         storage.put(self.credentials)
 
     def _SaveCredentialsDictionary(self):
-        if self.credentials is None:
-            raise InvalidCredentialsError("No credentials to save")
+        if not isinstance(self.credentials, user_credentials.Credentials):
+            raise InvalidCredentialsError(
+                "Only signed-in user credentials can be saved"
+            )
 
         storage = self._storages["dictionary"]
         if storage is None:

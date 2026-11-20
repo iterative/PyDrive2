@@ -1,7 +1,6 @@
-import base64
 import errno
 import json
-import os
+import webbrowser
 from urllib.parse import parse_qs, urlparse
 
 import httplib2
@@ -63,57 +62,12 @@ def token_endpoint(monkeypatch):
     return calls
 
 
-def config(backend):
-    return {
-        "client_config_backend": "settings",
-        "client_config": {"client_id": "client", "client_secret": "secret"},
-        "save_credentials": True,
-        "save_credentials_backend": backend,
-    }
-
-
-@pytest.mark.parametrize("backend", ["dictionary", "file"])
-def test_legacy_user_cache_refresh(backend, tmp_path, token_endpoint):
-    old = json.dumps(
-        {
-            "_class": "OAuth2Credentials",
-            "_module": "oauth2client.client",
-            "access_token": "stale",
-            "refresh_token": "refresh",
-            "token_expiry": "2000-01-01T00:00:00Z",
-            "token_uri": TOKEN_URI,
-            "client_id": "client",
-            "client_secret": "secret",
-            "scopes": ["drive"],
-        }
-    )
-    settings = config(backend)
-    if backend == "dictionary":
-        settings.update(
-            save_credentials_dict={"user": old}, save_credentials_key="user"
-        )
-    else:
-        path = tmp_path / "credentials"
-        path.write_text(old)
-        settings["save_credentials_file"] = str(path)
-    auth = GoogleAuth(settings=settings)
-    auth.LocalWebserverAuth()
-    assert auth.credentials.token == "fresh"
-    assert token_endpoint[0]["refresh_token"] == ["refresh"]
-    reloaded = GoogleAuth(settings=settings)
-    reloaded.CommandLineAuth()
-    assert reloaded.credentials.valid
-    assert reloaded.credentials.refresh_token == "refresh"
-    assert len(token_endpoint) == 1
-    if backend == "file" and os.name == "posix":
-        assert path.stat().st_mode & 0o777 == 0o600
-
-
 def test_automatic_http_refresh_is_saved(monkeypatch):
     saved = {
         "user": json.dumps(
             {
                 "token": "old",
+                "expiry": "2099-01-01T00:00:00Z",
                 "refresh_token": "refresh",
                 "client_id": "id",
                 "client_secret": "secret",
@@ -122,11 +76,13 @@ def test_automatic_http_refresh_is_saved(monkeypatch):
         )
     }
     auth = GoogleAuth(
-        settings=dict(
-            config("dictionary"),
-            save_credentials_dict=saved,
-            save_credentials_key="user",
-        )
+        settings={
+            "client_config_backend": "file",
+            "save_credentials": True,
+            "save_credentials_backend": "dictionary",
+            "save_credentials_dict": saved,
+            "save_credentials_key": "user",
+        }
     )
     auth.LoadCredentials()
     http = auth.Get_Http_Object()
@@ -160,7 +116,7 @@ def test_automatic_http_refresh_is_saved(monkeypatch):
         "client_pkcs12_file_path",
     ],
 )
-def test_service_account_signing_and_cache(
+def test_service_account_signing(
     source, service_info, key, tmp_path, token_endpoint
 ):
     config = {"client_user_email": "delegate@example.test"}
@@ -206,51 +162,9 @@ def test_service_account_signing_and_cache(
     assert isinstance(auth.http, AuthorizedHttp)
     assert auth.http.http is not auth.Get_Http_Object().http
     assert 308 not in auth.http.http.redirect_codes
-    settings["service_config"] = {
-        "client_json_file_path": str(tmp_path / "missing")
-    }
-    reloaded = GoogleAuth(settings=settings)
-    reloaded.ServiceAuth()
-    assert reloaded.credentials.valid
-    assert len(token_endpoint) == 1
-    reloaded.Refresh()
-    assert len(token_endpoint) == 2
-
-
-@pytest.mark.parametrize("use_p12", [False, True])
-def test_legacy_service_cache(
-    use_p12, service_info, key, tmp_path, token_endpoint
-):
-    record = {
-        "_class": "ServiceAccountCredentials",
-        "_service_account_email": EMAIL,
-        "_scopes": "drive",
-        "_kwargs": {"sub": "delegate@example.test"},
-        "token_uri": TOKEN_URI,
-        "access_token": None,
-    }
-    if use_p12:
-        p12 = pkcs12.serialize_key_and_certificates(
-            b"key",
-            key,
-            None,
-            None,
-            serialization.BestAvailableEncryption(b"notasecret"),
-        )
-        record["_private_key_pkcs12"] = base64.b64encode(p12).decode()
-    else:
-        record["_private_key_pkcs8_pem"] = service_info["private_key"]
-    path = tmp_path / "cache"
-    path.write_text(json.dumps(record))
-    auth = GoogleAuth(settings_file=None)
-    auth.LoadCredentialsFile(path)
-    auth.ServiceAuth()
-    assert auth.credentials.valid
-    assert json.loads(path.read_text())["token"] == "fresh"
-    assert (
-        jwt.decode(token_endpoint[0]["assertion"][0], verify=False)["sub"]
-        == "delegate@example.test"
-    )
+    assert not settings["save_credentials_dict"]
+    with pytest.raises(InvalidCredentialsError):
+        auth.SaveCredentials()
 
 
 def test_login_options_and_port_fallback(mocker):
@@ -266,6 +180,7 @@ def test_login_options_and_port_fallback(mocker):
     assert query["prompt"] == ["consent"]
     assert query["code_challenge_method"] == ["S256"]
     assert query["state"]
+    mocker.patch("webbrowser.get", side_effect=webbrowser.Error("No browser"))
     login = mocker.patch.object(
         auth.flow,
         "run_local_server",
@@ -276,7 +191,6 @@ def test_login_options_and_port_fallback(mocker):
     )
     auth.LocalWebserverAuth(
         port_numbers=[8080, 8090],
-        launch_browser=False,
         host_name="localhost",
         bind_addr="127.0.0.1",
     )

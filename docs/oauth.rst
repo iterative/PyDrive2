@@ -97,7 +97,7 @@ Fields explained:
 :service_config['client_json_file_path'] (str): Path to service account `.json` key file. **Required**: No.
 :service_config['client_json_dict'] (dict): Service account `.json` key file loaded into a dictionary. **Required**: No.
 :service_config['client_json'] (str): Service account `.json` key file loaded into a string. **Required**: No.
-:save_credentials (bool): True if you want to save credentials. **Default**: False. **Required**: No.
+:save_credentials (bool): Save OAuth user credentials after signing in. **Default**: False. **Required**: No.
 :save_credentials_backend (str): Backend to save credentials to. 'file' and 'dictionary' are the only valid values for now. **Default**: 'file'. **Required**: No.
 :save_credentials_file (str): Destination of credentials file. **Required**: Yes, only if *save_credentials_backend* is 'file'.
 :save_credentials_dict (dict): Dict to use for storing credentials. **Required**: Yes, only if *save_credentials_backend* is 'dictionary'.
@@ -107,11 +107,18 @@ Fields explained:
 
 .. _delegated: https://developers.google.com/admin-sdk/directory/v1/guides/delegation
 
-PyDrive2 reads existing credentials saved by ``oauth2client`` from either
-backend. After a refresh or explicit save, it writes the new format. Back up
-the cache first if an older PyDrive2 installation also uses it. An explicitly
-saved service-account credential includes the signing key so it can refresh
-independently of the original key file.
+Upgrading from PyDrive2 1.x
+___________________________
+
+Sign in once with PyDrive2 2.x to create new OAuth user credentials. Keep
+your existing OAuth client ID and client secret. If you configured a cache,
+choose a new ``save_credentials_file`` or ``save_credentials_key`` before
+signing in. For unattended jobs, set ``get_refresh_token: True`` during
+sign-in and provision the newly saved credentials before upgrading the job.
+
+Service accounts authenticate directly with their configured JSON or PKCS12
+key. Keep that key available to the application. If your deployment relied
+solely on a saved 1.x service-account cache, provision its signing key.
 
 Sample *settings.yaml*
 ______________________
@@ -193,8 +200,7 @@ If we use OAuth client ID we need to do one manual login into the account with
         :return: google auth
         """
         # Define the settings dict to use a service account
-        # We also can use all options available for the settings dict like
-        # oauth_scope,save_credentials,etc.
+        # Set oauth_scope here to request specific Drive permissions.
         settings = {
                     "client_config_backend": "service",
                     "service_config": {

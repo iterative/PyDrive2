@@ -39,6 +39,12 @@ someone else's cached credentials:
         profile="myprofile",
     )
 
+PyDrive2 2.x uses a separate default cache. The first interactive connection
+after upgrading from 1.x prompts you to sign in. If you supplied a user
+credential file explicitly, choose a fresh path. For DVC jobs that use
+``GDRIVE_CREDENTIALS_DATA`` for a user account, replace that secret with the
+newly saved JSON. Service-account jobs can reuse their configured key.
+
 Writing cached credentials to a file and using it if it already exists (which
 avoids interactive auth):
 

@@ -14,7 +14,7 @@ from fsspec.spec import AbstractFileSystem
 from funcy import cached_property, retry, wrap_prop, wrap_with
 from tqdm.utils import CallbackIOWrapper
 
-from pydrive2.auth import GoogleAuth
+from pydrive2.auth import GoogleAuth, InvalidCredentialsError
 from pydrive2.drive import GoogleDrive
 from pydrive2.fs.utils import IterStream
 
@@ -74,6 +74,8 @@ def _gdrive_retry(func):
 def _wrap_errors():
     try:
         yield
+    except InvalidCredentialsError as exc:
+        raise GDriveAuthError(str(exc)) from exc
     except Exception as exc:
         # Handle AuthenticationError, RefreshError and other auth failures
         # It's hard to come up with a narrow exception, since PyDrive throws
@@ -100,6 +102,7 @@ def _client_auth(
         if not creds_file:
             cache_dir = os.path.join(
                 appdirs.user_cache_dir("pydrive2fs", appauthor=False),
+                "v2",
                 client_id,
             )
             os.makedirs(cache_dir, exist_ok=True)
