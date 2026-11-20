@@ -15,12 +15,13 @@ maintainers = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "google-api-python-client>=1.12.5",
     "oauth2client>=4.0.0",
@@ -50,9 +51,9 @@ tests = [
     "funcy>=1.14",
     "pytest-mock",
     "pyinstaller",
-    "importlib_resources<6; python_version < '3.10'",
     "ruff==0.17.6",
 ]
+typing = ["mypy==2.4.1", "types-httplib2", "types-PyYAML"]
 
 [project.entry-points.pyinstaller40]
 hook-dirs = "pydrive2.__pyinstaller:get_hook_dirs"
@@ -69,15 +70,25 @@ packages=[
 [tool.setuptools_scm]
 
 [tool.ruff]
-target-version = "py38"
 line-length = 79
 
 [tool.ruff.lint]
-select = ["E", "F", "W"]
-ignore = ["E203", "E266"]
+extend-select = ["E501", "I", "TC", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# PyInstaller discovers hook modules by their hyphenated filenames.
+"pydrive2/__pyinstaller/*-*.py" = ["N999"]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 89
+
+[tool.mypy]
+python_version = "3.11"
+files = ["pydrive2"]
+exclude = ["/test(/|_)"]
+check_untyped_defs = true
+# Some runtime dependencies do not distribute type information.
+disable_error_code = ["import-untyped"]
 
 [tool.pytest.ini_options]
 markers = [

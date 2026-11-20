@@ -12,3 +12,13 @@ jobs:
       - uses: actions/checkout@v7
       - uses: astral-sh/ruff-action@v4.1.0
       - run: ruff format --check .
+
+  types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[fsspec,tests,typing]'
+      - run: python -m mypy

@@ -1,18 +1,22 @@
 import io
-import os
-import mimetypes
 import json
-
-from googleapiclient import errors
-from googleapiclient.http import MediaIoBaseUpload
-from googleapiclient.http import MediaIoBaseDownload
-from googleapiclient.http import DEFAULT_CHUNK_SIZE
+import mimetypes
+import os
 from functools import wraps
 
-from .apiattr import ApiAttribute
-from .apiattr import ApiAttributeMixin
-from .apiattr import ApiResource
-from .apiattr import ApiResourceList
+from googleapiclient import errors
+from googleapiclient.http import (
+    DEFAULT_CHUNK_SIZE,
+    MediaIoBaseDownload,
+    MediaIoBaseUpload,
+)
+
+from .apiattr import (
+    ApiAttribute,
+    ApiAttributeMixin,
+    ApiResource,
+    ApiResourceList,
+)
 from .auth import LoadAuth
 
 BLOCK_SIZE = 1024
@@ -141,7 +145,7 @@ class MediaIoReadable:
         if pre_buffer:
             self.read()
             if remove_prefix:
-                chunk = io.BytesIO(self._fd.chunk)
+                chunk = io.BytesIO(self._fd.chunk or b"")
                 GoogleDriveFile._RemovePrefix(chunk, remove_prefix)
                 self._fd.chunk = chunk.getvalue()
             self._pre_buffer = True
@@ -259,7 +263,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :param filename: name of the file to be uploaded.
         :type filename: str.
         """
-        self.content = open(filename, "rb")
+        self.content = open(filename, "rb")  # noqa: SIM115 - retained for upload
         if self.get("id") is None:
             if self.get("title") is None:
                 self["title"] = os.path.basename(filename)
@@ -416,7 +420,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
                 exc.error["code"] != 403
                 or exc.GetField("reason") != "fileNotDownloadable"
             ):
-                raise exc
+                raise
             mimetype = mimetype or "text/plain"
             request = self._WrapRequest(
                 files.export_media(fileId=file_id, mimeType=mimetype)
@@ -884,6 +888,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :returns: str -- content of downloaded file in string.
         :raises: ApiRequestError
         """
+        assert self.http is not None  # Set by LoadAuth.
         resp, content = self.http.request(url)
         if resp.status != 200:
             raise ApiRequestError(errors.HttpError(resp, content, uri=url))

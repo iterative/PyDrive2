@@ -1,4 +1,3 @@
-import appdirs
 import errno
 import io
 import logging
@@ -8,14 +7,16 @@ import threading
 from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
+from typing import TypedDict
 
+import appdirs
 from fsspec.spec import AbstractFileSystem
 from funcy import cached_property, retry, wrap_prop, wrap_with
 from tqdm.utils import CallbackIOWrapper
 
+from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 from pydrive2.fs.utils import IterStream
-from pydrive2.auth import GoogleAuth
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,11 @@ COMMON_SETTINGS = {
         "https://www.googleapis.com/auth/drive.appdata",
     ],
 }
+
+
+class _IdsCache(TypedDict):
+    dirs: defaultdict[str, list[str]]
+    ids: dict[str, str]
 
 
 class GDriveAuthError(Exception):
@@ -244,8 +250,8 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @wrap_prop(threading.RLock())
     @cached_property
-    def _ids_cache(self):
-        cache = {"dirs": defaultdict(list), "ids": {}}
+    def _ids_cache(self) -> _IdsCache:
+        cache: _IdsCache = {"dirs": defaultdict(list), "ids": {}}
 
         base_item_ids = self._path_to_item_ids(self.base, use_cache=False)
         if not base_item_ids:
@@ -272,9 +278,7 @@ class GDriveFileSystem(AbstractFileSystem):
             drive_id = self._gdrive_shared_drive_id(self.root)
             if drive_id:
                 logger.debug(
-                    "GDrive remote '{}' is using shared drive id '{}'.".format(
-                        self.path, drive_id
-                    )
+                    f"GDrive remote '{self.path}' is using shared drive id '{drive_id}'."
                 )
                 params["driveId"] = drive_id
                 params["corpora"] = "drive"
@@ -471,7 +475,7 @@ class GDriveFileSystem(AbstractFileSystem):
         self._path_to_item_ids(base)
 
         dir_ids = [self._ids_cache["ids"].copy()]
-        seen_paths = set()
+        seen_paths: set[str] = set()
         contents = []
         while dir_ids:
             query_ids = {
@@ -485,7 +489,7 @@ class GDriveFileSystem(AbstractFileSystem):
 
             seen_paths |= query_ids.keys()
 
-            new_query_ids = {}
+            new_query_ids: dict[str, str] = {}
             dir_ids.append(new_query_ids)
             for item in self._gdrive_list_ids(query_ids):
                 parent_id = item["parents"][0]["id"]
@@ -680,7 +684,7 @@ class GDriveBufferedWriter(io.IOBase):
 
     def close(self):
         if self._closed:
-            return None
+            return
 
         self.flush()
         self.buffer.close()

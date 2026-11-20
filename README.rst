@@ -44,7 +44,7 @@ Features of PyDrive2
 How to install
 --------------
 
-You can install PyDrive2 with regular ``pip`` command.
+PyDrive2 requires Python 3.11 or newer. Install it with ``pip``.
 
 ::
 
