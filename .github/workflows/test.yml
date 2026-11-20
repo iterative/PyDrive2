@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   test:
+    name: test (${{ matrix.os }}, ${{ matrix.pyv }})
     runs-on: ${{ matrix.os }}
     outputs:
       live: ${{ steps.live.outcome }}
@@ -20,8 +21,11 @@ jobs:
       fail-fast: false
       max-parallel: 3
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Put pyv before os so GitHub creates the Python 3.11 jobs for Ubuntu,
+        # macOS, and Windows first. With three parallel slots, this lets us
+        # catch platform-specific failures early.
         pyv: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v7
