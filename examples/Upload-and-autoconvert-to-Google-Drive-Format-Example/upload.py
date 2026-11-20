@@ -7,6 +7,7 @@ Google Doc/Sheet/etc. if possible.
 usage: upload.py <Google Drive folder ID> <local file path>
 example usage: upload.py 0B5XXXXY9KddXXXXXXXA2c3ZXXXX /path/to/my/file
 """
+
 import sys
 from os import path
 from pydrive2.auth import GoogleAuth

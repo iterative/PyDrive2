@@ -699,9 +699,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         if file_id:
             resourceKey = self.get("resourceKey")
             if resourceKey:
-                request.headers[
-                    "X-Goog-Drive-Resource-Keys"
-                ] = f"{file_id}/{resourceKey}"
+                request.headers["X-Goog-Drive-Resource-Keys"] = (
+                    f"{file_id}/{resourceKey}"
+                )
         return request
 
     @LoadAuth
@@ -908,13 +908,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             raise ApiRequestError(error)
         else:
             if "permissions" in self and "permissions" in self.metadata:
-                permissions = self["permissions"]
-                is_not_current_permission = (
-                    lambda per: per["id"] == permission_id
-                )
-                permissions = list(
-                    filter(is_not_current_permission, permissions)
-                )
+                permissions = [
+                    permission
+                    for permission in self["permissions"]
+                    if permission["id"] == permission_id
+                ]
                 self["permissions"] = permissions
                 self.metadata["permissions"] = permissions
             return True

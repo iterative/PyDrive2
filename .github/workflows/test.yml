@@ -3,6 +3,7 @@ on:
     branches:
       - main
   pull_request_target:
+  workflow_dispatch:
 
 name: Tests
 
@@ -23,7 +24,7 @@ jobs:
       fail-fast: false
       max-parallel: 3
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-24.04, macos-latest, windows-latest]
         pyv: ["3.9", "3.10", "3.11", "3.12"]
 
     steps:
@@ -32,7 +33,7 @@ jobs:
         # NOTE: needed for pull_request_target to use PR code
         ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
-    - uses: actions/setup-python@v5
+    - uses: actions/setup-python@v7
       with:
         python-version: ${{ matrix.pyv }}
 

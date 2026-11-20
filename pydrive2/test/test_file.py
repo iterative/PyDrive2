@@ -1036,15 +1036,22 @@ class GoogleDriveFileTest(unittest.TestCase):
             self.assertIsNone(future.exception())
         thread_pool.shutdown()
 
-        # Ensure all files were uploaded.
-        files = pydrive_retry(
-            lambda: drive.ListFile(
+        file_ids = [file["id"] for file in upload_files]
+        self.assertEqual(len(set(file_ids)), num_of_uploads)
+
+        def check_uploaded_files():
+            # A successful upload can take time to appear in title searches.
+            files = drive.ListFile(
                 param={"q": "title = '%s' and trashed = false" % remote_name}
             ).GetList()
-        )
-        self.assertTrue(len(files) == self.FILE_UPLOAD_COUNT)
+            if len(files) < num_of_uploads:
+                raise test_util.PyDriveRetriableError(
+                    f"Drive lists {len(files)} of {num_of_uploads} uploads"
+                )
+            self.assertCountEqual([file["id"] for file in files], file_ids)
 
-        return [fi["id"] for fi in upload_files]
+        pydrive_retry(check_uploaded_files)
+        return file_ids
 
     def _parallel_downloader(self, file_ids, num_of_workers):
         drive = GoogleDrive(self.ga)

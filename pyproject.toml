@@ -48,12 +48,10 @@ tests = [
     "pytest>=4.6.0",
     "timeout-decorator",
     "funcy>=1.14",
-    "flake8",
-    "flake8-docstrings",
     "pytest-mock",
     "pyinstaller",
     "importlib_resources<6; python_version < '3.10'",
-    "black==24.10.0",
+    "ruff==0.17.6",
 ]
 
 [project.entry-points.pyinstaller40]
@@ -70,23 +68,16 @@ packages=[
 
 [tool.setuptools_scm]
 
-[tool.black]
+[tool.ruff]
+target-version = "py38"
 line-length = 79
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = ["E203", "E266"]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 89
 
 [tool.pytest.ini_options]
 markers = [

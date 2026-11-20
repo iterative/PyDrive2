@@ -1,11 +1,11 @@
 from pathlib import Path
+from itertools import chain
 import random
 import re
 import os
 import posixpath
 
 from funcy import retry
-from funcy.py3 import cat
 from pydrive2.files import ApiRequestError
 from shutil import copyfile, rmtree
 
@@ -65,7 +65,7 @@ def pydrive_list_item(drive, query, max_results=1000):
     get_list = lambda: pydrive_retry(next, file_list, None)  # noqa: E731
 
     # Fetch pages until None is received, lazily flatten the thing
-    return cat(iter(get_list, None))
+    return chain.from_iterable(iter(get_list, None))
 
 
 def CreateRandomFileName():
