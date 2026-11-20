@@ -5,10 +5,10 @@ from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 from pydrive2.test import test_util
 from pydrive2.test.test_util import (
-    pydrive_retry,
     pydrive_list_item,
-    setup_credentials,
+    pydrive_retry,
     settings_file_path,
+    setup_credentials,
 )
 
 
@@ -38,11 +38,7 @@ class GoogleDriveFileListTest(unittest.TestCase):
     def test_02_Files_List_ForLoop(self):
         drive = GoogleDrive(self.ga)
         query = f"title = '{self.title}' and trashed = false"
-        files = []
-        for x in pydrive_list_item(
-            drive, query, 2
-        ):  # Build iterator to access files simply with for loop
-            files.append(x)
+        files = list(pydrive_list_item(drive, query, 2))
         for file1 in self.file_list:
             found = False
             for file2 in files:
@@ -54,7 +50,7 @@ class GoogleDriveFileListTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         flist = drive.ListFile(
             {
-                "q": "title = '%s' and trashed = false" % self.title,
+                "q": f"title = '{self.title}' and trashed = false",
                 "maxResults": 2,
             }
         )
@@ -96,7 +92,7 @@ class GoogleDriveFileListTest(unittest.TestCase):
     def setUp(self):
         title = test_util.CreateRandomFileName()
         file_list = []
-        for x in range(0, 10):
+        for x in range(10):
             file1 = self.drive.CreateFile()
             file1["title"] = title
             pydrive_retry(file1.Upload)

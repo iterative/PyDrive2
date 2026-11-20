@@ -20,8 +20,8 @@ file2 = drive.CreateFile({"id": file1["id"]})
 # Print content before download.
 print("Original text:")
 print(bytes(original_file_content.encode("unicode-escape")))
-print("Number of chars: %d" % len(original_file_content))
-print("")
+print(f"Number of chars: {len(original_file_content)}")
+print()
 #     Original text:
 #     Generic, non-exhaustive\n ASCII test string.
 #     Number of chars: 43
@@ -31,8 +31,8 @@ print("")
 content_with_bom = file2.GetContentString(mimetype="text/plain")
 print("Content with BOM:")
 print(bytes(content_with_bom.encode("unicode-escape")))
-print("Number of chars: %d" % len(content_with_bom))
-print("")
+print(f"Number of chars: {len(content_with_bom)}")
+print()
 #     Content with BOM:
 #     \ufeffGeneric, non-exhaustive\r\n ASCII test string.
 #     Number of chars: 45
@@ -44,8 +44,8 @@ content_without_bom = file2.GetContentString(
 )
 print("Content without BOM:")
 print(bytes(content_without_bom.encode("unicode-escape")))
-print("Number of chars: %d" % len(content_without_bom))
-print("")
+print(f"Number of chars: {len(content_without_bom)}")
+print()
 #     Content without BOM:
 #     Generic, non-exhaustive\r\n ASCII test string.
 #     Number of chars: 44

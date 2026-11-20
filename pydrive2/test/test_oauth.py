@@ -2,16 +2,17 @@ import json
 import os
 import re
 import time
+
 import pytest
+from oauth2client.file import Storage
 
 from pydrive2.auth import AuthenticationError, GoogleAuth
 from pydrive2.test.test_util import (
-    setup_credentials,
+    GDRIVE_USER_CREDENTIALS_DATA,
     delete_file,
     settings_file_path,
-    GDRIVE_USER_CREDENTIALS_DATA,
+    setup_credentials,
 )
-from oauth2client.file import Storage
 
 
 def setup_module(module):

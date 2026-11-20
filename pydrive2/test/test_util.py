@@ -1,13 +1,14 @@
-from pathlib import Path
-import random
-import re
 import os
 import posixpath
+import random
+import re
+from itertools import chain
+from pathlib import Path
+from shutil import copyfile, rmtree
 
 from funcy import retry
-from funcy.py3 import cat
+
 from pydrive2.files import ApiRequestError
-from shutil import copyfile, rmtree
 
 newline_pattern = re.compile(r"[\r\n]")
 
@@ -62,15 +63,14 @@ def pydrive_list_item(drive, query, max_results=1000):
     file_list = drive.ListFile(param)
 
     # Isolate and decorate fetching of remote drive items in pages
-    get_list = lambda: pydrive_retry(next, file_list, None)  # noqa: E731
+    get_list = lambda: pydrive_retry(next, file_list, None)
 
     # Fetch pages until None is received, lazily flatten the thing
-    return cat(iter(get_list, None))
+    return chain.from_iterable(iter(get_list, None))
 
 
 def CreateRandomFileName():
-    hash = random.getrandbits(128)
-    return "%032x" % hash
+    return f"{random.getrandbits(128):032x}"
 
 
 def StripNewlines(string):

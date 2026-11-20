@@ -1,28 +1,32 @@
-import os
 import json
-import webbrowser
-import httplib2
-import oauth2client.clientsecrets as clientsecrets
+import os
 import threading
-
-from googleapiclient.discovery import build
+import webbrowser
 from functools import wraps
-from oauth2client.service_account import ServiceAccountCredentials
-from oauth2client.client import FlowExchangeError
-from oauth2client.client import AccessTokenRefreshError
-from oauth2client.client import OAuth2WebServerFlow
-from oauth2client.client import OOB_CALLBACK_URN
+from typing import ClassVar
+
+import httplib2
+from googleapiclient.discovery import build
+from oauth2client import clientsecrets
+from oauth2client._helpers import scopes_to_string
+from oauth2client.client import (
+    OOB_CALLBACK_URN,
+    AccessTokenRefreshError,
+    FlowExchangeError,
+    OAuth2WebServerFlow,
+)
 from oauth2client.contrib.dictionary_storage import DictionaryStorage
 from oauth2client.file import Storage
-from oauth2client.tools import ClientRedirectHandler
-from oauth2client.tools import ClientRedirectServer
-from oauth2client._helpers import scopes_to_string
-from .apiattr import ApiAttribute
-from .apiattr import ApiAttributeMixin
-from .settings import LoadSettingsFile
-from .settings import ValidateSettings
-from .settings import SettingsError
-from .settings import InvalidConfigError
+from oauth2client.service_account import ServiceAccountCredentials
+from oauth2client.tools import ClientRedirectHandler, ClientRedirectServer
+
+from .apiattr import ApiAttribute, ApiAttributeMixin
+from .settings import (
+    InvalidConfigError,
+    LoadSettingsFile,
+    SettingsError,
+    ValidateSettings,
+)
 
 
 class AuthError(Exception):
@@ -150,13 +154,13 @@ class GoogleAuth(ApiAttributeMixin):
     and authorization.
     """
 
-    DEFAULT_SETTINGS = {
+    DEFAULT_SETTINGS: ClassVar[dict[str, str | bool | list[str]]] = {
         "client_config_backend": "file",
         "client_config_file": "client_secrets.json",
         "save_credentials": False,
         "oauth_scope": ["https://www.googleapis.com/auth/drive"],
     }
-    CLIENT_CONFIGS_LIST = [
+    CLIENT_CONFIGS_LIST: ClassVar[list[str]] = [
         "client_id",
         "client_secret",
         "auth_uri",
@@ -164,7 +168,7 @@ class GoogleAuth(ApiAttributeMixin):
         "revoke_uri",
         "redirect_uri",
     ]
-    SERVICE_CONFIGS_LIST = ["client_user_email"]
+    SERVICE_CONFIGS_LIST: ClassVar[list[str]] = ["client_user_email"]
     settings = ApiAttribute("settings")
     client_config = ApiAttribute("client_config")
     flow = ApiAttribute("flow")
@@ -381,7 +385,7 @@ class GoogleAuth(ApiAttributeMixin):
             result[backend] = DictionaryStorage(creds_dict, creds_key)
         elif save_credentials:
             raise InvalidConfigError(
-                "Unknown save_credentials_backend: %s" % backend
+                f"Unknown save_credentials_backend: {backend}"
             )
         return result, result.get(backend)
 
@@ -549,7 +553,7 @@ class GoogleAuth(ApiAttributeMixin):
                 client_config_file
             )
         except clientsecrets.InvalidClientSecretsError as error:
-            raise InvalidConfigError("Invalid client secrets file %s" % error)
+            raise InvalidConfigError(f"Invalid client secrets file {error}")
         if client_type not in (
             clientsecrets.TYPE_WEB,
             clientsecrets.TYPE_INSTALLED,
@@ -681,7 +685,7 @@ class GoogleAuth(ApiAttributeMixin):
         try:
             self.credentials.refresh(self.http)
         except AccessTokenRefreshError as error:
-            raise RefreshError("Access token refresh failed: %s" % error)
+            raise RefreshError(f"Access token refresh failed: {error}")
 
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.
@@ -714,7 +718,7 @@ class GoogleAuth(ApiAttributeMixin):
         try:
             self.credentials = self.flow.step2_exchange(code)
         except FlowExchangeError as e:
-            raise AuthenticationError("OAuth2 code exchange failed: %s" % e)
+            raise AuthenticationError(f"OAuth2 code exchange failed: {e}")
         print("Authentication successful.")
 
     def _build_http(self):
