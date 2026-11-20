@@ -21,6 +21,7 @@ jobs:
     outputs:
       sha: ${{ steps.pr.outputs.sha }}
       repository: ${{ steps.pr.outputs.repository }}
+      external: ${{ steps.pr.outputs.external }}
     steps:
       - id: pr
         name: Identify the revision to review
@@ -30,10 +31,22 @@ jobs:
         run: |
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
             jq -er 'select(.state == "open" and .base.ref == "main" and .head.repo != null)
-              | "sha=\(.head.sha)", "repository=\(.head.repo.full_name)"' >> "$GITHUB_OUTPUT"
+              | "sha=\(.head.sha)", "repository=\(.head.repo.full_name)",
+                "external=\(.head.repo.full_name != .base.repo.full_name or
+                  .user.login == "dependabot[bot]" or (.head.ref | startswith("dependabot/")))"' >> "$GITHUB_OUTPUT"
+
+  pending:
+    needs: revision
+    if: needs.revision.outputs.external == 'true'
+    permissions:
+      statuses: write
+    uses: ./.github/workflows/drive-status.yml
+    with:
+      sha: ${{ needs.revision.outputs.sha }}
+      state: pending
 
   test:
-    needs: revision
+    needs: [revision, pending]
     name: "Live tests for PR #${{ github.event.issue.number }} at ${{ needs.revision.outputs.sha }}"
     runs-on: ubuntu-latest
     environment:
@@ -68,3 +81,13 @@ jobs:
         env:
           GDRIVE_USER_CREDENTIALS_DATA: ${{ secrets.GDRIVE_USER_CREDENTIALS_DATA }}
         run: python -m pytest -m "not manual"
+
+  report:
+    needs: [revision, pending, test]
+    if: always() && needs.pending.result == 'success'
+    permissions:
+      statuses: write
+    uses: ./.github/workflows/drive-status.yml
+    with:
+      sha: ${{ needs.revision.outputs.sha }}
+      state: ${{ needs.test.result == 'success' && 'success' || 'failure' }}

@@ -13,6 +13,8 @@ permissions:
 jobs:
   test:
     runs-on: ${{ matrix.os }}
+    outputs:
+      live: ${{ steps.live.outcome }}
 
     strategy:
       fail-fast: false
@@ -37,6 +39,7 @@ jobs:
       run: python -m pytest -m "not manual and not drive"
 
     - name: Run live Drive tests
+      id: live
       if: >-
         github.actor != 'dependabot[bot]' &&
         !startsWith(github.head_ref || github.ref_name, 'dependabot/') &&
@@ -48,3 +51,17 @@ jobs:
       run: python -m pytest -m "not manual and drive"
       env:
         GDRIVE_USER_CREDENTIALS_DATA: ${{ secrets.GDRIVE_USER_CREDENTIALS_DATA }}
+
+  report:
+    needs: test
+    if: >-
+      always() && github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]' &&
+      github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
+    permissions:
+      statuses: write
+    uses: ./.github/workflows/drive-status.yml
+    with:
+      sha: ${{ github.event.pull_request.head.sha }}
+      state: ${{ needs.test.result == 'success' && needs.test.outputs.live == 'success' && 'success' || 'failure' }}
