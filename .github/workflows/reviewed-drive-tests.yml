@@ -1,57 +1,60 @@
 name: Reviewed PR Drive tests
-run-name: "Drive tests for PR #${{ inputs.pr_number }} at ${{ inputs.head_sha }}"
+run-name: "Drive tests · #${{ github.event.issue.number }}"
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: Open pull request number targeting main
-        required: true
-        type: number
-      head_sha:
-        description: Full 40-character head SHA reviewed for live Drive access
-        required: true
-        type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
   pull-requests: read
 
+env:
+  PR_NUMBER: ${{ github.event.issue.number }}
+
 jobs:
-  test:
-    if: github.ref == 'refs/heads/main'
-    name: "Approve live tests for PR #${{ inputs.pr_number }} at ${{ inputs.head_sha }}"
+  revision:
+    if: >-
+      github.event.issue.pull_request && github.event.issue.state == 'open' &&
+      github.event.comment.body == '/test-drive'
     runs-on: ubuntu-latest
-    environment:
-      name: external
-      url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ inputs.pr_number }}/commits/${{ inputs.head_sha }}
+    outputs:
+      sha: ${{ steps.pr.outputs.sha }}
+      repository: ${{ steps.pr.outputs.repository }}
     steps:
-      - name: Verify the approved revision is still the PR head
-        id: reviewed
+      - id: pr
+        name: Identify the revision to review
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ inputs.pr_number }}
-          REVIEWED_SHA: ${{ inputs.head_sha }}
         run: |
-          if ! [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ && "$REVIEWED_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error::Enter a positive PR number and its full lowercase head SHA."
-            exit 1
-          fi
-          repository=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
-            jq -er --arg sha "$REVIEWED_SHA" '
-              select(.state == "open" and .base.ref == "main" and .head.sha == $sha)
-              | .head.repo.full_name // empty
-            ') || {
-            echo "::error::Could not verify an open PR to main at the approved SHA."
-            exit 1
-          }
-          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -er 'select(.state == "open" and .base.ref == "main" and .head.repo != null)
+              | "sha=\(.head.sha)", "repository=\(.head.repo.full_name)"' >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: revision
+    name: "Live tests for PR #${{ github.event.issue.number }} at ${{ needs.revision.outputs.sha }}"
+    runs-on: ubuntu-latest
+    environment:
+      name: external
+      url: ${{ github.server_url }}/${{ github.repository }}/pull/${{ github.event.issue.number }}/commits/${{ needs.revision.outputs.sha }}
+    steps:
+      - name: Verify the approved revision is still the PR head
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVIEWED_SHA: ${{ needs.revision.outputs.sha }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" |
+            jq -e --arg sha "$REVIEWED_SHA" '
+              .state == "open" and .base.ref == "main" and .head.repo != null and .head.sha == $sha
+            ' > /dev/null || { echo "::error::PR changed. Request /test-drive again."; exit 1; }
 
       - uses: actions/checkout@v7
         with:
-          repository: ${{ steps.reviewed.outputs.repository }}
-          ref: ${{ inputs.head_sha }}
+          repository: ${{ needs.revision.outputs.repository }}
+          ref: ${{ needs.revision.outputs.sha }}
           persist-credentials: false
 
       - uses: actions/setup-python@v7
