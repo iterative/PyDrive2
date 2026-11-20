@@ -92,5 +92,6 @@ disable_error_code = ["import-untyped"]
 
 [tool.pytest.ini_options]
 markers = [
+    "drive: requires Google Drive credentials",
     "manual: mark tests to be runnable only in local environment and require user manual actions.",
 ]

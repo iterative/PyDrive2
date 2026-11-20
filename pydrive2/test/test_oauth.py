@@ -79,6 +79,7 @@ def test_05_ConfigFromSettingsWithoutOauthScope():
 
 
 @pytest.mark.skip(reason="P12 authentication is deprecated")
+@pytest.mark.drive
 def test_06_ServiceAuthFromSavedCredentialsP12File():
     setup_credentials("credentials/6.dat")
     ga = GoogleAuth(settings_file_path("test_oauth_test_06.yaml"))
@@ -87,6 +88,7 @@ def test_06_ServiceAuthFromSavedCredentialsP12File():
     time.sleep(1)
 
 
+@pytest.mark.drive
 def test_07_ServiceAuthFromSavedCredentialsJsonFile():
     # Have an initial auth so that credentials/7.dat gets saved
     ga = GoogleAuth(settings_file_path("test_oauth_test_07.yaml"))
@@ -104,6 +106,7 @@ def test_07_ServiceAuthFromSavedCredentialsJsonFile():
     time.sleep(1)
 
 
+@pytest.mark.drive
 def test_08_ServiceAuthFromJsonFileNoCredentialsSaving():
     # Test that no credentials are saved and API is still functional
     # We are testing that there are no exceptions at least
@@ -113,6 +116,7 @@ def test_08_ServiceAuthFromJsonFileNoCredentialsSaving():
     time.sleep(1)
 
 
+@pytest.mark.drive
 def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
     # Test fix for https://github.com/iterative/PyDrive2/issues/163
     # Make sure that Load and Save credentials by default reuse the
@@ -129,6 +133,7 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker):
     assert spy.call_count == 0
 
 
+@pytest.mark.drive
 def test_10_ServiceAuthFromSavedCredentialsDictionary():
     creds_dict = {}
     settings = {
@@ -156,6 +161,7 @@ def test_10_ServiceAuthFromSavedCredentialsDictionary():
     time.sleep(1)
 
 
+@pytest.mark.drive
 def test_11_ServiceAuthFromJsonNoCredentialsSaving():
     client_json = os.environ[GDRIVE_USER_CREDENTIALS_DATA]
     settings = {
@@ -173,6 +179,7 @@ def test_11_ServiceAuthFromJsonNoCredentialsSaving():
     time.sleep(1)
 
 
+@pytest.mark.drive
 def test_12_ServiceAuthFromJsonDictNoCredentialsSaving():
     client_json_dict = json.loads(os.environ[GDRIVE_USER_CREDENTIALS_DATA])
     settings = {

@@ -1,6 +1,8 @@
 import os
 import unittest
 
+import pytest
+
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 from pydrive2.test import test_util
@@ -12,6 +14,7 @@ from pydrive2.test.test_util import (
 )
 
 
+@pytest.mark.drive
 class GoogleDriveFileListTest(unittest.TestCase):
     """Tests operations of files.GoogleDriveFileList class.
     Equivalent to Files.list in Google Drive API.
