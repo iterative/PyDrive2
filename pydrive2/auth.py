@@ -1,9 +1,11 @@
 import errno
 import json
 import os
+import tempfile
 import threading
 import webbrowser
 from functools import wraps
+from pathlib import Path
 from typing import ClassVar
 
 import httplib2
@@ -17,12 +19,6 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from oauthlib.oauth2 import AccessDeniedError, OAuth2Error
 
-from ._credentials import (
-    DictionaryStorage,
-    FileStorage,
-    InvalidCredentialsError,
-    UserCredentials,
-)
 from .apiattr import ApiAttribute, ApiAttributeMixin
 from .settings import (
     InvalidConfigError,
@@ -44,8 +40,79 @@ class AuthenticationError(AuthError):
     """General authentication error."""
 
 
+class InvalidCredentialsError(IOError):
+    """Error trying to read or write credentials."""
+
+
 class RefreshError(AuthError):
     """Access token refresh error."""
+
+
+class _UserCredentials(user_credentials.Credentials):
+    storage = None
+
+    def refresh(self, request):
+        storage = self.storage
+        if storage is None:
+            return super().refresh(request)
+
+        # AuthorizedHttp can refresh during a request, including after a 401.
+        # Persist rotated tokens on that path as well as on explicit Refresh().
+        previous_token = self.token
+        with storage.lock:
+            if self.token == previous_token or not self.valid:
+                super().refresh(request)
+                storage.put(self)
+
+
+class _FileStorage:
+    def __init__(self, filename):
+        self.path = Path(filename)
+        self.lock = threading.RLock()
+
+    def _check_path(self):
+        if self.path.is_symlink():
+            raise InvalidCredentialsError(
+                "Credentials file cannot be symbolic link"
+            )
+
+    def get(self):
+        with self.lock:
+            self._check_path()
+            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+            try:
+                fd = os.open(self.path, flags)
+            except FileNotFoundError:
+                return None
+            with os.fdopen(fd, encoding="utf-8") as stream:
+                return stream.read()
+
+    def put(self, credentials):
+        with self.lock:
+            self._check_path()
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            fd, name = tempfile.mkstemp(dir=self.path.parent)
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                    stream.write(credentials.to_json())
+                os.replace(name, self.path)
+            finally:
+                Path(name).unlink(missing_ok=True)
+
+
+class _DictionaryStorage:
+    def __init__(self, dictionary, key):
+        self.dictionary = dictionary
+        self.key = key
+        self.lock = threading.RLock()
+
+    def get(self):
+        with self.lock:
+            return self.dictionary.get(self.key)
+
+    def put(self, credentials):
+        with self.lock:
+            self.dictionary[self.key] = credentials.to_json()
 
 
 def LoadAuth(decoratee):
@@ -153,9 +220,8 @@ class GoogleAuth(ApiAttributeMixin):
         self.settings = settings or self.DEFAULT_SETTINGS
         ValidateSettings(self.settings)
 
-        storages, default = self._InitializeStoragesFromSettings()
-        self._storages = storages
-        self._default_storage = default
+        self._configured_storage = self._storage_from_settings()
+        self._default_storage = self._configured_storage
 
     @property
     def access_token_expired(self):
@@ -166,7 +232,7 @@ class GoogleAuth(ApiAttributeMixin):
         return self.credentials is None or not self.credentials.valid
 
     def _use_flow_credentials(self, credentials):
-        self.credentials = UserCredentials(
+        self.credentials = _UserCredentials(
             token=credentials.token,
             refresh_token=credentials.refresh_token,
             id_token=credentials.id_token,
@@ -313,35 +379,52 @@ class GoogleAuth(ApiAttributeMixin):
         if self.service is None:
             self.Authorize()
 
-    def _InitializeStoragesFromSettings(self):
-        result: dict[str, FileStorage | DictionaryStorage | None] = {
-            "file": None,
-            "dictionary": None,
-        }
+    def _storage_from_settings(self):
         backend = self.settings.get("save_credentials_backend")
-        save_credentials = self.settings.get("save_credentials")
         if backend == "file":
-            credentials_file = self.settings.get("save_credentials_file")
-            if credentials_file is None:
+            filename = self.settings.get("save_credentials_file")
+            if filename is None:
                 raise InvalidConfigError(
                     "Please specify credentials file to read"
                 )
-            result[backend] = FileStorage(credentials_file)
-        elif backend == "dictionary":
-            creds_dict = self.settings.get("save_credentials_dict")
-            if creds_dict is None:
+            return _FileStorage(filename)
+        if backend == "dictionary":
+            dictionary = self.settings.get("save_credentials_dict")
+            key = self.settings.get("save_credentials_key")
+            if dictionary is None:
                 raise InvalidConfigError("Please specify credentials dict")
-
-            creds_key = self.settings.get("save_credentials_key")
-            if creds_key is None:
+            if key is None:
                 raise InvalidConfigError("Please specify credentials key")
-
-            result[backend] = DictionaryStorage(creds_dict, creds_key)
-        elif save_credentials:
+            return _DictionaryStorage(dictionary, key)
+        if self.settings.get("save_credentials"):
             raise InvalidConfigError(
                 f"Unknown save_credentials_backend: {backend}"
             )
-        return result, result.get(backend)
+        return None
+
+    def _credential_backend(self, backend):
+        if backend is None:
+            backend = self.settings.get("save_credentials_backend")
+        if backend is None:
+            raise InvalidConfigError("Please specify credential backend")
+        if backend not in ("file", "dictionary"):
+            raise InvalidConfigError("Unknown save_credentials_backend")
+        return backend
+
+    def _storage_for(self, backend, filename=None):
+        if filename is not None:
+            return _FileStorage(filename)
+        if backend == "file":
+            if isinstance(self._configured_storage, _FileStorage):
+                return self._configured_storage
+            raise InvalidConfigError(
+                "Set save_credentials_file or pass an explicit credentials file"
+            )
+        if isinstance(self._configured_storage, _DictionaryStorage):
+            return self._configured_storage
+        raise InvalidConfigError(
+            "Set save_credentials_dict and save_credentials_key"
+        )
 
     def LoadCredentials(self, backend=None):
         """Loads credentials or create empty credentials if it doesn't exist.
@@ -350,16 +433,10 @@ class GoogleAuth(ApiAttributeMixin):
         :type backend: str.
         :raises: InvalidConfigError
         """
-        if backend is None:
-            backend = self.settings.get("save_credentials_backend")
-            if backend is None:
-                raise InvalidConfigError("Please specify credential backend")
-        if backend == "file":
+        if self._credential_backend(backend) == "file":
             self.LoadCredentialsFile()
-        elif backend == "dictionary":
-            self._LoadCredentialsDictionary()
         else:
-            raise InvalidConfigError("Unknown save_credentials_backend")
+            self._load_credentials(self._storage_for("dictionary"))
 
     def LoadCredentialsFile(self, credentials_file=None):
         """Loads credentials or create empty credentials if it doesn't exist.
@@ -370,28 +447,34 @@ class GoogleAuth(ApiAttributeMixin):
         :type credentials_file: str.
         :raises: InvalidConfigError, InvalidCredentialsError
         """
-        if credentials_file is None:
-            self._default_storage = self._storages["file"]
-            if self._default_storage is None:
-                raise InvalidConfigError(
-                    "Backend `file` is not configured, specify "
-                    "credentials file to read in the settings "
-                    "file or pass an explicit value"
-                )
-        else:
-            self._default_storage = FileStorage(credentials_file)
+        self._load_credentials(self._storage_for("file", credentials_file))
 
-        self.credentials = self._default_storage.get()
-
-    def _LoadCredentialsDictionary(self):
-        self._default_storage = self._storages["dictionary"]
-        if self._default_storage is None:
-            raise InvalidConfigError(
-                "Backend `dictionary` is not configured, specify "
-                "credentials dict and key to read in the settings file"
-            )
-
-        self.credentials = self._default_storage.get()
+    def _load_credentials(self, storage):
+        self._default_storage = storage
+        serialized = storage.get()
+        if not serialized:
+            self.credentials = None
+            return
+        try:
+            info = json.loads(serialized)
+            if (
+                not isinstance(info, dict)
+                or info.get("type", "authorized_user") != "authorized_user"
+                or "_class" in info
+                or "access_token" in info
+                or not (info.get("token") or info.get("refresh_token"))
+            ):
+                raise ValueError("Expected google-auth user credentials")
+            # Online-only logins have an access token but no refresh token.
+            info.setdefault("refresh_token", None)
+            cred = _UserCredentials.from_authorized_user_info(info)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise InvalidCredentialsError(
+                "Select a fresh user credential file or dictionary key and sign "
+                "in again with PyDrive2 2.x."
+            ) from exc
+        cred.storage = storage
+        self.credentials = cred
 
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
@@ -403,16 +486,10 @@ class GoogleAuth(ApiAttributeMixin):
         :type backend: str.
         :raises: InvalidConfigError
         """
-        if backend is None:
-            backend = self.settings.get("save_credentials_backend")
-            if backend is None:
-                raise InvalidConfigError("Please specify credential backend")
-        if backend == "file":
+        if self._credential_backend(backend) == "file":
             self.SaveCredentialsFile()
-        elif backend == "dictionary":
-            self._SaveCredentialsDictionary()
         else:
-            raise InvalidConfigError("Unknown save_credentials_backend")
+            self._save_credentials("dictionary")
 
     def SaveCredentialsFile(self, credentials_file=None):
         """Saves credentials to the file in JSON format.
@@ -421,38 +498,14 @@ class GoogleAuth(ApiAttributeMixin):
         :type credentials_file: str.
         :raises: InvalidConfigError, InvalidCredentialsError
         """
+        self._save_credentials("file", credentials_file)
+
+    def _save_credentials(self, backend, filename=None):
         if not isinstance(self.credentials, user_credentials.Credentials):
             raise InvalidCredentialsError(
                 "Only signed-in user credentials can be saved"
             )
-
-        if credentials_file is None:
-            storage = self._storages["file"]
-            if storage is None:
-                raise InvalidConfigError(
-                    "Backend `file` is not configured, specify "
-                    "credentials file to read in the settings "
-                    "file or pass an explicit value"
-                )
-        else:
-            storage = FileStorage(credentials_file)
-
-        storage.put(self.credentials)
-
-    def _SaveCredentialsDictionary(self):
-        if not isinstance(self.credentials, user_credentials.Credentials):
-            raise InvalidCredentialsError(
-                "Only signed-in user credentials can be saved"
-            )
-
-        storage = self._storages["dictionary"]
-        if storage is None:
-            raise InvalidConfigError(
-                "Backend `dictionary` is not configured, specify "
-                "credentials dict and key to write in the settings file"
-            )
-
-        storage.put(self.credentials)
+        self._storage_for(backend, filename).put(self.credentials)
 
     def LoadClientConfig(self, backend=None):
         """Loads client configuration according to specified backend.

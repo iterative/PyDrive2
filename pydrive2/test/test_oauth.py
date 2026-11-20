@@ -6,7 +6,6 @@ import time
 import pytest
 from google.oauth2.credentials import Credentials
 
-from pydrive2._credentials import FileStorage
 from pydrive2.auth import AuthenticationError, GoogleAuth
 from pydrive2.test.test_util import (
     GDRIVE_USER_CREDENTIALS_DATA,
@@ -102,11 +101,14 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker, tmp_path):
     auth.credentials = Credentials(
         "token", client_id="id", client_secret="secret"
     )
-    spy = mocker.spy(FileStorage, "__init__")
+    storage = auth._default_storage
+    save = mocker.spy(storage, "put")
+    load = mocker.spy(storage, "get")
     auth.SaveCredentials()
     auth.LoadCredentials()
     assert auth.credentials.token == "token"
-    assert spy.call_count == 0
+    save.assert_called_once()
+    load.assert_called_once_with()
 
 
 @pytest.mark.drive
