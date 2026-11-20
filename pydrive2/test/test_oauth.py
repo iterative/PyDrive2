@@ -101,9 +101,9 @@ def test_09_SaveLoadCredentialsUsesDefaultStorage(mocker, tmp_path):
     auth.credentials = Credentials(
         "token", client_id="id", client_secret="secret"
     )
-    storage = auth._default_storage
-    save = mocker.spy(storage, "put")
-    load = mocker.spy(storage, "get")
+    storage = auth._configured_store
+    save = mocker.spy(storage, "save")
+    load = mocker.spy(storage, "load")
     auth.SaveCredentials()
     auth.LoadCredentials()
     assert auth.credentials.token == "token"

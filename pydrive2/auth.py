@@ -1,7 +1,6 @@
 import errno
 import json
 import os
-import tempfile
 import threading
 import webbrowser
 from functools import wraps
@@ -19,6 +18,11 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from oauthlib.oauth2 import AccessDeniedError, OAuth2Error
 
+from ._credentials import (
+    CredentialStore,
+    InvalidCredentialsError,
+    StoredUserCredentials,
+)
 from .apiattr import ApiAttribute, ApiAttributeMixin
 from .settings import (
     InvalidConfigError,
@@ -40,79 +44,8 @@ class AuthenticationError(AuthError):
     """General authentication error."""
 
 
-class InvalidCredentialsError(IOError):
-    """Error trying to read or write credentials."""
-
-
 class RefreshError(AuthError):
     """Access token refresh error."""
-
-
-class _UserCredentials(user_credentials.Credentials):
-    storage = None
-
-    def refresh(self, request):
-        storage = self.storage
-        if storage is None:
-            return super().refresh(request)
-
-        # AuthorizedHttp can refresh during a request, including after a 401.
-        # Persist rotated tokens on that path as well as on explicit Refresh().
-        previous_token = self.token
-        with storage.lock:
-            if self.token == previous_token or not self.valid:
-                super().refresh(request)
-                storage.put(self)
-
-
-class _FileStorage:
-    def __init__(self, filename):
-        self.path = Path(filename)
-        self.lock = threading.RLock()
-
-    def _check_path(self):
-        if self.path.is_symlink():
-            raise InvalidCredentialsError(
-                "Credentials file cannot be symbolic link"
-            )
-
-    def get(self):
-        with self.lock:
-            self._check_path()
-            flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
-            try:
-                fd = os.open(self.path, flags)
-            except FileNotFoundError:
-                return None
-            with os.fdopen(fd, encoding="utf-8") as stream:
-                return stream.read()
-
-    def put(self, credentials):
-        with self.lock:
-            self._check_path()
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            fd, name = tempfile.mkstemp(dir=self.path.parent)
-            try:
-                with os.fdopen(fd, "w", encoding="utf-8") as stream:
-                    stream.write(credentials.to_json())
-                os.replace(name, self.path)
-            finally:
-                Path(name).unlink(missing_ok=True)
-
-
-class _DictionaryStorage:
-    def __init__(self, dictionary, key):
-        self.dictionary = dictionary
-        self.key = key
-        self.lock = threading.RLock()
-
-    def get(self):
-        with self.lock:
-            return self.dictionary.get(self.key)
-
-    def put(self, credentials):
-        with self.lock:
-            self.dictionary[self.key] = credentials.to_json()
 
 
 def LoadAuth(decoratee):
@@ -220,8 +153,12 @@ class GoogleAuth(ApiAttributeMixin):
         self.settings = settings or self.DEFAULT_SETTINGS
         ValidateSettings(self.settings)
 
-        self._configured_storage = self._storage_from_settings()
-        self._default_storage = self._configured_storage
+        self._configured_store = self._storage_from_settings()
+        self._login_store = (
+            self._configured_store
+            if self.settings.get("save_credentials")
+            else None
+        )
 
     @property
     def access_token_expired(self):
@@ -232,18 +169,12 @@ class GoogleAuth(ApiAttributeMixin):
         return self.credentials is None or not self.credentials.valid
 
     def _use_flow_credentials(self, credentials):
-        self.credentials = _UserCredentials(
-            token=credentials.token,
-            refresh_token=credentials.refresh_token,
-            id_token=credentials.id_token,
-            token_uri=credentials.token_uri,
-            client_id=credentials.client_id,
-            client_secret=credentials.client_secret,
-            scopes=credentials.scopes,
-            expiry=credentials.expiry,
-            granted_scopes=credentials.granted_scopes,
-        )
-        self.credentials.storage = self._default_storage
+        if self._login_store is None:
+            self.credentials = credentials
+        else:
+            self.credentials = StoredUserCredentials.from_flow(
+                credentials, self._login_store
+            )
 
     def LocalWebserverAuth(
         self,
@@ -387,7 +318,7 @@ class GoogleAuth(ApiAttributeMixin):
                 raise InvalidConfigError(
                     "Please specify credentials file to read"
                 )
-            return _FileStorage(filename)
+            return CredentialStore(Path(filename), self._refresh_lock)
         if backend == "dictionary":
             dictionary = self.settings.get("save_credentials_dict")
             key = self.settings.get("save_credentials_key")
@@ -395,7 +326,7 @@ class GoogleAuth(ApiAttributeMixin):
                 raise InvalidConfigError("Please specify credentials dict")
             if key is None:
                 raise InvalidConfigError("Please specify credentials key")
-            return _DictionaryStorage(dictionary, key)
+            return CredentialStore((dictionary, key), self._refresh_lock)
         if self.settings.get("save_credentials"):
             raise InvalidConfigError(
                 f"Unknown save_credentials_backend: {backend}"
@@ -413,18 +344,13 @@ class GoogleAuth(ApiAttributeMixin):
 
     def _storage_for(self, backend, filename=None):
         if filename is not None:
-            return _FileStorage(filename)
-        if backend == "file":
-            if isinstance(self._configured_storage, _FileStorage):
-                return self._configured_storage
+            return CredentialStore(Path(filename), self._refresh_lock)
+        store = self._configured_store
+        if store is None or store.backend != backend:
             raise InvalidConfigError(
-                "Set save_credentials_file or pass an explicit credentials file"
+                f"Credential backend {backend!r} is not configured"
             )
-        if isinstance(self._configured_storage, _DictionaryStorage):
-            return self._configured_storage
-        raise InvalidConfigError(
-            "Set save_credentials_dict and save_credentials_key"
-        )
+        return store
 
     def LoadCredentials(self, backend=None):
         """Loads credentials or create empty credentials if it doesn't exist.
@@ -449,32 +375,10 @@ class GoogleAuth(ApiAttributeMixin):
         """
         self._load_credentials(self._storage_for("file", credentials_file))
 
-    def _load_credentials(self, storage):
-        self._default_storage = storage
-        serialized = storage.get()
-        if not serialized:
-            self.credentials = None
-            return
-        try:
-            info = json.loads(serialized)
-            if (
-                not isinstance(info, dict)
-                or info.get("type", "authorized_user") != "authorized_user"
-                or "_class" in info
-                or "access_token" in info
-                or not (info.get("token") or info.get("refresh_token"))
-            ):
-                raise ValueError("Expected google-auth user credentials")
-            # Online-only logins have an access token but no refresh token.
-            info.setdefault("refresh_token", None)
-            cred = _UserCredentials.from_authorized_user_info(info)
-        except (AttributeError, TypeError, ValueError) as exc:
-            raise InvalidCredentialsError(
-                "Select a fresh user credential file or dictionary key and sign "
-                "in again with PyDrive2 2.x."
-            ) from exc
-        cred.storage = storage
-        self.credentials = cred
+    def _load_credentials(self, store):
+        with self._refresh_lock:
+            self.credentials = store.load()
+            self._login_store = store
 
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
@@ -505,7 +409,7 @@ class GoogleAuth(ApiAttributeMixin):
             raise InvalidCredentialsError(
                 "Only signed-in user credentials can be saved"
             )
-        self._storage_for(backend, filename).put(self.credentials)
+        self._storage_for(backend, filename).save(self.credentials)
 
     def LoadClientConfig(self, backend=None):
         """Loads client configuration according to specified backend.
@@ -674,7 +578,7 @@ class GoogleAuth(ApiAttributeMixin):
             if (
                 user
                 and self.settings.get("save_credentials")
-                and getattr(self.credentials, "storage", None) is None
+                and getattr(self.credentials, "store", None) is None
             ):
                 self.SaveCredentials()
 

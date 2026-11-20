@@ -2,6 +2,7 @@ import errno
 import json
 import webbrowser
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from threading import Barrier
 from urllib.parse import parse_qs, urlparse
 
@@ -12,7 +13,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
 from google.auth import jwt
 from google.oauth2.credentials import Credentials
-from google_auth_httplib2 import AuthorizedHttp
+from google_auth_httplib2 import AuthorizedHttp, Request
 
 from pydrive2.auth import (
     AuthenticationError,
@@ -68,30 +69,32 @@ def token_endpoint(monkeypatch):
     return calls
 
 
-def test_automatic_http_refresh_is_saved(monkeypatch):
-    saved = {
-        "user": json.dumps(
-            {
-                "token": "old",
-                "expiry": "2099-01-01T00:00:00Z",
-                "refresh_token": "refresh",
-                "client_id": "id",
-                "client_secret": "secret",
-                "token_uri": TOKEN_URI,
-            }
-        )
+@pytest.mark.parametrize("backend", ["file", "dictionary"])
+def test_automatic_http_refresh_is_saved(backend, monkeypatch, tmp_path):
+    settings = {
+        "client_config_backend": "file",
+        "save_credentials": True,
+        "save_credentials_backend": backend,
     }
-    auth = GoogleAuth(
-        settings={
-            "client_config_backend": "file",
-            "save_credentials": True,
-            "save_credentials_backend": "dictionary",
-            "save_credentials_dict": saved,
-            "save_credentials_key": "user",
-        }
+    if backend == "file":
+        settings["save_credentials_file"] = str(tmp_path / "user.json")
+    else:
+        settings.update(save_credentials_dict={}, save_credentials_key="user")
+    auth = GoogleAuth(settings=settings)
+    auth.credentials = Credentials(
+        "old",
+        refresh_token="refresh",
+        client_id="id",
+        client_secret="secret",
+        token_uri=TOKEN_URI,
+        expiry=datetime(2099, 1, 1),
     )
+    auth.SaveCredentials()
     auth.LoadCredentials()
+    export = tmp_path / "export.json"
+    auth.SaveCredentialsFile(export)
     http = auth.Get_Http_Object()
+    access_tokens = []
 
     def request(uri, method="GET", headers=None, **kwargs):
         if uri == TOKEN_URI:
@@ -105,12 +108,53 @@ def test_automatic_http_refresh_is_saved(monkeypatch):
                     }
                 ).encode(),
             )
+        access_tokens.append(headers["authorization"])
         status = "200" if headers["authorization"] == "Bearer new" else "401"
         return httplib2.Response({"status": status}), b"{}"
 
     monkeypatch.setattr(http.http, "request", request)
     assert http.request("https://example.test/drive")[0].status == 200
-    assert json.loads(saved["user"])["refresh_token"] == "rotated"
+    assert access_tokens == ["Bearer old", "Bearer new"]
+    reopened = GoogleAuth(settings=settings)
+    reopened.LoadCredentials()
+    assert reopened.credentials.refresh_token == "rotated"
+    assert json.loads(export.read_text())["refresh_token"] == "refresh"
+
+
+@pytest.mark.parametrize("save_credentials", [False, True])
+def test_login_respects_save_credentials(
+    save_credentials, tmp_path, mocker, token_endpoint
+):
+    path = tmp_path / "user.json"
+    auth = GoogleAuth(
+        settings={
+            "client_config_backend": "file",
+            "save_credentials": save_credentials,
+            "save_credentials_backend": "file",
+            "save_credentials_file": str(path),
+        }
+    )
+    auth.flow = mocker.Mock()
+    auth.flow.run_local_server.return_value = Credentials(
+        "initial",
+        refresh_token="refresh",
+        client_id="id",
+        client_secret="secret",
+        token_uri=TOKEN_URI,
+    )
+    auth.LocalWebserverAuth(launch_browser=False)
+    assert path.exists() == save_credentials
+    # The transport can refresh the login before a subsequent LoadCredentials.
+    http = auth.Get_Http_Object()
+    http.credentials.refresh(Request(http.http))
+    assert len(token_endpoint) == 1
+    if save_credentials:
+        assert json.loads(path.read_text())["token"] == "fresh"
+    else:
+        assert not path.exists()
+
+    auth.SaveCredentials()
+    assert json.loads(path.read_text())["token"] == "fresh"
 
 
 def test_refresh_only_credentials_round_trip(tmp_path, token_endpoint):
@@ -310,6 +354,22 @@ def test_custom_auth_and_online_only_cache(tmp_path, mocker):
     other.LoadCredentialsFile(path)
     assert other.credentials.valid
     assert other.credentials.refresh_token is None
+
+
+def test_failed_file_save_preserves_previous_credentials(tmp_path, mocker):
+    path = tmp_path / "user.json"
+    auth = GoogleAuth(settings_file=None)
+    auth.credentials = Credentials(
+        "original", client_id="id", client_secret="secret"
+    )
+    auth.SaveCredentialsFile(path)
+    auth.credentials = Credentials("updated")
+    mocker.patch("os.replace", side_effect=OSError("replace failed"))
+    with pytest.raises(OSError, match="replace failed"):
+        auth.SaveCredentialsFile(path)
+    auth.LoadCredentialsFile(path)
+    assert auth.credentials.token == "original"
+    assert list(tmp_path.iterdir()) == [path]
 
 
 def test_credentials_file_rejects_symlinks(tmp_path):

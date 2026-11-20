@@ -142,7 +142,9 @@ Fields explained:
     Service account `.json` key file loaded into a string.
     **Required**: No.
 :save_credentials (bool):
-    Save OAuth user credentials after signing in.
+    Save OAuth user credentials after signing in. A fresh login stays in
+    memory when this setting is false. When you load saved credentials,
+    PyDrive2 writes refreshed tokens back to the same file or dictionary key.
     **Default**: False.
     **Required**: No.
 :save_credentials_backend (str):
