@@ -11,12 +11,12 @@ Pass the `files.list query parameters`_ to
 :meth:`~pydrive2.drive.GoogleDrive.ListFile` as a dictionary. It returns a
 :class:`~pydrive2.files.GoogleDriveFileList`.
 :meth:`~pydrive2.apiattr.ApiResourceList.GetList` fetches all matches when
-you omit ``maxResults``. If you set ``maxResults``, each call fetches one page.
+you omit ``pageSize``. If you set ``pageSize``, each call fetches one page.
 
-Google's `file search guide`_ explains the ``q`` parameter using Drive API
-v3 examples. PyDrive2 uses v2. When adapting a query, check the
-`field comparison`_ for renamed fields. For example, use ``title`` for
-``name`` and ``modifiedDate`` for ``modifiedTime``.
+Use Drive v3 names such as ``name`` and ``modifiedTime`` in the
+`file search guide`_. Request specific fields with a field mask, for
+example ``{"fields": "files(id,name,parents)"}``. PyDrive2 requests the
+next page token automatically so field selection preserves pagination.
 
 .. code-block:: python
 
@@ -30,9 +30,10 @@ v3 examples. PyDrive2 uses v2. When adapting a query, check the
         {'q': "'root' in parents and trashed=false"}
     ).GetList()
     for file1 in file_list:
-        print('title: %s, id: %s' % (file1['title'], file1['id']))
+        print('name: %s, id: %s' % (file1['name'], file1['id']))
 
-You can update the metadata or content of each returned file.
+To update a returned file, include ``id`` in any custom field mask, such as
+``files(id,name)``. The default listing already includes the ID.
 
 Paginate and iterate through files
 ----------------------------------
@@ -44,15 +45,13 @@ contains up to ten files.
 .. code-block:: python
 
     # Paginate file lists by specifying number of max results
-    for file_list in drive.ListFile({'q': 'trashed=true', 'maxResults': 10}):
+    for file_list in drive.ListFile({'q': 'trashed=true', 'pageSize': 10}):
         print('Received %s files from Files.list()' % len(file_list))  # <= 10
         for file1 in file_list:
-            print('title: %s, id: %s' % (file1['title'], file1['id']))
+            print('name: %s, id: %s' % (file1['name'], file1['id']))
 
 
 .. _files.list query parameters:
-   https://developers.google.com/workspace/drive/api/reference/rest/v2/files/list#query-parameters
+   https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list#query-parameters
 .. _file search guide:
    https://developers.google.com/workspace/drive/api/guides/search-files
-.. _field comparison:
-   https://developers.google.com/workspace/drive/api/guides/v2-to-v3-reference#resource_field_differences_between_v2_and_v3

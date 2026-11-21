@@ -285,12 +285,6 @@ Provides changed metadata elements to efficiently update api resources.</p>
 <dd><p>A data descriptor that sets and returns values.</p>
 </dd></dl>
 
-<dl class="py method">
-<dt class="sig sig-object py" id="pydrive2.apiattr.ApiResource.update">
-<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.apiattr.ApiResource.update" title="Link to this definition">¶</a></dt>
-<dd><p>Overwritten method of dictionary.</p>
-</dd></dl>
-
 </dd></dl>
 
 <dl class="py class">
@@ -303,7 +297,7 @@ Provides changed metadata elements to efficiently update api resources.</p>
 <dt class="sig sig-object py" id="pydrive2.apiattr.ApiResourceList.GetList">
 <span class="sig-name descname"><span class="pre">GetList</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.apiattr.ApiResourceList.GetList" title="Link to this definition">¶</a></dt>
 <dd><p>Get list of API resources.</p>
-<p>If ‘maxResults’ is not specified, it will automatically iterate through
+<p>If ‘pageSize’ is not specified, it will automatically iterate through
 every resources available. Otherwise, it will make API call once and
 update ‘pageToken’.</p>
 <dl class="field-list simple">
@@ -689,11 +683,14 @@ instance.</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.drive.GoogleDrive.GetAbout">
-<span class="sig-name descname"><span class="pre">GetAbout</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.drive.GoogleDrive.GetAbout" title="Link to this definition">¶</a></dt>
+<span class="sig-name descname"><span class="pre">GetAbout</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'*'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.drive.GoogleDrive.GetAbout" title="Link to this definition">¶</a></dt>
 <dd><p>Return information about the Google Drive of the auth instance.</p>
 <dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>A dictionary of Google Drive information like user, usage, quota etc.</p>
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>fields</strong> – Drive About fields to return. Defaults to all fields.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary of Google Drive information like user, usage, quota etc.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -810,12 +807,7 @@ Can access and modify metadata like dictionary.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.FetchContent">
 <span class="sig-name descname"><span class="pre">FetchContent</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mimetype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_bom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.FetchContent" title="Link to this definition">¶</a></dt>
-<dd><p>Download file’s content from download_url.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p>ApiRequestError, FileNotUploadedError, FileNotDownloadableError</p>
-</dd>
-</dl>
+<dd><p>Download file content or a Workspace export into memory.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -826,7 +818,7 @@ Can access and modify metadata like dictionary.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>fields</strong> (<em>str</em>) – The fields to include, as one string, each entry separated
-by commas, e.g. ‘fields,labels’.</p></li>
+by commas, e.g. ‘id,name,trashed’.</p></li>
 <li><p><strong>fetch_all</strong> (<em>bool</em>) – Whether to fetch all fields.</p></li>
 </ul>
 </dd>
@@ -840,6 +832,8 @@ by commas, e.g. ‘fields,labels’.</p></li>
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.GetContentFile">
 <span class="sig-name descname"><span class="pre">GetContentFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mimetype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">remove_bom</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">callback</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">104857600</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">acknowledge_abuse</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.GetContentFile" title="Link to this definition">¶</a></dt>
 <dd><p>Save content of this file as a local file.</p>
+<p>The destination is opened after the first successful read. If a later
+read fails, the destination contains the chunks written so far.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -906,33 +900,13 @@ identified as abusive.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.GetPermissions">
 <span class="sig-name descname"><span class="pre">GetPermissions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.GetPermissions" title="Link to this definition">¶</a></dt>
-<dd><p>Get file’s or shared drive’s permissions.</p>
-<p>For files in a shared drive, at most 100 results will be returned.
-It doesn’t paginate and collect all results.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>A list of the permission objects.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>object[]</p>
-</dd>
-</dl>
+<dd><p>Return all permissions for the file, including shared drive files.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.GetRevisions">
 <span class="sig-name descname"><span class="pre">GetRevisions</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.GetRevisions" title="Link to this definition">¶</a></dt>
-<dd><p>Get file’s or shared drive’s revisions.</p>
-<p>For files in a shared drive, at most 100 results will be returned.
-It doesn’t paginate and collect all results.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>A list of the revision objects.</p>
-</dd>
-<dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>object[]</p>
-</dd>
-</dl>
+<dd><p>Return all revisions visible to the authenticated user.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -943,7 +917,7 @@ It doesn’t paginate and collect all results.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>new_permission</strong> (<em>object</em>) – The new permission to insert, please see the
-official Google Drive API guide on permissions.insert
+official Google Drive API guide on permissions.create
 for details.</p></li>
 <li><p><strong>param</strong> (<em>dict</em>) – addition parameters to pass</p></li>
 </ul>
@@ -963,7 +937,7 @@ for details.</p></li>
 <dd><p>Set content of this file from a file.</p>
 <p>Opens the file specified by this method.
 Will be read, uploaded, and closed by Upload() method.
-Sets metadata ‘title’ and ‘mimeType’ automatically if not specified and
+Sets metadata ‘name’ and ‘mimeType’ automatically if not specified and
 the file is uploaded for the first time (id is not set).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -1011,16 +985,10 @@ set (means that we are uploading this file for the first time).</p>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.Upload">
-<span class="sig-name descname"><span class="pre">Upload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.Upload" title="Link to this definition">¶</a></dt>
-<dd><p>Upload/update file by choosing the most efficient method.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>param</strong> (<em>dict.</em>) – additional parameter to upload file.</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p>ApiRequestError</p>
-</dd>
-</dl>
+<span class="sig-name descname"><span class="pre">Upload</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">param</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">media_mime_type</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.Upload" title="Link to this definition">¶</a></dt>
+<dd><p>Create or update a file, optionally importing uploaded media.</p>
+<p>For a Workspace import, set the destination MIME type in the file
+metadata and pass the source MIME type as media_mime_type.</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -1053,7 +1021,7 @@ set (means that we are uploading this file for the first time).</p>
 
 <dl class="py class">
 <dt class="sig sig-object py" id="pydrive2.files.IoBuffer">
-<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pydrive2.files.</span></span><span class="sig-name descname"><span class="pre">IoBuffer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">encoding</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.IoBuffer" title="Link to this definition">¶</a></dt>
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pydrive2.files.</span></span><span class="sig-name descname"><span class="pre">IoBuffer</span></span><a class="headerlink" href="#pydrive2.files.IoBuffer" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Lightweight retention of one chunk.</p>
 <dl class="py method">
@@ -1086,14 +1054,7 @@ set (means that we are uploading this file for the first time).</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.files.MediaIoReadable.read">
 <span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.MediaIoReadable.read" title="Link to this definition">¶</a></dt>
-<dd><dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>bytes or str – chunk (or None if done)</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p>ApiRequestError</p>
-</dd>
-</dl>
+<dd><p>Return the next chunk, or None at end of stream.</p>
 </dd></dl>
 
 </dd></dl>
@@ -1219,7 +1180,6 @@ set (means that we are uploading this file for the first time).</p>
 <li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.GetChanges"><code class="docutils literal notranslate"><span class="pre">ApiResource.GetChanges()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.UpdateMetadata"><code class="docutils literal notranslate"><span class="pre">ApiResource.UpdateMetadata()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.auth"><code class="docutils literal notranslate"><span class="pre">ApiResource.auth</span></code></a></li>
-<li><a class="reference internal" href="#pydrive2.apiattr.ApiResource.update"><code class="docutils literal notranslate"><span class="pre">ApiResource.update()</span></code></a></li>
 </ul>
 </li>
 <li><a class="reference internal" href="#pydrive2.apiattr.ApiResourceList"><code class="docutils literal notranslate"><span class="pre">ApiResourceList</span></code></a><ul>
