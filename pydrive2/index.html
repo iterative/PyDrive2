@@ -351,23 +351,11 @@ update ‘pageToken’.</p>
 <p>User rejected authentication.</p>
 </dd></dl>
 
-<dl class="py function">
-<dt class="sig sig-object py" id="pydrive2.auth.CheckAuth">
-<span class="sig-prename descclassname"><span class="pre">pydrive2.auth.</span></span><span class="sig-name descname"><span class="pre">CheckAuth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">decoratee</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.auth.CheckAuth" title="Link to this definition">¶</a></dt>
-<dd><p>Decorator to check if it requires OAuth2 flow request.</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="pydrive2.auth.CheckServiceAuth">
-<span class="sig-prename descclassname"><span class="pre">pydrive2.auth.</span></span><span class="sig-name descname"><span class="pre">CheckServiceAuth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">decoratee</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.auth.CheckServiceAuth" title="Link to this definition">¶</a></dt>
-<dd><p>Decorator to authorize service account.</p>
-</dd></dl>
-
 <dl class="py class">
 <dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pydrive2.auth.</span></span><span class="sig-name descname"><span class="pre">GoogleAuth</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">settings_file</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'settings.yaml'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">http_timeout</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">settings</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.auth.GoogleAuth" title="Link to this definition">¶</a></dt>
 <dd><p>Bases: <a class="reference internal" href="#pydrive2.apiattr.ApiAttributeMixin" title="pydrive2.apiattr.ApiAttributeMixin"><code class="xref py py-class docutils literal notranslate"><span class="pre">ApiAttributeMixin</span></code></a></p>
-<p>Wrapper class for oauth2client library in google-api-python-client.</p>
+<p>Google Drive authentication using google-auth.</p>
 <p>Loads all settings and credentials from one ‘settings.yaml’ file
 and performs common OAuth2.0 related functionality such as authentication
 and authorization.</p>
@@ -418,13 +406,7 @@ and authorization.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth.CommandLineAuth">
 <span class="sig-name descname"><span class="pre">CommandLineAuth</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.auth.GoogleAuth.CommandLineAuth" title="Link to this definition">¶</a></dt>
-<dd><p>Authenticate and authorize from user by printing authentication url
-retrieving authentication code from command-line.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>str – code returned from commandline.</p>
-</dd>
-</dl>
+<dd><p>Print a login URL and receive the authorization on a local port.</p>
 </dd></dl>
 
 <dl class="py attribute">
@@ -561,11 +543,8 @@ If not specified, it will listen on the address specified in the
 host_name parameter.</p></li>
 </ul>
 </dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>str – code returned from local web server</p>
-</dd>
-<dt class="field-odd">Raises<span class="colon">:</span></dt>
-<dd class="field-odd"><p>AuthenticationRejected, AuthenticationError</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p>AuthenticationRejected, AuthenticationError</p>
 </dd>
 </dl>
 </dd></dl>
@@ -580,11 +559,6 @@ host_name parameter.</p></li>
 </dd>
 </dl>
 </dd></dl>
-
-<dl class="py attribute">
-<dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth.SERVICE_CONFIGS_LIST">
-<span class="sig-name descname"><span class="pre">SERVICE_CONFIGS_LIST</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">ClassVar</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">['client_user_email']</span></span><a class="headerlink" href="#pydrive2.auth.GoogleAuth.SERVICE_CONFIGS_LIST" title="Link to this definition">¶</a></dt>
-<dd></dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth.SaveCredentials">
@@ -619,9 +593,7 @@ function and use the corresponding function you want.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth.ServiceAuth">
 <span class="sig-name descname"><span class="pre">ServiceAuth</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.auth.GoogleAuth.ServiceAuth" title="Link to this definition">¶</a></dt>
-<dd><p>Authenticate and authorize using P12 private key, client id
-and client email for a Service account.
-:raises: AuthError, InvalidConfigError</p>
+<dd><p>Authenticate with a service account, optionally acting for a user.</p>
 </dd></dl>
 
 <dl class="py property">
@@ -647,11 +619,10 @@ and client email for a Service account.
 <dd><p>A data descriptor that sets and returns values.</p>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="py property">
 <dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth.credentials">
-<span class="sig-name descname"><span class="pre">credentials</span></span><a class="headerlink" href="#pydrive2.auth.GoogleAuth.credentials" title="Link to this definition">¶</a></dt>
-<dd><p>A data descriptor that sets and returns values.</p>
-</dd></dl>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">credentials</span></span><a class="headerlink" href="#pydrive2.auth.GoogleAuth.credentials" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="pydrive2.auth.GoogleAuth.flow">
@@ -677,13 +648,6 @@ and client email for a Service account.
 <dd><p>A data descriptor that sets and returns values.</p>
 </dd></dl>
 
-</dd></dl>
-
-<dl class="py exception">
-<dt class="sig sig-object py" id="pydrive2.auth.InvalidCredentialsError">
-<span class="property"><span class="k"><span class="pre">exception</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">pydrive2.auth.</span></span><span class="sig-name descname"><span class="pre">InvalidCredentialsError</span></span><a class="headerlink" href="#pydrive2.auth.InvalidCredentialsError" title="Link to this definition">¶</a></dt>
-<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">OSError</span></code></p>
-<p>Error trying to read credentials file.</p>
 </dd></dl>
 
 <dl class="py function">
@@ -1270,8 +1234,6 @@ set (means that we are uploading this file for the first time).</p>
 <li><a class="reference internal" href="#pydrive2.auth.AuthError"><code class="docutils literal notranslate"><span class="pre">AuthError</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.AuthenticationError"><code class="docutils literal notranslate"><span class="pre">AuthenticationError</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.AuthenticationRejected"><code class="docutils literal notranslate"><span class="pre">AuthenticationRejected</span></code></a></li>
-<li><a class="reference internal" href="#pydrive2.auth.CheckAuth"><code class="docutils literal notranslate"><span class="pre">CheckAuth()</span></code></a></li>
-<li><a class="reference internal" href="#pydrive2.auth.CheckServiceAuth"><code class="docutils literal notranslate"><span class="pre">CheckServiceAuth()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth</span></code></a><ul>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Auth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Auth()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Authenticate"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Authenticate()</span></code></a></li>
@@ -1290,7 +1252,6 @@ set (means that we are uploading this file for the first time).</p>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LoadServiceConfigSettings"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LoadServiceConfigSettings()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.LocalWebserverAuth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.LocalWebserverAuth()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.Refresh"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.Refresh()</span></code></a></li>
-<li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.SERVICE_CONFIGS_LIST"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.SERVICE_CONFIGS_LIST</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.SaveCredentials"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.SaveCredentials()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.SaveCredentialsFile"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.SaveCredentialsFile()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.ServiceAuth"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.ServiceAuth()</span></code></a></li>
@@ -1304,7 +1265,6 @@ set (means that we are uploading this file for the first time).</p>
 <li><a class="reference internal" href="#pydrive2.auth.GoogleAuth.settings"><code class="docutils literal notranslate"><span class="pre">GoogleAuth.settings</span></code></a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#pydrive2.auth.InvalidCredentialsError"><code class="docutils literal notranslate"><span class="pre">InvalidCredentialsError</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.LoadAuth"><code class="docutils literal notranslate"><span class="pre">LoadAuth()</span></code></a></li>
 <li><a class="reference internal" href="#pydrive2.auth.RefreshError"><code class="docutils literal notranslate"><span class="pre">RefreshError</span></code></a></li>
 </ul>

@@ -253,12 +253,15 @@ v3 examples. PyDrive2 uses v2. When adapting a query, check the
 <code class="docutils literal notranslate"><span class="pre">name</span></code> and <code class="docutils literal notranslate"><span class="pre">modifiedDate</span></code> for <code class="docutils literal notranslate"><span class="pre">modifiedTime</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 
-<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span> <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance</span>
+<span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance</span>
+<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
 
 <span class="c1"># Auto-iterate through all files in the root folder.</span>
-<span class="n">file_list</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">'q'</span><span class="p">:</span> <span class="s2">"'root' in parents and trashed=false"</span><span class="p">})</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
+<span class="n">file_list</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">(</span>
+    <span class="p">{</span><span class="s1">'q'</span><span class="p">:</span> <span class="s2">"'root' in parents and trashed=false"</span><span class="p">}</span>
+<span class="p">)</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
 <span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
-  <span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
 </pre></div>
 </div>
 <p>You can update the metadata or content of each returned file.</p>
@@ -270,9 +273,9 @@ v3 examples. PyDrive2 uses v2. When adapting a query, check the
 contains up to ten files.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Paginate file lists by specifying number of max results</span>
 <span class="k">for</span> <span class="n">file_list</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">'q'</span><span class="p">:</span> <span class="s1">'trashed=true'</span><span class="p">,</span> <span class="s1">'maxResults'</span><span class="p">:</span> <span class="mi">10</span><span class="p">}):</span>
-  <span class="nb">print</span><span class="p">(</span><span class="s1">'Received </span><span class="si">%s</span><span class="s1"> files from Files.list()'</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">))</span> <span class="c1"># &lt;= 10</span>
-  <span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
-      <span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s1">'Received </span><span class="si">%s</span><span class="s1"> files from Files.list()'</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">))</span>  <span class="c1"># &lt;= 10</span>
+    <span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
 </pre></div>
 </div>
 </section>

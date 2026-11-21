@@ -238,8 +238,8 @@
         <article role="main" id="furo-main-content">
           <section id="file-management-made-easy">
 <h1>File management made easy<a class="headerlink" href="#file-management-made-easy" title="Link to this heading">¶</a></h1>
-<p>There are many methods to create and update file metadata and contents.
-With <em>PyDrive</em>, you don’t have to care about any of these different API methods.
+<p>There are many methods to create and update file metadata and contents. With
+<em>PyDrive</em>, you don’t have to care about any of these different API methods.
 Edit the metadata or contents of a <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile" title="pydrive2.files.GoogleDriveFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code></a>
 and call <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.Upload" title="pydrive2.files.GoogleDriveFile.Upload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Upload()</span></code></a> to save the changes.</p>
 <section id="upload-a-new-file">
@@ -259,8 +259,9 @@ and call <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleD
 </pre></div>
 </div>
 <p><a class="reference internal" href="../pydrive2/#pydrive2.drive.GoogleDrive.CreateFile" title="pydrive2.drive.GoogleDrive.CreateFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CreateFile()</span></code></a> creates a local file object
-with the drive’s credentials. Call <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.Upload" title="pydrive2.files.GoogleDriveFile.Upload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Upload()</span></code></a>
-to create <code class="docutils literal notranslate"><span class="pre">Hello.txt</span></code> on Google Drive.</p>
+with the drive’s credentials. Call
+<a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.Upload" title="pydrive2.files.GoogleDriveFile.Upload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Upload()</span></code></a> to create <code class="docutils literal notranslate"><span class="pre">Hello.txt</span></code> on
+Google Drive.</p>
 </section>
 <section id="delete-trash-and-un-trash-files">
 <h2>Delete, Trash and un-Trash files<a class="headerlink" href="#delete-trash-and-un-trash-files" title="Link to this heading">¶</a></h2>
@@ -312,7 +313,8 @@ PyDrive gives you access to the metadata of an object through
 <code class="docutils literal notranslate"><span class="pre">fields</span></code> and <code class="docutils literal notranslate"><span class="pre">fetch_all</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="s1">'&lt;some file ID here&gt;'</span><span class="p">})</span>
 
-<span class="c1"># Fetches all basic metadata fields, including file size, last modified etc.</span>
+<span class="c1"># Fetches all basic metadata fields, including file size, last modified</span>
+<span class="c1"># etc.</span>
 <span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">()</span>
 
 <span class="c1"># Fetches all metadata available.</span>
@@ -373,8 +375,8 @@ want to check whether a file is already shared?</p>
 <section id="remove-a-permission">
 <h3>Remove a Permission<a class="headerlink" href="#remove-a-permission" title="Link to this heading">¶</a></h3>
 <p><em>PyDrive</em> allows you to remove a specific permission using the
-<code class="docutils literal notranslate"><span class="pre">DeletePermission(permission_id)</span></code> function. This function allows you to delete
-one permission at a time by providing the permission’s ID.</p>
+<code class="docutils literal notranslate"><span class="pre">DeletePermission(permission_id)</span></code> function. This function allows you to
+delete one permission at a time by providing the permission’s ID.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="s1">'&lt;file ID here&gt;'</span><span class="p">})</span>
 <span class="n">permissions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetPermissions</span><span class="p">()</span>  <span class="c1"># Download file permissions.</span>
 
@@ -424,7 +426,10 @@ file object that does not have revisions, an exception will be raised.</p>
 or <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.SetContentString" title="pydrive2.files.GoogleDriveFile.SetContentString"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SetContentString()</span></code></a>, then call
 <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.Upload" title="pydrive2.files.GoogleDriveFile.Upload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Upload()</span></code></a>.</p>
 <p>Sample code continues from <a class="reference internal" href="#download-file-metadata-from-file-id">Download file metadata from file ID</a>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file4</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'title'</span><span class="p">:</span><span class="s1">'appdata.json'</span><span class="p">,</span> <span class="s1">'mimeType'</span><span class="p">:</span><span class="s1">'application/json'</span><span class="p">})</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file4</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span>
+    <span class="s1">'title'</span><span class="p">:</span> <span class="s1">'appdata.json'</span><span class="p">,</span>
+    <span class="s1">'mimeType'</span><span class="p">:</span> <span class="s1">'application/json'</span><span class="p">,</span>
+<span class="p">})</span>
 <span class="n">file4</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">'{"firstname": "John", "lastname": "Smith"}'</span><span class="p">)</span>
 <span class="n">file4</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span> <span class="c1"># Upload file.</span>
 <span class="n">file4</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">'{"firstname": "Claudio", "lastname": "Afshar"}'</span><span class="p">)</span>
@@ -450,8 +455,8 @@ like so:</p>
 </section>
 <section id="upload-data-as-bytes-in-memory-buffer">
 <h2>Upload data as bytes in memory buffer<a class="headerlink" href="#upload-data-as-bytes-in-memory-buffer" title="Link to this heading">¶</a></h2>
-<p>Data can be kept as bytes in an in-memory buffer when we use the <code class="docutils literal notranslate"><span class="pre">io</span></code> module’s
-Byte IO operations, we can upload files that reside in memory, for
+<p>Data can be kept as bytes in an in-memory buffer when we use the <code class="docutils literal notranslate"><span class="pre">io</span></code>
+module’s Byte IO operations, we can upload files that reside in memory, for
 example we have a base64 image, we can decode the string and upload it to drive
 without first saving it to disk and calling
 <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile" title="pydrive2.files.GoogleDriveFile.SetContentFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SetContentFile()</span></code></a>.</p>
@@ -528,11 +533,11 @@ defaults to a plain-text export. Both calls below strip the byte order mark.</p>
 </section>
 <section id="abusive-files">
 <span id="id1"></span><h2>Abusive files<a class="headerlink" href="#abusive-files" title="Link to this heading">¶</a></h2>
-<p>Files identified as <a class="reference external" href="https://support.google.com/docs/answer/148505">abusive</a> (malware, etc.) are only downloadable by the owner.
-If you see a
-‘This file has been identified as malware or spam and cannot be downloaded’
-error, set ‘acknowledge_abuse=True’ parameter in <cite>GetContentFile()</cite>. By using
-it you indicate that you acknowledge the risks of downloading potential malware.</p>
+<p>Files identified as <a class="reference external" href="https://support.google.com/docs/answer/148505">abusive</a> (malware, etc.) are only downloadable by the
+owner. If you see a ‘This file has been identified as malware or spam and
+cannot be downloaded’ error, set ‘acknowledge_abuse=True’ parameter in
+<cite>GetContentFile()</cite>. By using it you indicate that you acknowledge the risks of
+downloading potential malware.</p>
 </section>
 </section>
 

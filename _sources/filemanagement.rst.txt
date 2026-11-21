@@ -1,8 +1,8 @@
 File management made easy
 =========================
 
-There are many methods to create and update file metadata and contents.
-With *PyDrive*, you don't have to care about any of these different API methods.
+There are many methods to create and update file metadata and contents. With
+*PyDrive*, you don't have to care about any of these different API methods.
 Edit the metadata or contents of a :class:`~pydrive2.files.GoogleDriveFile`
 and call :meth:`~pydrive2.files.GoogleDriveFile.Upload` to save the changes.
 
@@ -26,11 +26,13 @@ In this example, ``gauth`` is an authenticated
     # title: Hello.txt, id: {{FILE_ID}}
 
 :meth:`~pydrive2.drive.GoogleDrive.CreateFile` creates a local file object
-with the drive's credentials. Call :meth:`~pydrive2.files.GoogleDriveFile.Upload`
-to create ``Hello.txt`` on Google Drive.
+with the drive's credentials. Call
+:meth:`~pydrive2.files.GoogleDriveFile.Upload` to create ``Hello.txt`` on
+Google Drive.
 
 Delete, Trash and un-Trash files
 --------------------------------
+
 You may want to delete, trash, or un-trash a file. To do this use ``Delete()``,
 ``Trash()`` or ``UnTrash()`` on a GoogleDriveFile object.
 
@@ -92,7 +94,8 @@ PyDrive gives you access to the metadata of an object through
 
     file1 = drive.CreateFile({'id': '<some file ID here>'})
 
-    # Fetches all basic metadata fields, including file size, last modified etc.
+    # Fetches all basic metadata fields, including file size, last modified
+    # etc.
     file1.FetchMetadata()
 
     # Fetches all metadata available.
@@ -107,6 +110,7 @@ See the `Drive API v2 file resource`_ for the available fields.
 
 Insert permissions
 __________________
+
 Insert, retrieving or deleting permissions is illustrated by making a file
 readable to all who have a link to the file.
 
@@ -159,9 +163,10 @@ For the more advanced user: ``GetPermissions()`` is a shorthand for:
 
 Remove a Permission
 ___________________
+
 *PyDrive* allows you to remove a specific permission using the
-``DeletePermission(permission_id)`` function. This function allows you to delete
-one permission at a time by providing the permission's ID.
+``DeletePermission(permission_id)`` function. This function allows you to
+delete one permission at a time by providing the permission's ID.
 
 .. code-block:: python
 
@@ -194,7 +199,7 @@ field in the query below is ``title``.
     files = drive.ListFile(query).GetList()
 
 List revisions
-________________
+______________
 
 Revisions can be fetched using the ``GetRevisions()`` function of a
 ``GoogleDriveFile``, and can be used like so:
@@ -221,7 +226,10 @@ Sample code continues from `Download file metadata from file ID`_:
 
 .. code-block:: python
 
-    file4 = drive.CreateFile({'title':'appdata.json', 'mimeType':'application/json'})
+    file4 = drive.CreateFile({
+        'title': 'appdata.json',
+        'mimeType': 'application/json',
+    })
     file4.SetContentString('{"firstname": "John", "lastname": "Smith"}')
     file4.Upload() # Upload file.
     file4.SetContentString('{"firstname": "Claudio", "lastname": "Afshar"}')
@@ -247,10 +255,10 @@ like so:
     content_string = file4.GetContentString(encoding='ISO-8859-1')
 
 Upload data as bytes in memory buffer
---------------------------------------
+-------------------------------------
 
-Data can be kept as bytes in an in-memory buffer when we use the ``io`` module’s
-Byte IO operations, we can upload files that reside in memory, for
+Data can be kept as bytes in an in-memory buffer when we use the ``io``
+module’s Byte IO operations, we can upload files that reside in memory, for
 example we have a base64 image, we can decode the string and upload it to drive
 without first saving it to disk and calling
 :meth:`~pydrive2.files.GoogleDriveFile.SetContentFile`.
@@ -339,11 +347,11 @@ See the :download:`complete Python example <../examples/strip_bom_example.py>`.
 Abusive files
 -------------
 
-Files identified as `abusive`_ (malware, etc.) are only downloadable by the owner.
-If you see a
-'This file has been identified as malware or spam and cannot be downloaded'
-error, set 'acknowledge_abuse=True' parameter in `GetContentFile()`. By using
-it you indicate that you acknowledge the risks of downloading potential malware.
+Files identified as `abusive`_ (malware, etc.) are only downloadable by the
+owner. If you see a 'This file has been identified as malware or spam and
+cannot be downloaded' error, set 'acknowledge_abuse=True' parameter in
+`GetContentFile()`. By using it you indicate that you acknowledge the risks of
+downloading potential malware.
 
 .. _Drive API v2 file resource:
    https://developers.google.com/workspace/drive/api/reference/rest/v2/files#resource:-file

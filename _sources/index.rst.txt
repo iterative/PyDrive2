@@ -6,15 +6,16 @@
 Welcome to PyDrive2's documentation!
 ====================================
 
-PyDrive2 is a wrapper library of `google-api-python-client`_ that simplifies many common Google Drive API tasks.
+PyDrive2 is a wrapper library of `google-api-python-client`_ that simplifies
+many common Google Drive API tasks.
 
 Project Info
 ============
 
-- Package: `https://pypi.python.org/pypi/PyDrive2 <https://pypi.python.org/pypi/PyDrive2>`_
-- Documentation: `https://docs.iterative.ai/PyDrive2 <https://docs.iterative.ai/PyDrive2>`_
-- Source: `https://github.com/iterative/PyDrive2 <https://github.com/iterative/PyDrive2>`_
-- Changelog: `https://github.com/iterative/PyDrive2/releases <https://github.com/iterative/PyDrive2/releases>`_
+- Package: https://pypi.python.org/pypi/PyDrive2
+- Documentation: https://docs.iterative.ai/PyDrive2
+- Source: https://github.com/iterative/PyDrive2
+- Changelog: https://github.com/iterative/PyDrive2/releases
 
 How to install
 ==============
@@ -32,7 +33,8 @@ To install the current development version from GitHub, use:
     $ pip install git+https://github.com/iterative/PyDrive2.git#egg=PyDrive2
 
 
-.. _`google-api-python-client`: https://github.com/google/google-api-python-client
+.. _`google-api-python-client`:
+   https://github.com/google/google-api-python-client
 
 Table of Contents
 =================

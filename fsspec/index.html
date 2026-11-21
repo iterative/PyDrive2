@@ -270,6 +270,11 @@ someone else’s cached credentials:</p>
 <span class="p">)</span>
 </pre></div>
 </div>
+<p>PyDrive2 2.x uses a separate default cache. The first interactive connection
+after upgrading from 1.x prompts you to sign in. If you supplied a user
+credential file explicitly, choose a fresh path. For DVC jobs that use
+<code class="docutils literal notranslate"><span class="pre">GDRIVE_CREDENTIALS_DATA</span></code> for a user account, replace that secret with the
+newly saved JSON. Service-account jobs can reuse their configured key.</p>
 <p>Writing cached credentials to a file and using it if it already exists (which
 avoids interactive auth):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
@@ -300,7 +305,8 @@ avoids interactive auth):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
-    <span class="c1"># replace with ID of a drive or directory and give service account access to it</span>
+    <span class="c1"># replace with ID of a drive or directory and give service account</span>
+    <span class="c1"># access to it</span>
     <span class="s2">"root"</span><span class="p">,</span>
     <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">client_json_file_path</span><span class="o">=</span><span class="s2">"/path/to/keyfile.json"</span><span class="p">,</span>
@@ -311,7 +317,8 @@ avoids interactive auth):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
-    <span class="c1"># replace with ID of a drive or directory and give service account access to it</span>
+    <span class="c1"># replace with ID of a drive or directory and give service account</span>
+    <span class="c1"># access to it</span>
     <span class="s2">"root"</span><span class="p">,</span>
     <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">client_json</span><span class="o">=</span><span class="n">json_string</span><span class="p">,</span>
@@ -328,14 +335,15 @@ avoids interactive auth):</p>
 <dd class="field-odd"><p>Move files to trash instead of deleting.</p>
 </dd>
 <dt class="field-even">acknowledge_abuse (bool)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Acknowledge the risk when downloading a file
-flagged as abusive. See <a class="reference internal" href="../filemanagement/#abusive-files"><span class="std std-ref">Abusive files</span></a>.</p>
+<dd class="field-even"><p>Acknowledge the risk when downloading a file flagged as abusive.
+See <a class="reference internal" href="../filemanagement/#abusive-files"><span class="std std-ref">Abusive files</span></a>.</p>
 </dd>
 </dl>
 </section>
 <section id="using-filesystem">
 <h2>Using filesystem<a class="headerlink" href="#using-filesystem" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># replace `root` with ID of a drive or directory and give service account access to it</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># replace `root` with ID of a drive or directory and give service account</span>
+<span class="c1"># access to it</span>
 <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dnames</span><span class="p">,</span> <span class="n">fnames</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">"root"</span><span class="p">):</span>
     <span class="k">for</span> <span class="n">dname</span> <span class="ow">in</span> <span class="n">dnames</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"dir: </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">dname</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>

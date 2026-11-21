@@ -42,7 +42,7 @@ pydrive2.settings module
     :show-inheritance:
 
 pydrive2.fs module
-------------------------
+------------------
 
 .. autoclass:: pydrive2.fs.GDriveFileSystem
     :show-inheritance:
