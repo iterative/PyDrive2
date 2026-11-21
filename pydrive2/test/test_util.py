@@ -58,7 +58,7 @@ def pydrive_retry(call, *args, **kwargs):
 
 
 def pydrive_list_item(drive, query, max_results=1000):
-    param = {"q": query, "maxResults": max_results}
+    param = {"q": query, "pageSize": max_results}
 
     file_list = drive.ListFile(param)
 

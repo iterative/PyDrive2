@@ -56,13 +56,13 @@ call for you. Add the following code to your *quickstart.py* and run it.
 
     drive = GoogleDrive(gauth)
 
-    # Create GoogleDriveFile instance with title 'Hello.txt'.
-    file1 = drive.CreateFile({'title': 'Hello.txt'})
+    # Create GoogleDriveFile instance with name 'Hello.txt'.
+    file1 = drive.CreateFile({'name': 'Hello.txt'})
     # Set content of the file from given string.
     file1.SetContentString('Hello World!')
     file1.Upload()
 
-This code will create a new file with title *Hello.txt* and its content *Hello
+This code will create a new file with name *Hello.txt* and its content *Hello
 World!*. You can see and open this file from `Google Drive`_ if you want. For
 more details, take a look at documentation: `File management made easy`_
 
@@ -74,7 +74,7 @@ Listing Files
 -------------
 
 *PyDrive2* handles paginations and parses response as list of
-`GoogleDriveFile`_. Let's get title and id of all the files in the root folder
+`GoogleDriveFile`_. Let's get name and id of all the files in the root folder
 of Google Drive. Again, add the following code to *quickstart.py* and execute
 it.
 
@@ -85,7 +85,7 @@ it.
         {'q': "'root' in parents and trashed=false"}
     ).GetList()
     for file1 in file_list:
-        print('title: %s, id: %s' % (file1['title'], file1['id']))
+        print('name: %s, id: %s' % (file1['name'], file1['id']))
 
 Creating a Folder
 -----------------
@@ -98,40 +98,40 @@ The code below allows you to add a subfolder to an existing folder.
 
     def create_folder(parent_folder_id, subfolder_name):
         newFolder = drive.CreateFile({
-            'title': subfolder_name,
-            "parents": [{"kind": "drive#fileLink", "id": parent_folder_id}],
+            'name': subfolder_name,
+            "parents": [parent_folder_id],
             "mimeType": "application/vnd.google-apps.folder",
         })
         newFolder.Upload()
         return newFolder
 
 
-Return File ID via File Title
+Return File ID via File Name
 -----------------------------
 
 A common task is providing the Google Drive API with a file id.
-``get_id_of_title`` demonstrates a simple workflow to return the id of a file
-handle by searching the file titles in a given directory. The function takes
-two arguments, ``title`` and ``parent_directory_id``. ``title`` is a string
-that will be compared against file titles included in a directory identified by
+``get_id_of_name`` demonstrates a simple workflow to return the id of a file
+handle by searching the file names in a given directory. The function takes
+two arguments, ``name`` and ``parent_directory_id``. ``name`` is a string
+that will be compared against file names included in a directory identified by
 the ``parent_directory_id``.
 
 .. code-block:: python
 
-    def get_id_of_title(title, parent_directory_id):
+    def get_id_of_name(name, parent_directory_id):
         foldered_list = drive.ListFile({
             'q': "'" + parent_directory_id + "' in parents and trashed=false"
         }).GetList()
         for file in foldered_list:
-            if file['title'] == title:
+            if file['name'] == name:
                 return file['id']
-            return None
+        return None
 
 Browse Folders
 --------------
 
 This returns a json output of the data in a directory with some important
-attributes like size, title, parent_id.
+attributes like size, name, parent_id.
 
 .. code-block:: python
 
@@ -140,7 +140,7 @@ attributes like size, title, parent_id.
     def folder_browser(folder_list, parent_id):
         for element in folder_list:
             if type(element) is dict:
-                print(element['title'])
+                print(element['name'])
             else:
                 print(element)
         print(
@@ -166,7 +166,7 @@ attributes like size, title, parent_id.
             folder_selected = inp
             for element in folder_list:
                 if type(element) is dict:
-                    if element["title"] == folder_selected:
+                    if element["name"] == folder_selected:
                         struc = element["list"]
                         browsed.append(folder_selected)
                         print("Inside " + folder_selected)
@@ -174,7 +174,7 @@ attributes like size, title, parent_id.
 
 here ``folder_list`` is the list of folders that is present
 
-You will see title and id of all the files and folders in root folder of your
+You will see name and id of all the files and folders in root folder of your
 Google Drive. For more details, refer to the documentation:
 `File listing made easy`_
 

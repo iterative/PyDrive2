@@ -11,7 +11,7 @@ import pydrive2.files
 
 
 documents = files("googleapiclient.discovery_cache.documents")
-assert documents.joinpath("drive.v2.json").is_file()
+assert documents.joinpath("drive.v3.json").is_file()
 """
 
 

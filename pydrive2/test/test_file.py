@@ -55,7 +55,7 @@ def auth_with_resource_key_mock() -> GoogleAuth:
         ):
             if fetch_meta_data:
                 # Fake meta data query response
-                content = json.dumps({"title": "N48E012.zip"}).encode()
+                content = json.dumps({"name": "N48E012.zip"}).encode()
             else:
                 # Fake file content query response
                 content = b"some content"
@@ -86,7 +86,7 @@ def auth_with_resource_key_mock() -> GoogleAuth:
 class GoogleDriveFileTest(unittest.TestCase):
     """Tests basic file operations of files.GoogleDriveFile.
     Upload and download of contents and metadata, and thread-safety checks.
-    Equivalent to Files.insert, Files.update, Files.patch in Google Drive API.
+    Equivalent to Files.create and Files.update in Google Drive API.
     """
 
     @classmethod
@@ -115,12 +115,12 @@ class GoogleDriveFileTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("firsttestfile")
-        file1["title"] = filename
-        pydrive_retry(file1.Upload)  # Files.insert
+        file1["name"] = filename
+        pydrive_retry(file1.Upload)  # Files.create
 
-        self.assertEqual(file1.metadata["title"], filename)
+        self.assertEqual(file1.metadata["name"], filename)
         file2 = drive.CreateFile({"id": file1["id"]})  # Download file from id.
-        self.assertEqual(file2["title"], filename)
+        self.assertEqual(file2["name"], filename)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -128,12 +128,12 @@ class GoogleDriveFileTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         filename = self.getTempFile("첫번째 파일")
-        file1["title"] = filename
-        pydrive_retry(file1.Upload)  # Files.insert
+        file1["name"] = filename
+        pydrive_retry(file1.Upload)  # Files.create
 
-        self.assertEqual(file1.metadata["title"], filename)
+        self.assertEqual(file1.metadata["name"], filename)
         file2 = drive.CreateFile({"id": file1["id"]})  # Download file from id.
-        self.assertEqual(file2["title"], filename)
+        self.assertEqual(file2["name"], filename)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -142,22 +142,22 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         filename = self.getTempFile("secondtestfile")
         content = "hello world!"
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentString(content)
-        pydrive_retry(file1.Upload)  # Files.insert
+        pydrive_retry(file1.Upload)  # Files.create
 
         self.assertEqual(file1.GetContentString(), content)
 
         pydrive_retry(
             file1.FetchContent
         )  # Force download and double check content
-        self.assertEqual(file1.metadata["title"], filename)
+        self.assertEqual(file1.metadata["name"], filename)
         self.assertEqual(file1.GetContentString(), content)
 
         file2 = drive.CreateFile({"id": file1["id"]})  # Download file from id.
         pydrive_retry(file2.FetchContent)
         self.assertEqual(file2.GetContentString(), content)
-        self.assertEqual(file2.metadata["title"], filename)
+        self.assertEqual(file2.metadata["name"], filename)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -166,12 +166,12 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         filename = self.getTempFile("두번째 파일")
         content = "안녕 세상아!"
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentString(content)
-        pydrive_retry(file1.Upload)  # Files.insert
+        pydrive_retry(file1.Upload)  # Files.create
 
         self.assertEqual(file1.GetContentString(), content)
-        self.assertEqual(file1.metadata["title"], filename)
+        self.assertEqual(file1.metadata["name"], filename)
         pydrive_retry(
             file1.FetchContent
         )  # Force download and double check content.
@@ -180,7 +180,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         file2 = drive.CreateFile({"id": file1["id"]})  # Download file from id.
         pydrive_retry(file2.FetchContent)
         self.assertEqual(file2.GetContentString(), content)
-        self.assertEqual(file2.metadata["title"], filename)
+        self.assertEqual(file2.metadata["name"], filename)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -189,11 +189,9 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         contentFile = self.getTempFile("actual_content", "some string")
         file1.SetContentFile(contentFile)
-        pydrive_retry(file1.Upload)  # Files.insert
+        pydrive_retry(file1.Upload)  # Files.create
 
-        self.assertEqual(
-            file1.metadata["title"], os.path.basename(contentFile)
-        )
+        self.assertEqual(file1.metadata["name"], os.path.basename(contentFile))
         pydrive_retry(
             file1.FetchContent
         )  # Force download and double check content.
@@ -213,17 +211,17 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         filename = self.getTempFile("prepatchtestfile")
         newfilename = self.getTempFile("patchtestfile")
-        file1["title"] = filename
-        pydrive_retry(file1.Upload)  # Files.insert
+        file1["name"] = filename
+        pydrive_retry(file1.Upload)  # Files.create
 
-        self.assertEqual(file1.metadata["title"], filename)
-        file1["title"] = newfilename
-        pydrive_retry(file1.Upload)  # Files.patch
+        self.assertEqual(file1.metadata["name"], filename)
+        file1["name"] = newfilename
+        pydrive_retry(file1.Upload)  # Files.update
 
-        self.assertEqual(file1.metadata["title"], newfilename)
+        self.assertEqual(file1.metadata["name"], newfilename)
         file2 = drive.CreateFile({"id": file1["id"]})  # Download file from id.
         pydrive_retry(file2.FetchMetadata)
-        self.assertEqual(file2.metadata["title"], newfilename)
+        self.assertEqual(file2.metadata["name"], newfilename)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -232,18 +230,18 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         filename = self.getTempFile("prepatchtestfile")
         newfilename = self.getTempFile("patchtestfile")
-        file1["title"] = filename
-        pydrive_retry(file1.Upload)  # Files.insert
+        file1["name"] = filename
+        pydrive_retry(file1.Upload)  # Files.create
 
         file2 = drive.CreateFile(
             {"id": file1["id"]}
         )  # Patch file no download.
-        file2["title"] = newfilename
-        pydrive_retry(file2.Upload)  # Files.patch
+        file2["name"] = newfilename
+        pydrive_retry(file2.Upload)  # Files.update
 
         file3 = drive.CreateFile({"id": file1["id"]})  # Download file from id.
         pydrive_retry(file3.FetchMetadata)
-        self.assertEqual(file3.metadata["title"], newfilename)
+        self.assertEqual(file3.metadata["name"], newfilename)
 
     def test_Files_Patch_Skipping_Content(self):
         drive = GoogleDrive(self.ga)
@@ -252,14 +250,14 @@ class GoogleDriveFileTest(unittest.TestCase):
         newfilename = self.getTempFile("patchtestfile")
         content = "hello world!"
 
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentString(content)
-        pydrive_retry(file1.Upload)  # Files.insert
-        self.assertEqual(file1.metadata["title"], filename)
+        pydrive_retry(file1.Upload)  # Files.create
+        self.assertEqual(file1.metadata["name"], filename)
 
-        file1["title"] = newfilename
-        pydrive_retry(file1.Upload)  # Files.patch
-        self.assertEqual(file1.metadata["title"], newfilename)
+        file1["name"] = newfilename
+        pydrive_retry(file1.Upload)  # Files.update
+        self.assertEqual(file1.metadata["name"], newfilename)
         self.assertEqual(file1.GetContentString(), content)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
@@ -272,10 +270,10 @@ class GoogleDriveFileTest(unittest.TestCase):
         content = "hello world!"
         newcontent = "hello new world!"
 
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentString(content)
-        pydrive_retry(file1.Upload)  # Files.insert
-        self.assertEqual(file1.metadata["title"], filename)
+        pydrive_retry(file1.Upload)  # Files.create
+        self.assertEqual(file1.metadata["name"], filename)
         self.assertEqual(file1.GetContentString(), content)
 
         pydrive_retry(
@@ -283,10 +281,10 @@ class GoogleDriveFileTest(unittest.TestCase):
         )  # Force download and double check content.
         self.assertEqual(file1.GetContentString(), content)
 
-        file1["title"] = newfilename
+        file1["name"] = newfilename
         file1.SetContentString(newcontent)
         pydrive_retry(file1.Upload)  # Files.update
-        self.assertEqual(file1.metadata["title"], newfilename)
+        self.assertEqual(file1.metadata["name"], newfilename)
         self.assertEqual(file1.GetContentString(), newcontent)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
@@ -299,10 +297,10 @@ class GoogleDriveFileTest(unittest.TestCase):
         contentFile = self.getTempFile("actual_content", "some string")
         contentFile2 = self.getTempFile("actual_content_2", "some string")
 
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentFile(contentFile)
-        pydrive_retry(file1.Upload)  # Files.insert
-        self.assertEqual(file1.metadata["title"], filename)
+        pydrive_retry(file1.Upload)  # Files.create
+        self.assertEqual(file1.metadata["name"], filename)
 
         pydrive_retry(
             file1.FetchContent
@@ -311,10 +309,10 @@ class GoogleDriveFileTest(unittest.TestCase):
         pydrive_retry(file1.GetContentFile, fileOut)
         self.assertEqual(filecmp.cmp(contentFile, fileOut), True)
 
-        file1["title"] = newfilename
+        file1["name"] = newfilename
         file1.SetContentFile(contentFile2)
         pydrive_retry(file1.Upload)  # Files.update
-        self.assertEqual(file1.metadata["title"], newfilename)
+        self.assertEqual(file1.metadata["name"], newfilename)
 
         fileOut = self.getTempFile()
         pydrive_retry(file1.GetContentFile, fileOut)
@@ -330,15 +328,15 @@ class GoogleDriveFileTest(unittest.TestCase):
         contentFile = self.getTempFile("actual_content", "some string")
         contentFile2 = self.getTempFile("actual_content_2", "some string")
 
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentFile(contentFile)
-        pydrive_retry(file1.Upload)  # Files.insert
-        self.assertEqual(file1.metadata["title"], filename)
+        pydrive_retry(file1.Upload)  # Files.create
+        self.assertEqual(file1.metadata["name"], filename)
 
         same_file = drive.CreateFile({"id": file1["id"]})
         same_file.SetContentFile(contentFile2)
         pydrive_retry(same_file.Upload)  # Files.update
-        self.assertEqual(same_file.metadata["title"], filename)
+        self.assertEqual(same_file.metadata["name"], filename)
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -350,19 +348,19 @@ class GoogleDriveFileTest(unittest.TestCase):
         content = "hello world!"
         newcontent = "hello new world!"
 
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentString(content)
-        pydrive_retry(file1.Upload)  # Files.insert
+        pydrive_retry(file1.Upload)  # Files.create
 
         file2 = drive.CreateFile({"id": file1["id"]})
-        file2["title"] = newfilename
+        file2["name"] = newfilename
         file2.SetContentString(newcontent)
         pydrive_retry(file2.Upload)  # Files.update
 
         file3 = drive.CreateFile({"id": file1["id"]})
         pydrive_retry(file3.FetchContent)
         self.assertEqual(file3.GetContentString(), newcontent)
-        self.assertEqual(file3["title"], newfilename)
+        self.assertEqual(file3["name"], newfilename)
 
     def test_Files_Download_Service(self):
         """
@@ -374,10 +372,10 @@ class GoogleDriveFileTest(unittest.TestCase):
         filename = self.getTempFile("prepatchtestfile")
         content = "hello world!"
 
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentString(content)
-        pydrive_retry(file1.Upload)  # Files.insert
-        self.assertEqual(file1.metadata["title"], filename)
+        pydrive_retry(file1.Upload)  # Files.create
+        self.assertEqual(file1.metadata["name"], filename)
         fileOut1 = self.getTempFile()
         pydrive_retry(file1.GetContentFile, fileOut1)
 
@@ -399,12 +397,12 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         filename = self.getTempFile()
         content = "hello world!\ngoodbye, cruel world!"
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentString(content)
-        pydrive_retry(file1.Upload)  # Files.insert
+        pydrive_retry(file1.Upload)  # Files.create
 
         buffer1 = pydrive_retry(file1.GetContentIOBuffer)
-        self.assertEqual(file1.metadata["title"], filename)
+        self.assertEqual(file1.metadata["name"], filename)
         self.assertEqual(len(buffer1), len(content))
         self.assertEqual(b"".join(iter(buffer1)).decode("ascii"), content)
 
@@ -534,7 +532,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         pydrive_retry(file1.FetchMetadata)
 
-        self.assertEqual(file1.metadata["title"], "N48E012.zip")
+        self.assertEqual(file1.metadata["name"], "N48E012.zip")
 
     def test_Upload_Download_Empty_File(self):
         filename = os.path.join(self.tmpdir, str(time()))
@@ -577,18 +575,18 @@ class GoogleDriveFileTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
-        self.assertFalse(file1.metadata["labels"]["trashed"])
+        self.assertFalse(file1.metadata["trashed"])
 
         # Download to verify non-trashed state on GDrive.
         file2 = drive.CreateFile({"id": file1["id"]})
         pydrive_retry(file2.FetchMetadata)
-        self.assertFalse(file2.metadata["labels"]["trashed"])
+        self.assertFalse(file2.metadata["trashed"])
 
         pydrive_retry(file1.Trash)
-        self.assertTrue(file1.metadata["labels"]["trashed"])
+        self.assertTrue(file1.metadata["trashed"])
 
         pydrive_retry(file2.FetchMetadata)
-        self.assertTrue(file2.metadata["labels"]["trashed"])
+        self.assertTrue(file2.metadata["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -596,7 +594,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
-        self.assertFalse(file1.metadata["labels"]["trashed"])
+        self.assertFalse(file1.metadata["trashed"])
 
         # Trash file by ID.
         file2 = drive.CreateFile({"id": file1["id"]})
@@ -604,7 +602,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         # Verify trashed by downloading metadata.
         pydrive_retry(file1.FetchMetadata)
-        self.assertTrue(file1.metadata["labels"]["trashed"])
+        self.assertTrue(file1.metadata["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -613,20 +611,20 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
         pydrive_retry(file1.Trash)
-        self.assertTrue(file1.metadata["labels"]["trashed"])
+        self.assertTrue(file1.metadata["trashed"])
 
         # Verify that file is trashed by downloading metadata.
         file2 = drive.CreateFile({"id": file1["id"]})
         pydrive_retry(file2.FetchMetadata)
-        self.assertTrue(file2.metadata["labels"]["trashed"])
+        self.assertTrue(file2.metadata["trashed"])
 
         # Un-trash the file, and assert local metadata is updated correctly.
         pydrive_retry(file1.UnTrash)
-        self.assertFalse(file1.metadata["labels"]["trashed"])
+        self.assertFalse(file1.metadata["trashed"])
 
         # Re-fetch the metadata, and assert file un-trashed on GDrive.
         pydrive_retry(file2.FetchMetadata)
-        self.assertFalse(file2.metadata["labels"]["trashed"])
+        self.assertFalse(file2.metadata["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -635,13 +633,13 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1 = drive.CreateFile()
         pydrive_retry(file1.Upload)
         pydrive_retry(file1.Trash)
-        self.assertTrue(file1.metadata["labels"]["trashed"])
+        self.assertTrue(file1.metadata["trashed"])
 
         file2 = drive.CreateFile({"id": file1["id"]})
         pydrive_retry(file2.UnTrash)  # UnTrash without fetching metadata.
 
         pydrive_retry(file1.FetchMetadata)
-        self.assertFalse(file1.metadata["labels"]["trashed"])
+        self.assertFalse(file1.metadata["trashed"])
 
         self.DeleteUploadedFiles(drive, [file1["id"]])
 
@@ -711,22 +709,22 @@ class GoogleDriveFileTest(unittest.TestCase):
         # Insert the permission.
         permission = pydrive_retry(
             file1.InsertPermission,
-            {"type": "anyone", "value": "anyone", "role": "reader"},
+            {"type": "anyone", "role": "reader", "allowFileDiscovery": False},
         )
         self.assertTrue(permission)
         self.assertEqual(len(file1["permissions"]), 2)
-        self.assertEqual(file1["permissions"][0]["type"], "anyone")
+        self.assertIn("anyone", [p["type"] for p in file1["permissions"]])
 
         permissions = pydrive_retry(file1.GetPermissions)
         self.assertEqual(len(file1["permissions"]), 2)
-        self.assertEqual(file1["permissions"][0]["type"], "anyone")
-        self.assertEqual(permissions[0]["type"], "anyone")
+        self.assertIn("anyone", [p["type"] for p in file1["permissions"]])
+        self.assertIn("anyone", [p["type"] for p in permissions])
 
         # Verify remote changes made.
         file2 = drive.CreateFile({"id": file1["id"]})
         permissions = pydrive_retry(file2.GetPermissions)
         self.assertEqual(len(permissions), 2)
-        self.assertEqual(permissions[0]["type"], "anyone")
+        self.assertIn("anyone", [p["type"] for p in permissions])
 
         pydrive_retry(file1.Delete)
 
@@ -749,13 +747,14 @@ class GoogleDriveFileTest(unittest.TestCase):
         pydrive_retry(file1.Upload)
         pydrive_retry(
             file1.InsertPermission,
-            {"type": "anyone", "value": "anyone", "role": "reader"},
+            {"type": "anyone", "role": "reader", "allowFileDiscovery": False},
         )
         permissions = pydrive_retry(file1.GetPermissions)
         self.assertEqual(len(permissions), 2)
         self.assertEqual(len(file1["permissions"]), 2)
 
-        pydrive_retry(file1.DeletePermission, permissions[0]["id"])
+        public_id = next(p["id"] for p in permissions if p["type"] == "anyone")
+        pydrive_retry(file1.DeletePermission, public_id)
         self.assertEqual(len(file1["permissions"]), 1)
 
         # Verify remote changes made.
@@ -814,17 +813,23 @@ class GoogleDriveFileTest(unittest.TestCase):
         # Upload a string, and convert into Google Doc format.
         test_string = "Generic, non-exhaustive ASCII test string."
         file1.SetContentString(test_string)
-        pydrive_retry(file1.Upload, {"convert": True})
+        file1["mimeType"] = "application/vnd.google-apps.document"
+        pydrive_retry(file1.Upload, media_mime_type="text/plain")
 
-        # Download string as plain text.
-        downloaded_string = file1.GetContentString(mimetype="text/plain")
+        self.addCleanup(pydrive_retry, file1.Delete)
+
+        # A plain-text Google Docs export includes a UTF-8 BOM.
+        downloaded_string = file1.GetContentString(
+            mimetype="text/plain", remove_bom=True
+        )
         self.assertEqual(
             test_string, downloaded_string, "Strings do not match"
         )
 
         # Download content into file and ensure that file content matches original
         # content string.
-        downloaded_file_name = "_tmp_downloaded_file_name.txt"
+        downloaded_file_name = self.getTempFile()
+        self.addCleanup(Path(downloaded_file_name).unlink, missing_ok=True)
         pydrive_retry(
             file1.GetContentFile,
             downloaded_file_name,
@@ -835,9 +840,6 @@ class GoogleDriveFileTest(unittest.TestCase):
         self.assertEqual(
             test_string, downloaded_string, "Strings do not match"
         )
-
-        # Delete temp file.
-        delete_file(downloaded_file_name)
 
     # Tests for GDrive conversion.
     # ============================
@@ -875,7 +877,8 @@ class GoogleDriveFileTest(unittest.TestCase):
         try:
             # Upload source_file and convert into Google Doc format.
             file1.SetContentFile(file_name)
-            pydrive_retry(file1.Upload, {"convert": True})
+            file1["mimeType"] = "application/vnd.google-apps.document"
+            pydrive_retry(file1.Upload, media_mime_type="text/plain")
 
             # Download as string.
             downloaded_content_no_bom = file1.GetContentString(
@@ -910,7 +913,8 @@ class GoogleDriveFileTest(unittest.TestCase):
         ) = self.setup_gfile_conversion_test()
         try:
             file1.SetContentFile(file_name)
-            pydrive_retry(file1.Upload, {"convert": True})
+            file1["mimeType"] = "application/vnd.google-apps.document"
+            pydrive_retry(file1.Upload, media_mime_type="text/plain")
 
             content_bom = file1.GetContentString(mimetype="text/plain")
             content_no_bom = file1.GetContentString(
@@ -963,14 +967,14 @@ class GoogleDriveFileTest(unittest.TestCase):
         for i in range(num_of_uploads):
             file_name = first_file if i % 2 == 0 else second_file
             up_file = drive.CreateFile()
-            up_file["title"] = remote_name
+            up_file["name"] = remote_name
             up_file.SetContentFile(file_name)
             upload_files.append(up_file)
 
         # Ensure there are no files with the random file name.
         files = pydrive_retry(
             lambda: drive.ListFile(
-                param={"q": f"title = '{remote_name}' and trashed = false"}
+                param={"q": f"name = '{remote_name}' and trashed = false"}
             ).GetList()
         )
         self.assertTrue(len(files) == 0)
@@ -991,7 +995,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         def check_uploaded_files():
             # A successful upload can take time to appear in title searches.
             files = drive.ListFile(
-                param={"q": f"title = '{remote_name}' and trashed = false"}
+                param={"q": f"name = '{remote_name}' and trashed = false"}
             ).GetList()
             if len(files) < num_of_uploads:
                 raise test_util.PyDriveRetriableError(
@@ -1010,19 +1014,19 @@ class GoogleDriveFileTest(unittest.TestCase):
         download_files = []
         for file_id in file_ids:
             file1 = drive.CreateFile({"id": file_id})
-            file1["title"] = self.getTempFile()
+            file1["name"] = self.getTempFile()
             download_files.append(file1)
 
         # Ensure files don't exist yet.
         for file_obj in download_files:
-            self.assertTrue(not delete_file(file_obj["title"]))
+            self.assertTrue(not delete_file(file_obj["name"]))
 
         # Submit upload jobs to ThreadPoolExecutor.
         futures = []
         for file_obj in download_files:
             futures.append(
                 thread_pool.submit(
-                    pydrive_retry, file_obj.GetContentFile, file_obj["title"]
+                    pydrive_retry, file_obj.GetContentFile, file_obj["name"]
                 )
             )
 
@@ -1033,7 +1037,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         # Ensure all files were downloaded.
         for file_obj in download_files:
-            self.assertTrue(delete_file(file_obj["title"]))
+            self.assertTrue(delete_file(file_obj["name"]))
 
         # Remove uploaded files.
         self.DeleteUploadedFiles(drive, file_ids)
@@ -1058,7 +1062,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         # create a temp file and set it's content to a known string
         file1 = drive.CreateFile()
         filename = self.getTempFile("copytestfile", content=content)
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentFile(filename)
         pydrive_retry(file1.Upload)
 
@@ -1081,7 +1085,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         # create a temp file and set it's content to a known string
         file1 = drive.CreateFile()
         filename = self.getTempFile("copytestfile", content=content)
-        file1["title"] = filename
+        file1["name"] = filename
         file1.SetContentFile(filename)
         pydrive_retry(file1.Upload)
 
@@ -1089,9 +1093,9 @@ class GoogleDriveFileTest(unittest.TestCase):
         temp_dir = pydrive_retry(
             drive.CreateFile,
             {
-                "title": "temp_dir",
+                "name": "temp_dir",
                 "mimeType": "application/vnd.google-apps.folder",
-                "parents": [{"id": file1["parents"][0]["id"]}],
+                "parents": [file1["parents"][0]],
             },
         )
         pydrive_retry(temp_dir.Upload)
@@ -1110,7 +1114,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         files = pydrive_retry(
             drive.ListFile, {"q": f"'{temp_dir['id']}' in parents"}
         ).GetList()
-        self.assertIn("copytestfile_copy", [f["title"] for f in files])
+        self.assertIn("copytestfile_copy", [f["name"] for f in files])
 
         self.DeleteUploadedFiles(
             drive, [file1["id"], file2["id"], temp_dir["id"]]
