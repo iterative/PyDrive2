@@ -2,7 +2,6 @@ import errno
 import json
 import os
 import pickle
-import stat
 import subprocess
 import sys
 import webbrowser
@@ -822,18 +821,26 @@ def test_windows_cache_preserves_file_permissions(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(sys.platform != "win32", reason="Windows file compression")
 def test_windows_compressed_cache(tmp_path):
-    import win32file
+    from ctypes import byref, c_int, windll
+
+    import win32api
+
+    if win32api.GetVolumeInformation(tmp_path.anchor)[4] != "NTFS":
+        pytest.skip("WOF compression requires NTFS")
 
     path = tmp_path / "user.json"
     path.write_bytes(b'{"token":"compressed"}' + b" " * 65536)
     subprocess.run(
         ["compact.exe", "/C", "/EXE:XPRESS4K", "/F", str(path)], check=True
     )
-    if (
-        not win32file.GetFileAttributes(str(path))
-        & stat.FILE_ATTRIBUTE_REPARSE_POINT
-    ):
-        pytest.skip("The volume does not support WOF-compressed files")
+    backed = c_int()
+    assert (
+        windll.wofutil.WofIsExternalFile(
+            str(path), byref(backed), None, None, None
+        )
+        == 0
+    )
+    assert backed.value
     auth = GoogleAuth(settings_file=None)
     auth.LoadCredentialsFile(path)
     assert auth.credentials.token == "compressed"
