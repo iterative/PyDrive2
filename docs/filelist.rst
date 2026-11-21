@@ -1,5 +1,5 @@
 File listing made easy
-=============================
+======================
 
 PyDrive2 handles pagination and returns
 :class:`~pydrive2.files.GoogleDriveFile` instances.
@@ -22,12 +22,15 @@ v3 examples. PyDrive2 uses v2. When adapting a query, check the
 
     from pydrive2.drive import GoogleDrive
 
-    drive = GoogleDrive(gauth) # Create GoogleDrive instance with authenticated GoogleAuth instance
+    # Create GoogleDrive instance with authenticated GoogleAuth instance
+    drive = GoogleDrive(gauth)
 
     # Auto-iterate through all files in the root folder.
-    file_list = drive.ListFile({'q': "'root' in parents and trashed=false"}).GetList()
+    file_list = drive.ListFile(
+        {'q': "'root' in parents and trashed=false"}
+    ).GetList()
     for file1 in file_list:
-      print('title: %s, id: %s' % (file1['title'], file1['id']))
+        print('title: %s, id: %s' % (file1['title'], file1['id']))
 
 You can update the metadata or content of each returned file.
 
@@ -42,9 +45,9 @@ contains up to ten files.
 
     # Paginate file lists by specifying number of max results
     for file_list in drive.ListFile({'q': 'trashed=true', 'maxResults': 10}):
-      print('Received %s files from Files.list()' % len(file_list)) # <= 10
-      for file1 in file_list:
-          print('title: %s, id: %s' % (file1['title'], file1['id']))
+        print('Received %s files from Files.list()' % len(file_list))  # <= 10
+        for file1 in file_list:
+            print('title: %s, id: %s' % (file1['title'], file1['id']))
 
 
 .. _files.list query parameters:

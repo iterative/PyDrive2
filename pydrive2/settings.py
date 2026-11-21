@@ -57,7 +57,7 @@ SETTINGS_STRUCT = {
             "redirect_uri": {
                 "type": str,
                 "required": True,
-                "default": "urn:ietf:wg:oauth:2.0:oob",
+                "default": "http://localhost",
             },
             "revoke_uri": {"type": str, "required": True, "default": None},
         },

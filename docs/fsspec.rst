@@ -39,6 +39,12 @@ someone else's cached credentials:
         profile="myprofile",
     )
 
+PyDrive2 2.x uses a separate default cache. The first interactive connection
+after upgrading from 1.x prompts you to sign in. If you supplied a user
+credential file explicitly, choose a fresh path. For DVC jobs that use
+``GDRIVE_CREDENTIALS_DATA`` for a user account, replace that secret with the
+newly saved JSON. Service-account jobs can reuse their configured key.
+
 Writing cached credentials to a file and using it if it already exists (which
 avoids interactive auth):
 
@@ -76,7 +82,8 @@ Using json keyfile path:
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
-        # replace with ID of a drive or directory and give service account access to it
+        # replace with ID of a drive or directory and give service account
+        # access to it
         "root",
         use_service_account=True,
         client_json_file_path="/path/to/keyfile.json",
@@ -89,7 +96,8 @@ Using json keyfile string:
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
-        # replace with ID of a drive or directory and give service account access to it
+        # replace with ID of a drive or directory and give service account
+        # access to it
         "root",
         use_service_account=True,
         client_json=json_string,
@@ -101,20 +109,23 @@ If your service account uses `domain-wide delegation`_, set
 Additional parameters
 ---------------------
 
-:trash_only (bool): Move files to trash instead of deleting.
-:acknowledge_abuse (bool): Acknowledge the risk when downloading a file
-    flagged as abusive. See :ref:`abusive-files`.
+:trash_only (bool):
+    Move files to trash instead of deleting.
+:acknowledge_abuse (bool):
+    Acknowledge the risk when downloading a file flagged as abusive.
+    See :ref:`abusive-files`.
 
 Using filesystem
 ----------------
 
 .. code-block:: python
 
-    # replace `root` with ID of a drive or directory and give service account access to it
+    # replace `root` with ID of a drive or directory and give service account
+    # access to it
     for root, dnames, fnames in fs.walk("root"):
         for dname in dnames:
             print(f"dir: {root}/{dname}")
-        
+
         for fname in fnames:
             print(f"file: {root}/{fname}")
 
@@ -125,4 +136,5 @@ about and manipulating files, refer to fsspec docs on
 .. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
 .. _domain-wide delegation:
    https://developers.google.com/workspace/guides/create-credentials#set-up-domain-wide-delegation
-.. _`how to use a filesystem`: https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system
+.. _`how to use a filesystem`:
+   https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system
