@@ -473,6 +473,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     @LoadMetadata
     def FetchContent(self, mimetype=None, remove_bom=False):
         """Download file content or a Workspace export into memory."""
+        if self.get("mimeType") in {
+            "application/vnd.google-apps.folder",
+            "application/vnd.google-apps.shortcut",
+        }:
+            raise FileNotDownloadableError(
+                "Folders and shortcuts have no content"
+            )
         stream = self.GetContentIOBuffer(
             mimetype=mimetype, remove_bom=remove_bom
         )

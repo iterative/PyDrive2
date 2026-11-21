@@ -507,6 +507,13 @@ class GDriveFileSystem(AbstractFileSystem):
             dir_ids.append(new_query_ids)
             for item in self._gdrive_list_ids(query_ids):
                 parent_id = item["parents"][0]
+                # Drive returns the actual parent ID even when queried by alias.
+                if (
+                    parent_id not in query_ids
+                    and self.root in {"root", "appDataFolder"}
+                    and self.root in query_ids
+                ):
+                    parent_id = self.root
                 item_path = posixpath.join(query_ids[parent_id], item["name"])
                 if item["mimeType"] == FOLDER_MIME_TYPE:
                     new_query_ids[item["id"]] = item_path
