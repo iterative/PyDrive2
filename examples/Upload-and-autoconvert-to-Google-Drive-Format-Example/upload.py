@@ -7,8 +7,10 @@ Google Doc/Sheet/etc. if possible.
 usage: upload.py <Google Drive folder ID> <local file path>
 example usage: upload.py 0B5XXXXY9KddXXXXXXXA2c3ZXXXX /path/to/my/file
 """
+
 import sys
 from os import path
+
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 from pydrive2.settings import LoadSettingsFile
@@ -24,9 +26,9 @@ gauth.CommandLineAuth()
 drive = GoogleDrive(gauth)
 
 # If provided arguments incorrect, print usage instructions and exit.
-if len(sys.argv) < 2:
+if len(sys.argv) < 3:
     print("usage: upload.py <Google Drive folder ID> <local file path>")
-    exit(1)  # Exit program as incorrect parameters provided.
+    sys.exit(1)
 
 parentId = sys.argv[1]
 myFilePath = sys.argv[2]
@@ -35,9 +37,7 @@ myFileName = path.basename(sys.argv[2])
 # Check if file name already exists in folder.
 file_list = drive.ListFile(
     {
-        "q": '"{}" in parents and title="{}" and trashed=false'.format(
-            parentId, myFileName
-        )
+        "q": f'"{parentId}" in parents and title="{myFileName}" and trashed=false'
     }
 ).GetList()
 

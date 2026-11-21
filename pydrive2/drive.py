@@ -1,7 +1,6 @@
 from .apiattr import ApiAttributeMixin
-from .files import GoogleDriveFile
-from .files import GoogleDriveFileList
 from .auth import LoadAuth
+from .files import GoogleDriveFile, GoogleDriveFileList
 
 
 class GoogleDrive(ApiAttributeMixin):

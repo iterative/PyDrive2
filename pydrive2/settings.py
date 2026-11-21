@@ -1,10 +1,7 @@
-from yaml import load
-from yaml import YAMLError
+import yaml
+from yaml import YAMLError, load
 
-try:
-    from yaml import CSafeLoader as SafeLoader
-except ImportError:
-    from yaml import SafeLoader
+SafeLoader = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
 
 SETTINGS_FILE = "settings.yaml"
 SETTINGS_STRUCT = {
@@ -60,7 +57,7 @@ SETTINGS_STRUCT = {
             "redirect_uri": {
                 "type": str,
                 "required": True,
-                "default": "urn:ietf:wg:oauth:2.0:oob",
+                "default": "http://localhost",
             },
             "revoke_uri": {"type": str, "required": True, "default": None},
         },
@@ -163,7 +160,7 @@ def _ValidateSettingsElement(data, struct, key):
         try:
             default = struct[key]["default"]
         except KeyError:
-            raise InvalidConfigError("Missing required setting %s" % key)
+            raise InvalidConfigError(f"Missing required setting {key}")
         else:
             data[key] = default
     # If data exists, Check type of the data
@@ -177,8 +174,7 @@ def _ValidateSettingsElement(data, struct, key):
         for element in data[key]:
             if not isinstance(element, struct[key]["struct"]):
                 raise InvalidConfigError(
-                    "Setting %s should be list of %s"
-                    % (key, struct[key]["struct"])
+                    f"Setting {key} should be list of {struct[key]['struct']}"
                 )
     # Check dependency of this attribute.
     dependencies = struct[key].get("dependency")

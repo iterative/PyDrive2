@@ -99,9 +99,10 @@ class ApiResource(dict):
         """
         dirty = {}
         for key in self:
-            if self.metadata.get(key) is None:
-                dirty[key] = self[key]
-            elif self.metadata[key] != self[key]:
+            if (
+                self.metadata.get(key) is None
+                or self.metadata[key] != self[key]
+            ):
                 dirty[key] = self[key]
         return dirty
 

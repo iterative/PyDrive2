@@ -15,19 +15,24 @@ maintainers = [
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 dependencies = [
     "google-api-python-client>=1.12.5",
-    "oauth2client>=4.0.0",
+    "google-auth>=2.15.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.5.0",
+    "filelock>=3.30.0",
+    "httplib2>=0.19.0",
+    "oauthlib>=3.0.0",
     "PyYAML>=3.0",
-    # https://github.com/iterative/PyDrive2/issues/361
-    "cryptography<44",
-    "pyOpenSSL>=19.1.0,<=24.2.1",
+    "cryptography>=3.4",
+    "pywin32>=305; sys_platform == 'win32'",
 ]
 license = {text = "Apache License 2.0"}
 dynamic = ["version"]
@@ -48,13 +53,11 @@ tests = [
     "pytest>=4.6.0",
     "timeout-decorator",
     "funcy>=1.14",
-    "flake8",
-    "flake8-docstrings",
     "pytest-mock",
     "pyinstaller",
-    "importlib_resources<6; python_version < '3.10'",
-    "black==24.10.0",
+    "ruff==0.17.6",
 ]
+typing = ["mypy==2.4.1", "types-httplib2", "types-PyYAML"]
 
 [project.entry-points.pyinstaller40]
 hook-dirs = "pydrive2.__pyinstaller:get_hook_dirs"
@@ -70,25 +73,29 @@ packages=[
 
 [tool.setuptools_scm]
 
-[tool.black]
+[tool.ruff]
 line-length = 79
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
+
+[tool.ruff.lint]
+extend-select = ["E501", "I", "TC", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# PyInstaller discovers hook modules by their hyphenated filenames.
+"pydrive2/__pyinstaller/*-*.py" = ["N999"]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 89
+
+[tool.mypy]
+python_version = "3.11"
+files = ["pydrive2"]
+exclude = ["/test(/|_)"]
+check_untyped_defs = true
+# Some runtime dependencies do not distribute type information.
+disable_error_code = ["import-untyped"]
 
 [tool.pytest.ini_options]
 markers = [
+    "drive: requires Google Drive credentials",
     "manual: mark tests to be runnable only in local environment and require user manual actions.",
 ]

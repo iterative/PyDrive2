@@ -1,16 +1,22 @@
-from io import StringIO
 import os
 import posixpath
 import secrets
 import uuid
 from concurrent import futures
+from io import StringIO
 
-import pytest
 import fsspec
+import pytest
+
 from pydrive2.auth import GoogleAuth
 from pydrive2.fs import GDriveFileSystem
-from pydrive2.test.test_util import settings_file_path, setup_credentials
-from pydrive2.test.test_util import GDRIVE_USER_CREDENTIALS_DATA
+from pydrive2.test.test_util import (
+    GDRIVE_USER_CREDENTIALS_DATA,
+    settings_file_path,
+    setup_credentials,
+)
+
+pytestmark = pytest.mark.drive
 
 TEST_GDRIVE_REPO_BUCKET = "root"
 
@@ -65,7 +71,7 @@ def fs(fs_factory):
 def test_fs_oauth(base_remote_dir):
     GDriveFileSystem(
         base_remote_dir,
-        client_id="47794215776-cd9ssb6a4vv5otkq6n0iadpgc4efgjb1.apps.googleusercontent.com",  # noqa: E501
+        client_id="47794215776-cd9ssb6a4vv5otkq6n0iadpgc4efgjb1.apps.googleusercontent.com",
         client_secret="i2gerGA7uBjZbR08HqSOSt9Z",
     )
 
@@ -278,13 +284,9 @@ def test_find(fs, fs_factory, remote_dir):
     for test_fs in [fs, fs_factory()[0]]:
         # Test for https://github.com/iterative/PyDrive2/issues/229
         # It must go first, so that we test with a cache miss as well
-        assert set(test_fs.find(remote_dir + "/dir/c/d/")) == set(
-            [
-                file
-                for file in files
-                if file.startswith(remote_dir + "/dir/c/d/")
-            ]
-        )
+        assert set(test_fs.find(remote_dir + "/dir/c/d/")) == {
+            file for file in files if file.startswith(remote_dir + "/dir/c/d/")
+        }
 
         # General find test
         assert set(test_fs.find(remote_dir)) == set(files)
@@ -296,9 +298,8 @@ def test_find(fs, fs_factory, remote_dir):
 
 
 def test_exceptions(fs, tmpdir, remote_dir):
-    with pytest.raises(FileNotFoundError):
-        with fs.open(remote_dir + "/a.txt"):
-            ...
+    with pytest.raises(FileNotFoundError), fs.open(remote_dir + "/a.txt"):
+        ...
 
     with pytest.raises(FileNotFoundError):
         fs.copy(remote_dir + "/u.txt", remote_dir + "/y.txt")
