@@ -11,7 +11,14 @@ from typing import TypedDict
 
 import appdirs
 from fsspec.spec import AbstractFileSystem
-from funcy import cached_property, retry, wrap_prop, wrap_with
+from funcy import (
+    cached_property,
+    chunks,
+    distinct,
+    retry,
+    wrap_prop,
+    wrap_with,
+)
 from tqdm.utils import CallbackIOWrapper
 
 from pydrive2.auth import GoogleAuth, InvalidCredentialsError
@@ -21,6 +28,7 @@ from pydrive2.fs.utils import IterStream
 logger = logging.getLogger(__name__)
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
+_PARENT_QUERY_BATCH_SIZE = 50
 
 COMMON_SETTINGS = {
     "get_refresh_token": True,
@@ -38,6 +46,11 @@ class _IdsCache(TypedDict):
 
 class GDriveAuthError(Exception):
     pass
+
+
+def _quote_query_value(value):
+    escaped = value.replace("\\", "\\\\").replace("'", "\\'")
+    return f"'{escaped}'"
 
 
 def _gdrive_retry(func):
@@ -317,27 +330,24 @@ class GDriveFileSystem(AbstractFileSystem):
         # Fetch pages until None is received, lazily flatten the thing.
         return chain.from_iterable(iter(get_list, None))
 
-    def _gdrive_list_ids(self, query_ids):
-        query = " or ".join(
-            f"'{query_id}' in parents" for query_id in query_ids
-        )
-        query = f"({query}) and trashed=false"
-        return self._gdrive_list(query)
+    def _gdrive_list_ids(self, query_ids, *, title=None):
+        filters = "trashed=false"
+        if title is not None:
+            filters += f" and title={_quote_query_value(title)}"
+        # Drive can reject large parent queries. Query each parent only once.
+        for batch in chunks(_PARENT_QUERY_BATCH_SIZE, distinct(query_ids)):
+            parents = " or ".join(
+                f"{_quote_query_value(parent)} in parents" for parent in batch
+            )
+            yield from self._gdrive_list(f"({parents}) and {filters}")
 
     def _get_remote_item_ids(
         self, parent_ids, parent_path, title, use_cache=True
     ):
         if not parent_ids:
             return None
-        query = "trashed=false and ({})".format(
-            " or ".join(
-                f"'{parent_id}' in parents" for parent_id in parent_ids
-            )
-        )
-        query += " and title='{}'".format(title.replace("'", "\\'"))
-
         res = []
-        for item in self._gdrive_list(query):
+        for item in self._gdrive_list_ids(parent_ids, title=title):
             # GDrive list API is case insensitive, we need to compare
             # all results and pick the ones with the right title
             if item["title"] == title:
@@ -354,7 +364,8 @@ class GDriveFileSystem(AbstractFileSystem):
         if not path:
             return [self.root]
         if use_cache:
-            return self._ids_cache["dirs"].get(path, [])
+            # Another caller can add parents while a batched lookup is running.
+            return self._ids_cache["dirs"].get(path, []).copy()
         return []
 
     def _path_to_item_ids(self, path, create=False, use_cache=True):
