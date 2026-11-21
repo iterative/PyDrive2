@@ -85,7 +85,8 @@ class StoredUserCredentials(Credentials):
     def refresh(self, request):
         store = self.store
         if store is None:
-            return super().refresh(request)
+            super().refresh(request)
+            return
         # AuthorizedHttp can refresh during a request, including after a 401.
         previous_token = self.token
         with store.lock:
