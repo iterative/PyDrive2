@@ -1,11 +1,15 @@
 import json
+from codecs import BOM_UTF8
 from urllib.parse import parse_qs, urlsplit
 
+import pytest
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import HttpMockSequence
 
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
+from pydrive2.files import ApiRequestError, GoogleDriveFile
+from pydrive2.fs import GDriveFileSystem
 
 
 def mock_drive(*responses):
@@ -129,3 +133,99 @@ def test_v3_permissions_and_revisions():
     ]
     assert parse_qs(urlsplit(requests[2][0]).query)["pageToken"] == ["p2"]
     assert parse_qs(urlsplit(requests[5][0]).query)["pageToken"] == ["r2"]
+
+
+@pytest.mark.parametrize("stream", [True, False])
+@pytest.mark.parametrize("known_type", [True, False])
+def test_workspace_export_requests(stream, known_type, tmp_path):
+    body = BOM_UTF8 + b"text"
+    responses = [({"status": "200", "content-length": str(len(body))}, body)]
+    if not known_type:
+        responses.insert(
+            0,
+            (
+                {"status": "403"},
+                json.dumps(
+                    {
+                        "error": {
+                            "code": 403,
+                            "errors": [{"reason": "fileNotDownloadable"}],
+                        }
+                    }
+                ),
+            ),
+        )
+    drive, requests = mock_drive(*responses)
+    metadata = {"id": "doc", "resourceKey": "key"}
+    if known_type:
+        metadata["mimeType"] = "application/vnd.google-apps.document"
+    file = GoogleDriveFile(drive.auth, metadata, uploaded=True)
+
+    if stream:
+        assert b"".join(file.GetContentIOBuffer(remove_bom=True)) == b"text"
+    else:
+        path = tmp_path / "document"
+        file.GetContentFile(path, remove_bom=True)
+        assert path.read_bytes() == b"text"
+
+    assert len(requests) == (1 if known_type else 2)
+    assert urlsplit(requests[-1][0]).path.endswith("/doc/export")
+    assert all(
+        r[3]["X-Goog-Drive-Resource-Keys"] == "doc/key" for r in requests
+    )
+
+
+def test_download_permission_error_does_not_trigger_export():
+    drive, requests = mock_drive(
+        (
+            {"status": "403"},
+            json.dumps(
+                {
+                    "error": {
+                        "code": 403,
+                        "errors": [{"reason": "insufficientPermissions"}],
+                    }
+                }
+            ),
+        )
+    )
+    with pytest.raises(ApiRequestError):
+        drive.CreateFile({"id": "private"}).GetContentIOBuffer()
+    assert len(requests) == 1
+
+
+def test_filesystem_copy_uses_drive_and_creates_parents(mocker):
+    drive, requests = mock_drive(response({"id": "new-copy"}))
+    fs = GDriveFileSystem(
+        "root", google_auth=drive.auth, skip_instance_cache=True
+    )
+    lookup = mocker.patch.object(
+        fs, "_get_item_id", side_effect=["source", "dest-dir"]
+    )
+    fs.cp_file("root/payload", "root/new/nested/copy")
+
+    assert lookup.call_args_list == [
+        mocker.call("root/payload"),
+        mocker.call("root/new/nested", create=True),
+    ]
+    ((url, method, body, _),) = requests
+    assert urlsplit(url).path == "/drive/v3/files/source/copy"
+    assert method == "POST"
+    assert json.loads(body) == {"name": "copy", "parents": ["dest-dir"]}
+
+
+def test_filesystem_download_progress_uses_media_response(mocker, tmp_path):
+    drive, requests = mock_drive(
+        ({"status": "200", "content-length": "3"}, b"xyz")
+    )
+    fs = GDriveFileSystem(
+        "root", google_auth=drive.auth, skip_instance_cache=True
+    )
+    mocker.patch.object(fs, "_get_item_id", return_value="file")
+    callback = mocker.Mock()
+    fs.get_file("root/payload", tmp_path / "payload", callback=callback)
+    callback.set_size.assert_called_once_with(3)
+    callback.absolute_update.assert_called_once_with(3)
+    assert (tmp_path / "payload").read_bytes() == b"xyz"
+    assert len(requests) == 1
+    assert parse_qs(urlsplit(requests[0][0]).query)["alt"] == ["media"]

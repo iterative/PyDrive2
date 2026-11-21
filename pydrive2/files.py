@@ -24,6 +24,15 @@ DEFAULT_FILE_FIELDS = (
     "resourceKey,webViewLink,createdTime,modifiedTime"
 )
 
+WORKSPACE_EXPORT_TYPES = frozenset(
+    {
+        "application/vnd.google-apps.document",
+        "application/vnd.google-apps.spreadsheet",
+        "application/vnd.google-apps.presentation",
+        "application/vnd.google-apps.drawing",
+    }
+)
+
 BLOCK_SIZE = 1024
 # Usage: MIME_TYPE_TO_BOM['<Google Drive mime type>']['<download mimetype>'].
 MIME_TYPE_TO_BOM = {
@@ -339,57 +348,25 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type acknowledge_abuse: bool
         :raises: ApiRequestError, FileNotUploadedError
         """
-        files = self.auth.service.files()
-        file_id = self.metadata.get("id") or self.get("id")
-        if not file_id:
-            raise FileNotUploadedError()
 
-        def download(fd, request):
-            downloader = MediaIoBaseDownload(
-                fd, self._WrapRequest(request), chunksize=chunksize
-            )
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
-                if callback:
-                    callback(status.resumable_progress, status.total_size)
-
-        with open(filename, mode="w+b") as fd:
-            # Should use files.export_media instead of files.get_media if
-            # metadata["mimeType"].startswith("application/vnd.google-apps.").
-            # But that would first require a slow call to FetchMetadata().
-            # We prefer to try-except for speed.
-            try:
-                download(
-                    fd,
-                    files.get_media(
-                        fileId=file_id,
-                        acknowledgeAbuse=acknowledge_abuse,
-                        supportsAllDrives=True,
-                    ),
+        def download(request, export_type):
+            with open(filename, mode="w+b") as fd:
+                downloader = MediaIoBaseDownload(
+                    fd, request, chunksize=chunksize
                 )
-            except errors.HttpError as error:
-                exc = ApiRequestError(error)
-                if (
-                    exc.error["code"] != 403
-                    or exc.GetField("reason") != "fileNotDownloadable"
-                ):
-                    raise exc
-                mimetype = mimetype or "text/plain"
-                fd.seek(0)  # just in case `download()` modified `fd`
-                try:
-                    download(
-                        fd,
-                        files.export_media(fileId=file_id, mimeType=mimetype),
-                    )
-                except errors.HttpError as error:
-                    raise ApiRequestError(error)
+                done = False
+                while not done:
+                    try:
+                        status, done = downloader.next_chunk()
+                    except errors.HttpError as error:
+                        raise ApiRequestError(error) from error
+                    if callback:
+                        callback(status.resumable_progress, status.total_size)
+                if remove_bom and (export_type or mimetype) == "text/plain":
+                    fd.seek(0)
+                    self._RemovePrefix(fd, self._GetBOM("text/plain"))
 
-            if mimetype == "text/plain" and remove_bom:
-                fd.seek(0)
-                bom = self._GetBOM(mimetype)
-                if bom:
-                    self._RemovePrefix(fd, bom)
+        self._DownloadContent(download, mimetype, acknowledge_abuse)
 
     @LoadAuth
     def GetContentIOBuffer(
@@ -416,47 +393,46 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :returns: MediaIoReadable -- file-like object.
         :raises: ApiRequestError, FileNotUploadedError
         """
-        files = self.auth.service.files()
-        file_id = self.metadata.get("id") or self.get("id")
-        if not file_id:
-            raise FileNotUploadedError()
 
-        # Should use files.export_media instead of files.get_media if
-        # metadata["mimeType"].startswith("application/vnd.google-apps.").
-        # But that would first require a slow call to FetchMetadata().
-        # We prefer to try-except for speed.
-        try:
-            request = self._WrapRequest(
-                files.get_media(
-                    fileId=file_id,
-                    acknowledgeAbuse=acknowledge_abuse,
-                    supportsAllDrives=True,
-                )
-            )
-            return MediaIoReadable(
-                request, encoding=encoding, chunksize=chunksize
-            )
-        except ApiRequestError as exc:
-            if (
-                exc.error["code"] != 403
-                or exc.GetField("reason") != "fileNotDownloadable"
-            ):
-                raise
-            mimetype = mimetype or "text/plain"
-            request = self._WrapRequest(
-                files.export_media(fileId=file_id, mimeType=mimetype)
-            )
-            remove_prefix = (
-                self._GetBOM(mimetype)
-                if mimetype == "text/plain" and remove_bom
+        def open_stream(request, export_type):
+            prefix = (
+                self._GetBOM("text/plain")
+                if remove_bom and export_type == "text/plain"
                 else b""
             )
             return MediaIoReadable(
                 request,
                 encoding=encoding,
-                remove_prefix=remove_prefix,
+                remove_prefix=prefix,
                 chunksize=chunksize,
             )
+
+        return self._DownloadContent(open_stream, mimetype, acknowledge_abuse)
+
+    def _DownloadContent(self, consume, mimetype, acknowledge_abuse):
+        file_id = self.metadata.get("id") or self.get("id")
+        if not file_id:
+            raise FileNotUploadedError()
+
+        files = self.auth.service.files()
+        if self.metadata.get("mimeType") not in WORKSPACE_EXPORT_TYPES:
+            request = files.get_media(
+                fileId=file_id,
+                acknowledgeAbuse=acknowledge_abuse,
+                supportsAllDrives=True,
+            )
+            try:
+                return consume(self._WrapRequest(request), None)
+            except ApiRequestError as error:
+                if (
+                    error.error["code"] != 403
+                    or error.GetField("reason") != "fileNotDownloadable"
+                ):
+                    raise
+
+        export_type = mimetype or "text/plain"
+        request = files.export_media(fileId=file_id, mimeType=export_type)
+        return consume(self._WrapRequest(request), export_type)
 
     @LoadAuth
     def FetchMetadata(self, fields=None, fetch_all=False):

@@ -309,7 +309,11 @@ class GDriveFileSystem(AbstractFileSystem):
         return item.get("driveId", None)
 
     def _gdrive_list(self, query):
-        param = {"q": query, "pageSize": 1000}
+        param = {
+            "q": query,
+            "pageSize": 1000,
+            "fields": "nextPageToken,files(id,name,mimeType,parents,size,md5Checksum)",
+        }
         param.update(self._list_params)
         file_list = self.client.ListFile(param)
 
@@ -424,7 +428,7 @@ class GDriveFileSystem(AbstractFileSystem):
         bucket, base = self.split_path(path)
         item_id = self._get_item_id(path)
         gdrive_file = self.client.CreateFile({"id": item_id})
-        gdrive_file.FetchMetadata()
+        gdrive_file.FetchMetadata(fields="mimeType,size,md5Checksum")
 
         metadata = {"name": posixpath.join(bucket, base.rstrip("/"))}
         if gdrive_file["mimeType"] == FOLDER_MIME_TYPE:
@@ -547,13 +551,15 @@ class GDriveFileSystem(AbstractFileSystem):
         return item
 
     def cp_file(self, lpath, rpath, **kwargs):
-        """In-memory streamed copy"""
-        with self.open(lpath) as stream:
-            # IterStream objects doesn't support full-length
-            # seek() calls, so we have to wrap the data with
-            # an external buffer.
-            buffer = io.BytesIO(stream.read())
-            self.upload_fobj(buffer, rpath)
+        """Ask Drive to copy the file directly into the destination folder."""
+        source_id = self._get_item_id(lpath)
+        parent_id = self._get_item_id(self._parent(rpath), create=True)
+        source = self.client.CreateFile({"id": source_id})
+        source.Copy(
+            target_folder={"id": parent_id},
+            new_title=posixpath.basename(rpath.rstrip("/")),
+            param={"fields": "id"},
+        )
 
     @_gdrive_retry
     def mv(self, path1, path2, maxdepth=None, **kwargs):
@@ -602,12 +608,15 @@ class GDriveFileSystem(AbstractFileSystem):
             extra_args["chunksize"] = block_size
 
         if callback:
+            reported_size = None
 
-            def cb(value, _):
+            def cb(value, total):
+                nonlocal reported_size
+                if total is not None and total != reported_size:
+                    callback.set_size(total)
+                    reported_size = total
                 callback.absolute_update(value)
 
-            gdrive_file.FetchMetadata(fields="size")
-            callback.set_size(int(gdrive_file.get("size")))
             extra_args["callback"] = cb
 
         gdrive_file.GetContentFile(rpath, **extra_args)
