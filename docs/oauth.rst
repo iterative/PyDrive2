@@ -15,20 +15,21 @@ OAuth2.0 is complex and difficult to start with. To make it more simple,
     # Create local webserver and auto handles authentication.
     gauth.LocalWebserverAuth()
 
-    # Or use the CommandLineAuth(), which provides you with a link to paste
-    # into your browser. The site it leads to then provides you with an
-    # authentication token which you paste into the command line.
-    # Commented out as it is an alternative to the LocalWebserverAuth() above,
-    # and someone will just copy-paste the entire thing into their editor.
-
-    # gauth.CommandLineAuth()
-
 To make this code work, you need to download the application configurations file
 from APIs Console. Follow the authentication steps in the :doc:`quickstart`.
 
-:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth` starts a local web
-server to receive the authorization code. See
-:meth:`~pydrive2.auth.GoogleAuth.CommandLineAuth` for the command-line method.
+:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth` starts a local server
+to receive the authorization code. To open the login URL yourself, call
+``gauth.LocalWebserverAuth(launch_browser=False)``. The browser must be
+able to reach the local callback.
+
+In PyDrive2 1.x, :meth:`~pydrive2.auth.GoogleAuth.CommandLineAuth` uses
+Google's out-of-band flow. Google allows this flow for apps with
+*Testing* publishing status and blocks it for apps marked *In Production*.
+See `Google's out-of-band migration guide`_.
+
+.. _Google's out-of-band migration guide:
+   https://developers.google.com/identity/protocols/oauth2/resources/oob-migration
 
 Automatic and custom authentication with *settings.yaml*
 --------------------------------------------------------

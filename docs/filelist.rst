@@ -9,10 +9,14 @@ Get all files which matches the query
 
 Pass the `files.list query parameters`_ to
 :meth:`~pydrive2.drive.GoogleDrive.ListFile` as a dictionary. It returns a
-:class:`~pydrive2.files.GoogleDriveFileList`. Call
-:meth:`~pydrive2.apiattr.ApiResourceList.GetList` to retrieve all matches.
-Google's `file search guide`_ explains the ``q`` parameter. PyDrive2 uses
-Drive API v2, so use ``title`` where the guide's v3 examples use ``name``.
+:class:`~pydrive2.files.GoogleDriveFileList`.
+:meth:`~pydrive2.apiattr.ApiResourceList.GetList` fetches all matches when
+you omit ``maxResults``. If you set ``maxResults``, each call fetches one page.
+
+Google's `file search guide`_ explains the ``q`` parameter using Drive API
+v3 examples. PyDrive2 uses v2. When adapting a query, check the
+`field comparison`_ for renamed fields. For example, use ``title`` for
+``name`` and ``modifiedDate`` for ``modifiedTime``.
 
 .. code-block:: python
 
@@ -30,11 +34,9 @@ You can update the metadata or content of each returned file.
 Paginate and iterate through files
 ----------------------------------
 
-*PyDrive* provides Pythonic way of paginating and iterating through list of files. 
-Here is an example how to do this, ``maxResults`` below defines how many 
-files it retrieves at once and we wrap it into a ``for`` loop to iterate:
-
-Sample code continues from above:
+To process one page at a time, iterate over the result of
+:meth:`~pydrive2.drive.GoogleDrive.ListFile`. In this example, each page
+contains up to ten files.
 
 .. code-block:: python
 
@@ -49,3 +51,5 @@ Sample code continues from above:
    https://developers.google.com/workspace/drive/api/reference/rest/v2/files/list#query-parameters
 .. _file search guide:
    https://developers.google.com/workspace/drive/api/guides/search-files
+.. _field comparison:
+   https://developers.google.com/workspace/drive/api/guides/v2-to-v3-reference#resource_field_differences_between_v2_and_v3

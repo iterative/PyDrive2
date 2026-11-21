@@ -177,8 +177,9 @@ Get files by complex queries
 
 Multiple files can have the same title. To narrow the results, combine
 ``title`` with another field such as ``mimeType``. Google's
-`query string examples`_ use Drive API v3 field names. For a filename
-query in PyDrive2, use the v2 field ``title`` as shown below.
+`query string examples`_ use Drive API v3 field names. When adapting them
+for PyDrive2, use the corresponding v2 names. For example, the filename
+field in the query below is ``title``.
 
 .. code-block:: python
 
@@ -321,10 +322,17 @@ Sample code continues from above:
     # Uploaded content: '{"firstname": "Claudio", "familyname": "Afshar"}'
 
 Google Drive can `add a byte order mark to plain-text exports`_ of Google
-Docs. If your parser expects text without that prefix, pass
-``remove_bom=True`` to :meth:`~pydrive2.files.GoogleDriveFile.GetContentString`
-or :meth:`~pydrive2.files.GoogleDriveFile.GetContentFile`.
-See the :download:`Python example <../examples/strip_bom_example.py>`.
+Docs. To read a Google Doc as text, request ``text/plain`` explicitly.
+To save it to disk, :meth:`~pydrive2.files.GoogleDriveFile.GetContentFile`
+defaults to a plain-text export. Both calls below strip the byte order mark.
+
+.. code-block:: python
+
+    doc = drive.CreateFile({'id': 'YOUR_GOOGLE_DOC_ID'})
+    text = doc.GetContentString(mimetype='text/plain', remove_bom=True)
+    doc.GetContentFile('document.txt', remove_bom=True)
+
+See the :download:`complete Python example <../examples/strip_bom_example.py>`.
 
 .. _abusive-files:
 
