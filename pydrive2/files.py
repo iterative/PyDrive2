@@ -1,3 +1,4 @@
+import codecs
 import io
 import json
 import mimetypes
@@ -22,6 +23,15 @@ from .auth import LoadAuth
 DEFAULT_FILE_FIELDS = (
     "id,name,mimeType,description,parents,trashed,size,md5Checksum,"
     "resourceKey,webViewLink,createdTime,modifiedTime"
+)
+
+WORKSPACE_EXPORT_TYPES = frozenset(
+    {
+        "application/vnd.google-apps.document",
+        "application/vnd.google-apps.spreadsheet",
+        "application/vnd.google-apps.presentation",
+        "application/vnd.google-apps.drawing",
+    }
 )
 
 BLOCK_SIZE = 1024
@@ -162,36 +172,50 @@ class MediaIoReadable:
         :raises: ApiRequestError
         """
         self.done = False
-        self._fd = IoBuffer(encoding)
+        self._fd = IoBuffer(None)
         self.downloader = MediaIoBaseDownload(
             self._fd, request, chunksize=chunksize
         )
         self.size = None
-        self._pre_buffer = False
-        if pre_buffer:
-            self.read()
-            if remove_prefix:
-                chunk = io.BytesIO(self._fd.chunk or b"")
-                GoogleDriveFile._RemovePrefix(chunk, remove_prefix)
-                self._fd.chunk = chunk.getvalue()
-            self._pre_buffer = True
+        self.progress = 0
+        self._decoder = (
+            codecs.getincrementaldecoder(encoding)() if encoding else None
+        )
+        self._prefix = remove_prefix
+        self._buffer = self._read_chunk() if pre_buffer else None
 
-    def read(self):
-        """
-        :returns: bytes or str -- chunk (or None if done)
-        :raises: ApiRequestError
-        """
-        if self._pre_buffer:
-            self._pre_buffer = False
-            return self._fd.read()
-        if self.done:
-            return None
+    def _next_chunk(self):
         try:
             status, self.done = self.downloader.next_chunk()
-            self.size = status.total_size
         except errors.HttpError as error:
-            raise ApiRequestError(error)
-        return self._fd.read()
+            raise ApiRequestError(error) from error
+        self.size = status.total_size
+        self.progress = status.resumable_progress
+        return self._fd.read() or b""
+
+    def _read_chunk(self):
+        chunk = self._next_chunk()
+        if self._prefix:
+            while (
+                not self.done
+                and len(chunk) < len(self._prefix)
+                and self._prefix.startswith(chunk)
+            ):
+                chunk += self._next_chunk()
+            chunk = chunk.removeprefix(self._prefix)
+            self._prefix = b""
+        if self._decoder:
+            return self._decoder.decode(chunk, final=self.done)
+        return chunk
+
+    def read(self):
+        """Return the next chunk, or None at end of stream."""
+        if self._buffer is not None:
+            chunk, self._buffer = self._buffer, None
+            return chunk
+        if self.done:
+            return None
+        return self._read_chunk()
 
     def __iter__(self):
         """
@@ -326,7 +350,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.FetchContent(mimetype, remove_bom)
         return self.content.getvalue().decode(encoding)
 
-    @LoadAuth
     def GetContentFile(
         self,
         filename,
@@ -353,55 +376,18 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type acknowledge_abuse: bool
         :raises: ApiRequestError, FileNotUploadedError
         """
-        files = self.auth.service.files()
-        file_id = self._FileId()
-
-        def download(fd, request):
-            downloader = MediaIoBaseDownload(
-                fd, self._WrapRequest(request), chunksize=chunksize
-            )
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
+        stream = self.GetContentIOBuffer(
+            mimetype=mimetype,
+            remove_bom=remove_bom,
+            chunksize=chunksize,
+            acknowledge_abuse=acknowledge_abuse,
+        )
+        # The pre-buffered first response determines whether the file is readable.
+        with open(filename, "wb") as fd:
+            for chunk in stream:
+                fd.write(chunk)
                 if callback:
-                    callback(status.resumable_progress, status.total_size)
-
-        with open(filename, mode="w+b") as fd:
-            # Should use files.export_media instead of files.get_media if
-            # metadata["mimeType"].startswith("application/vnd.google-apps.").
-            # But that would first require a slow call to FetchMetadata().
-            # We prefer to try-except for speed.
-            try:
-                download(
-                    fd,
-                    files.get_media(
-                        fileId=file_id,
-                        acknowledgeAbuse=acknowledge_abuse,
-                        supportsAllDrives=True,
-                    ),
-                )
-            except errors.HttpError as error:
-                exc = ApiRequestError(error)
-                if (
-                    exc.error["code"] != 403
-                    or exc.GetField("reason") != "fileNotDownloadable"
-                ):
-                    raise exc
-                mimetype = mimetype or "text/plain"
-                fd.seek(0)  # just in case `download()` modified `fd`
-                try:
-                    download(
-                        fd,
-                        files.export_media(fileId=file_id, mimeType=mimetype),
-                    )
-                except errors.HttpError as error:
-                    raise ApiRequestError(error)
-
-            if mimetype == "text/plain" and remove_bom:
-                fd.seek(0)
-                bom = self._GetBOM(mimetype)
-                if bom:
-                    self._RemovePrefix(fd, bom)
+                    callback(stream.progress, stream.size)
 
     @LoadAuth
     def GetContentIOBuffer(
@@ -428,45 +414,37 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :returns: MediaIoReadable -- file-like object.
         :raises: ApiRequestError, FileNotUploadedError
         """
-        files = self.auth.service.files()
-        file_id = self._FileId()
 
-        # Should use files.export_media instead of files.get_media if
-        # metadata["mimeType"].startswith("application/vnd.google-apps.").
-        # But that would first require a slow call to FetchMetadata().
-        # We prefer to try-except for speed.
-        try:
-            request = self._WrapRequest(
-                files.get_media(
-                    fileId=file_id,
-                    acknowledgeAbuse=acknowledge_abuse,
-                    supportsAllDrives=True,
-                )
-            )
+        def open_stream(request, content_type):
+            prefix = self._GetBOM(content_type) if remove_bom else b""
             return MediaIoReadable(
-                request, encoding=encoding, chunksize=chunksize
-            )
-        except ApiRequestError as exc:
-            if (
-                exc.error["code"] != 403
-                or exc.GetField("reason") != "fileNotDownloadable"
-            ):
-                raise
-            mimetype = mimetype or "text/plain"
-            request = self._WrapRequest(
-                files.export_media(fileId=file_id, mimeType=mimetype)
-            )
-            remove_prefix = (
-                self._GetBOM(mimetype)
-                if mimetype == "text/plain" and remove_bom
-                else b""
-            )
-            return MediaIoReadable(
-                request,
+                self._WrapRequest(request),
                 encoding=encoding,
-                remove_prefix=remove_prefix,
+                remove_prefix=prefix,
                 chunksize=chunksize,
             )
+
+        file_id = self._FileId()
+        files = self.auth.service.files()
+        source_type = self.metadata.get("mimeType") or self.get("mimeType")
+        if source_type not in WORKSPACE_EXPORT_TYPES:
+            request = files.get_media(
+                fileId=file_id,
+                acknowledgeAbuse=acknowledge_abuse,
+                supportsAllDrives=True,
+            )
+            try:
+                return open_stream(request, mimetype or source_type)
+            except ApiRequestError as error:
+                if (
+                    error.error.get("code") != 403
+                    or error.GetField("reason") != "fileNotDownloadable"
+                ):
+                    raise
+
+        export_type = mimetype or "text/plain"
+        request = files.export_media(fileId=file_id, mimeType=export_type)
+        return open_stream(request, export_type)
 
     @LoadAuth
     def FetchMetadata(self, fields=None, fetch_all=False):

@@ -1,4 +1,5 @@
 import json
+from codecs import BOM_UTF8
 from urllib.parse import urlsplit
 
 import pytest
@@ -247,3 +248,85 @@ def test_child_list_errors_retain_drive_reason(mock_drive, operation):
     with pytest.raises(ApiRequestError) as caught:
         getattr(drive.CreateFile({"id": "file"}), operation)()
     assert caught.value.GetField("reason") == "rateLimitExceeded"
+
+
+def read_stream(file, tmp_path, **kwargs):
+    return b"".join(file.GetContentIOBuffer(**kwargs))
+
+
+def read_disk(file, tmp_path, **kwargs):
+    dest = tmp_path / "document"
+    file.GetContentFile(dest, **kwargs)
+    return dest.read_bytes()
+
+
+@pytest.mark.parametrize("read", [read_stream, read_disk])
+@pytest.mark.parametrize("known_type", [True, False], ids=["known", "id-only"])
+def test_workspace_export_requests(mock_drive, read, known_type, tmp_path):
+    body = BOM_UTF8 + b"text"
+    responses = [({"status": "200", "content-length": str(len(body))}, body)]
+    metadata = {"id": "doc", "resourceKey": "key"}
+    if known_type:
+        metadata["mimeType"] = "application/vnd.google-apps.document"
+    else:
+        responses.insert(0, error_response(403, "fileNotDownloadable"))
+    drive, requests = mock_drive(*responses)
+    assert (
+        read(drive.CreateFile(metadata), tmp_path, remove_bom=True) == b"text"
+    )
+    assert len(requests) == (1 if known_type else 2)
+    assert urlsplit(requests[-1][0]).path.endswith("/doc/export")
+    assert all(
+        r[3]["X-Goog-Drive-Resource-Keys"] == "doc/key" for r in requests
+    )
+
+
+@pytest.mark.parametrize("read", [read_stream, read_disk])
+def test_plain_text_media_removes_bom_across_chunks(
+    mock_drive, read, tmp_path
+):
+    drive, _ = mock_drive(
+        ({"status": "206", "content-range": "bytes 0-1/5"}, BOM_UTF8[:2]),
+        (
+            {"status": "206", "content-range": "bytes 2-3/5"},
+            BOM_UTF8[2:] + b"x",
+        ),
+        ({"status": "206", "content-range": "bytes 4-4/5"}, b"y"),
+    )
+    file = drive.CreateFile({"id": "blob"})
+    assert (
+        read(
+            file, tmp_path, mimetype="text/plain", remove_bom=True, chunksize=2
+        )
+        == b"xy"
+    )
+
+
+def test_stream_decodes_utf8_across_chunks(mock_drive):
+    drive, _ = mock_drive(
+        ({"status": "206", "content-range": "bytes 0-0/2"}, b"\xc3"),
+        ({"status": "206", "content-range": "bytes 1-1/2"}, b"\xa9"),
+    )
+    file = drive.CreateFile({"id": "blob"})
+    assert (
+        "".join(file.GetContentIOBuffer(encoding="utf-8", chunksize=1)) == "é"
+    )
+
+
+@pytest.mark.parametrize(
+    "denied",
+    [
+        error_response(403, "insufficientFilePermissions"),
+        ({"status": "403"}, '{"error":{"errors":[]}}'),
+        ({"status": "503"}, "unavailable"),
+    ],
+)
+def test_download_error_preserves_existing_file(mock_drive, tmp_path, denied):
+    drive, requests = mock_drive(denied)
+    dest = tmp_path / "existing"
+    dest.write_bytes(b"previous contents")
+    with pytest.raises(ApiRequestError) as caught:
+        drive.CreateFile({"id": "private"}).GetContentFile(dest)
+    assert caught.value.error["code"] == int(denied[0]["status"])
+    assert dest.read_bytes() == b"previous contents"
+    assert len(requests) == 1

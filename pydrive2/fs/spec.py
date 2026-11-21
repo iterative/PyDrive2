@@ -28,6 +28,8 @@ from pydrive2.fs.utils import IterStream
 logger = logging.getLogger(__name__)
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
+_INFO_FIELDS = "mimeType,size,md5Checksum"
+_LIST_FIELDS = f"nextPageToken,files(id,name,parents,{_INFO_FIELDS})"
 _PARENT_QUERY_BATCH_SIZE = 50
 
 COMMON_SETTINGS = {
@@ -334,7 +336,11 @@ class GDriveFileSystem(AbstractFileSystem):
         return item.get("driveId", None)
 
     def _gdrive_list(self, query):
-        param = {"q": query, "pageSize": 1000}
+        param = {
+            "q": query,
+            "pageSize": 1000,
+            "fields": _LIST_FIELDS,
+        }
         param.update(self._list_params)
         file_list = self.client.ListFile(param)
 
@@ -446,7 +452,7 @@ class GDriveFileSystem(AbstractFileSystem):
         bucket, base = self.split_path(path)
         item_id = self._get_item_id(path)
         gdrive_file = self.client.CreateFile({"id": item_id})
-        gdrive_file.FetchMetadata()
+        gdrive_file.FetchMetadata(fields=_INFO_FIELDS)
 
         return _file_entry(
             posixpath.join(bucket, base.rstrip("/")), gdrive_file
@@ -549,13 +555,20 @@ class GDriveFileSystem(AbstractFileSystem):
         return item
 
     def cp_file(self, lpath, rpath, **kwargs):
-        """In-memory streamed copy"""
-        with self.open(lpath) as stream:
-            # IterStream objects doesn't support full-length
-            # seek() calls, so we have to wrap the data with
-            # an external buffer.
-            buffer = io.BytesIO(stream.read())
-            self.upload_fobj(buffer, rpath)
+        """Ask Drive to copy the file directly into the destination folder."""
+        source_id = self._get_item_id(lpath)
+        parent_id = self._get_item_id(self._parent(rpath), create=True)
+        name = posixpath.basename(rpath.rstrip("/"))
+        self._gdrive_copy_file(source_id, parent_id, name)
+
+    @_gdrive_retry
+    def _gdrive_copy_file(self, source_id, parent_id, name):
+        source = self.client.CreateFile({"id": source_id})
+        source.Copy(
+            target_folder={"id": parent_id},
+            new_title=name,
+            param={"fields": "id"},
+        )
 
     @_gdrive_retry
     def mv(self, path1, path2, maxdepth=None, **kwargs):
@@ -604,12 +617,15 @@ class GDriveFileSystem(AbstractFileSystem):
             extra_args["chunksize"] = block_size
 
         if callback:
+            reported_size = None
 
-            def cb(value, _):
+            def cb(value, total):
+                nonlocal reported_size
+                if total is not None and total != reported_size:
+                    callback.set_size(total)
+                    reported_size = total
                 callback.absolute_update(value)
 
-            gdrive_file.FetchMetadata(fields="size")
-            callback.set_size(int(gdrive_file.get("size")))
             extra_args["callback"] = cb
 
         gdrive_file.GetContentFile(rpath, **extra_args)
