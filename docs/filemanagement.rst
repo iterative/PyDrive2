@@ -340,7 +340,9 @@ Download file content
 
 Use :meth:`~pydrive2.files.GoogleDriveFile.GetContentFile` to download to
 disk or :meth:`~pydrive2.files.GoogleDriveFile.GetContentString` to read
-the content as text.
+the content as text. Disk downloads open the destination after the first
+successful read. If a later read fails, the file contains the chunks
+already written.
 
 Sample code continues from above:
 

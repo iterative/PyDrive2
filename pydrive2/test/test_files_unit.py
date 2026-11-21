@@ -1,4 +1,6 @@
+import gc
 import json
+import weakref
 from codecs import BOM_UTF8
 from urllib.parse import urlsplit
 
@@ -278,6 +280,33 @@ def read_disk(file, tmp_path, **kwargs):
     return dest.read_bytes()
 
 
+def read_string(file, tmp_path, **kwargs):
+    return file.GetContentString(**kwargs).encode()
+
+
+@pytest.mark.parametrize("read", [read_disk, read_stream, read_string])
+@pytest.mark.parametrize(
+    ("source", "target"),
+    [
+        ("document", "text/plain"),
+        ("spreadsheet", "text/csv"),
+        ("presentation", "text/plain"),
+        ("drawing", "image/svg+xml"),
+    ],
+)
+def test_supplied_workspace_type_goes_directly_to_export(
+    mock_drive, tmp_path, read, source, target
+):
+    drive, requests = mock_drive(({"status": "200"}, b"export"))
+    file = drive.CreateFile(
+        {"id": "doc", "mimeType": f"application/vnd.google-apps.{source}"}
+    )
+    assert read(file, tmp_path, mimetype=target) == b"export"
+    (export,) = requests
+    assert urlsplit(export[0]).path == "/drive/v3/files/doc/export"
+    assert query(export)["mimeType"] == [target]
+
+
 @pytest.mark.parametrize("read", [read_stream, read_disk])
 @pytest.mark.parametrize("known_type", [True, False], ids=["known", "id-only"])
 def test_workspace_export_requests(mock_drive, read, known_type, tmp_path):
@@ -339,7 +368,9 @@ def test_stream_decodes_utf8_across_chunks(mock_drive):
         ({"status": "503"}, "unavailable"),
     ],
 )
-def test_download_error_preserves_existing_file(mock_drive, tmp_path, denied):
+def test_first_download_error_preserves_existing_file(
+    mock_drive, tmp_path, denied
+):
     drive, requests = mock_drive(denied)
     dest = tmp_path / "existing"
     dest.write_bytes(b"previous contents")
@@ -348,3 +379,43 @@ def test_download_error_preserves_existing_file(mock_drive, tmp_path, denied):
     assert caught.value.error["code"] == int(denied[0]["status"])
     assert dest.read_bytes() == b"previous contents"
     assert len(requests) == 1
+
+
+def test_later_download_error_leaves_completed_chunks(mock_drive, tmp_path):
+    drive, _ = mock_drive(
+        ({"status": "206", "content-range": "bytes 0-1/4"}, b"ab"),
+        error_response(503, "backendError"),
+    )
+    dest = tmp_path / "existing"
+    dest.write_bytes(b"previous contents")
+    with pytest.raises(ApiRequestError):
+        drive.CreateFile({"id": "file"}).GetContentFile(dest, chunksize=2)
+    assert dest.read_bytes() == b"ab"
+
+
+def test_disk_download_releases_each_chunk_before_requesting_the_next(
+    mock_drive, tmp_path, monkeypatch
+):
+    class Chunk(bytearray):
+        """A response body whose lifetime can be observed with a weak reference."""
+
+    first = Chunk(b"ab")
+    previous = weakref.ref(first)
+    drive, _ = mock_drive(
+        ({"status": "206", "content-range": "bytes 0-1/4"}, first),
+        ({"status": "206", "content-range": "bytes 2-3/4"}, b"cd"),
+    )
+    del first
+    transport = drive.auth.thread_local.http
+    request = transport.request
+
+    def check_request(uri, method, **kwargs):
+        if kwargs["headers"]["range"] == "bytes=2-3":
+            gc.collect()
+            assert previous() is None
+        return request(uri, method, **kwargs)
+
+    monkeypatch.setattr(transport, "request", check_request)
+    dest = tmp_path / "download"
+    drive.CreateFile({"id": "file"}).GetContentFile(dest, chunksize=2)
+    assert dest.read_bytes() == b"abcd"

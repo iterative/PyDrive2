@@ -34,7 +34,6 @@ WORKSPACE_EXPORT_TYPES = frozenset(
     }
 )
 
-BLOCK_SIZE = 1024
 # Usage: MIME_TYPE_TO_BOM['<Google Drive mime type>']['<download mimetype>'].
 MIME_TYPE_TO_BOM = {
     "application/vnd.google-apps.document": {"text/plain": "\ufeff".encode()}
@@ -140,19 +139,15 @@ class GoogleDriveFileList(ApiResourceList):
 class IoBuffer:
     """Lightweight retention of one chunk."""
 
-    def __init__(self, encoding):
-        self.encoding = encoding
-        self.chunk = None
+    def __init__(self):
+        self.chunk = b""
 
     def write(self, chunk):
         self.chunk = chunk
 
     def read(self):
-        return (
-            self.chunk.decode(self.encoding)
-            if self.chunk and self.encoding
-            else self.chunk
-        )
+        chunk, self.chunk = self.chunk, b""
+        return chunk
 
 
 class MediaIoReadable:
@@ -172,7 +167,7 @@ class MediaIoReadable:
         :raises: ApiRequestError
         """
         self.done = False
-        self._fd = IoBuffer(None)
+        self._fd = IoBuffer()
         self.downloader = MediaIoBaseDownload(
             self._fd, request, chunksize=chunksize
         )
@@ -191,7 +186,7 @@ class MediaIoReadable:
             raise ApiRequestError(error) from error
         self.size = status.total_size
         self.progress = status.resumable_progress
-        return self._fd.read() or b""
+        return self._fd.read()
 
     def _read_chunk(self):
         chunk = self._next_chunk()
@@ -218,14 +213,7 @@ class MediaIoReadable:
         return self._read_chunk()
 
     def __iter__(self):
-        """
-        :raises: ApiRequestError
-        """
-        while True:
-            chunk = self.read()
-            if chunk is None:
-                break
-            yield chunk
+        return iter(self.read, None)
 
     def __len__(self):
         return self.size
@@ -361,6 +349,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     ):
         """Save content of this file as a local file.
 
+        The destination is opened after the first successful read. If a later
+        read fails, the destination contains the chunks written so far.
+
         :param filename: name of the file to write to.
         :type filename: str
         :param mimetype: mimeType of the file.
@@ -386,6 +377,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         with open(filename, "wb") as fd:
             for chunk in stream:
                 fd.write(chunk)
+                # Release the response body before the next HTTP request.
+                del chunk
                 if callback:
                     callback(stream.progress, stream.size)
 
@@ -426,7 +419,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         file_id = self._FileId()
         files = self.auth.service.files()
-        source_type = self.metadata.get("mimeType") or self.get("mimeType")
+        source_type = self._SourceMimeType()
         if source_type not in WORKSPACE_EXPORT_TYPES:
             request = files.get_media(
                 fileId=file_id,
@@ -473,10 +466,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self.uploaded = True
         self.UpdateMetadata(metadata)
 
-    @LoadMetadata
     def FetchContent(self, mimetype=None, remove_bom=False):
         """Download file content or a Workspace export into memory."""
-        if self.get("mimeType") in {
+        if not self.uploaded and not self._SourceMimeType():
+            self.FetchMetadata()
+        if self._SourceMimeType() in {
             "application/vnd.google-apps.folder",
             "application/vnd.google-apps.shortcut",
         }:
@@ -708,6 +702,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self[key] = self.metadata[key] = items
         return items
 
+    def _SourceMimeType(self):
+        return self.metadata.get("mimeType") or self.get("mimeType")
+
     def _FileId(self):
         file_id = self.metadata.get("id") or self.get("id")
         if not file_id:
@@ -763,81 +760,3 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         for bom in MIME_TYPE_TO_BOM.values():
             if mimetype in bom:
                 return bom[mimetype]
-
-    @staticmethod
-    def _RemovePrefix(file_object, prefix, block_size=BLOCK_SIZE):
-        """Deletes passed prefix by shifting content of passed file object by to
-        the left. Operation is in-place.
-
-        Args:
-          file_object (obj): The file object to manipulate.
-          prefix (str): The prefix to insert.
-          block_size (int): The size of the blocks which are moved one at a time.
-        """
-        prefix_length = len(prefix)
-        # Detect if prefix exists in file.
-        content_start = file_object.read(prefix_length)
-
-        if content_start == prefix:
-            # Shift content left by prefix length, by copying 1KiB at a time.
-            block_to_write = file_object.read(block_size)
-            current_block_length = len(block_to_write)
-
-            # Read and write location in separate variables for simplicity.
-            read_location = prefix_length + current_block_length
-            write_location = 0
-
-            while current_block_length > 0:
-                # Write next block.
-                file_object.seek(write_location)
-                file_object.write(block_to_write)
-                # Set write location to the next block.
-                write_location += len(block_to_write)
-
-                # Read next block of input.
-                file_object.seek(read_location)
-                block_to_write = file_object.read(block_size)
-                # Update the current block length and read_location.
-                current_block_length = len(block_to_write)
-                read_location += current_block_length
-
-            # Truncate the file to its, now shorter, length.
-            file_object.truncate(read_location - prefix_length)
-
-    @staticmethod
-    def _InsertPrefix(file_object, prefix, block_size=BLOCK_SIZE):
-        """Inserts the passed prefix in the beginning of the file, operation is
-        in-place.
-
-        Args:
-          file_object (obj): The file object to manipulate.
-          prefix (str): The prefix to insert.
-        """
-        # Read the first two blocks.
-        first_block = file_object.read(block_size)
-        second_block = file_object.read(block_size)
-        # Pointer to the first byte of the next block to be read.
-        read_location = block_size * 2
-
-        # Write BOM.
-        file_object.seek(0)
-        file_object.write(prefix)
-        # {read|write}_location separated for readability.
-        write_location = len(prefix)
-
-        # Write and read block alternatingly.
-        while len(first_block):
-            # Write first block.
-            file_object.seek(write_location)
-            file_object.write(first_block)
-            # Increment write_location.
-            write_location += block_size
-
-            # Move second block into first variable.
-            first_block = second_block
-
-            # Read in the next block.
-            file_object.seek(read_location)
-            second_block = file_object.read(block_size)
-            # Increment read_location.
-            read_location += block_size
