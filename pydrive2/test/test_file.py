@@ -888,8 +888,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         content_bom_2 = file1.GetContentString(mimetype="text/plain")
 
         self.assertEqual(content_bom, content_bom_2)
-        self.assertNotEqual(content_bom, content_no_bom)
-        self.assertTrue(len(content_bom) > len(content_no_bom))
+        self.assertEqual(content_bom, "\ufeff" + content_no_bom)
 
         buffer_bom = pydrive_retry(
             file1.GetContentIOBuffer,
