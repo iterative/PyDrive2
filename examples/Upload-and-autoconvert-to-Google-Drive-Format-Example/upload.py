@@ -55,9 +55,10 @@ else:
 myFile.SetContentFile(myFilePath)
 myFile["name"] = myFileName
 source_type = mimetypes.guess_type(myFilePath)[0] or "application/octet-stream"
-targets = drive.GetAbout(fields="importFormats")["importFormats"].get(
-    source_type, []
-)
-if targets and not file_list:
-    myFile["mimeType"] = targets[0]
+if not file_list:
+    targets = drive.GetAbout(fields="importFormats")["importFormats"].get(
+        source_type, []
+    )
+    if targets:
+        myFile["mimeType"] = targets[0]
 myFile.Upload(media_mime_type=source_type)

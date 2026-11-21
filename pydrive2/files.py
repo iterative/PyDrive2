@@ -1,3 +1,4 @@
+import codecs
 import io
 import json
 import mimetypes
@@ -40,6 +41,22 @@ MIME_TYPE_TO_BOM = {
 }
 
 
+def _ensure_field(fields, required):
+    """Include a top-level field in a Drive partial-response selector."""
+    fields = fields.strip()
+    start = depth = 0
+    for index, char in enumerate(fields + ","):
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+        elif char == "," and depth == 0:
+            if fields[start:index].strip() in (required, "*"):
+                return fields
+            start = index + 1
+    return f"{required},{fields}" if fields else required
+
+
 class FileNotUploadedError(RuntimeError):
     """Error trying to access metadata of file that is not uploaded."""
 
@@ -47,15 +64,21 @@ class FileNotUploadedError(RuntimeError):
 class ApiRequestError(IOError):
     def __init__(self, http_error):
         assert isinstance(http_error, errors.HttpError)
-        content = json.loads(http_error.content.decode("utf-8"))
-        self.error = content.get("error", {}) if content else {}
+        try:
+            content = json.loads(http_error.content)
+        except (ValueError, UnicodeError):
+            content = {}
+        error = content.get("error") if isinstance(content, dict) else None
+        self.error = dict(error) if isinstance(error, dict) else {}
+        self.error.setdefault("code", http_error.resp.status)
 
         # Initialize args for backward compatibility
         super().__init__(http_error)
 
     def GetField(self, field):
         """Returns the `field` from the first error"""
-        return self.error.get("errors", [{}])[0].get(field, "")
+        details = self.error.get("errors") or [{}]
+        return details[0].get(field, "")
 
 
 class FileNotDownloadableError(RuntimeError):
@@ -98,11 +121,7 @@ class GoogleDriveFileList(ApiResourceList):
         )
         fields = params.get("fields") or f"files({DEFAULT_FILE_FIELDS})"
         # Keep the cursor even when the caller selects only file fields.
-        if fields.strip() != "*" and "nextPageToken" not in fields.replace(
-            " ", ""
-        ).split(","):
-            fields = f"nextPageToken,{fields}"
-        params["fields"] = fields
+        params["fields"] = _ensure_field(fields, "nextPageToken")
         try:
             self.metadata = (
                 self.auth.service.files()
@@ -153,36 +172,50 @@ class MediaIoReadable:
         :raises: ApiRequestError
         """
         self.done = False
-        self._fd = IoBuffer(encoding)
+        self._fd = IoBuffer(None)
         self.downloader = MediaIoBaseDownload(
             self._fd, request, chunksize=chunksize
         )
         self.size = None
-        self._pre_buffer = False
-        if pre_buffer:
-            self.read()
-            if remove_prefix:
-                chunk = io.BytesIO(self._fd.chunk or b"")
-                GoogleDriveFile._RemovePrefix(chunk, remove_prefix)
-                self._fd.chunk = chunk.getvalue()
-            self._pre_buffer = True
+        self.progress = 0
+        self._decoder = (
+            codecs.getincrementaldecoder(encoding)() if encoding else None
+        )
+        self._prefix = remove_prefix
+        self._buffer = self._read_chunk() if pre_buffer else None
 
-    def read(self):
-        """
-        :returns: bytes or str -- chunk (or None if done)
-        :raises: ApiRequestError
-        """
-        if self._pre_buffer:
-            self._pre_buffer = False
-            return self._fd.read()
-        if self.done:
-            return None
+    def _next_chunk(self):
         try:
             status, self.done = self.downloader.next_chunk()
-            self.size = status.total_size
         except errors.HttpError as error:
-            raise ApiRequestError(error)
-        return self._fd.read()
+            raise ApiRequestError(error) from error
+        self.size = status.total_size
+        self.progress = status.resumable_progress
+        return self._fd.read() or b""
+
+    def _read_chunk(self):
+        chunk = self._next_chunk()
+        if self._prefix:
+            while (
+                not self.done
+                and len(chunk) < len(self._prefix)
+                and self._prefix.startswith(chunk)
+            ):
+                chunk += self._next_chunk()
+            chunk = chunk.removeprefix(self._prefix)
+            self._prefix = b""
+        if self._decoder:
+            return self._decoder.decode(chunk, final=self.done)
+        return chunk
+
+    def read(self):
+        """Return the next chunk, or None at end of stream."""
+        if self._buffer is not None:
+            chunk, self._buffer = self._buffer, None
+            return chunk
+        if self.done:
+            return None
+        return self._read_chunk()
 
     def __iter__(self):
         """
@@ -310,18 +343,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :returns: str -- utf-8 decoded content of the file
         :raises: ApiRequestError, FileNotUploadedError, FileNotDownloadableError
         """
-        if (
-            self.content is None
-            or not isinstance(self.content, io.BytesIO)
-            or (self.has_bom == remove_bom and not self.dirty["content"])
-            or (
-                self._export_mimetype != mimetype and not self.dirty["content"]
-            )
-        ):
+        stale = not self.dirty["content"] and (
+            self.has_bom == remove_bom or self._export_mimetype != mimetype
+        )
+        if not isinstance(self.content, io.BytesIO) or stale:
             self.FetchContent(mimetype, remove_bom)
         return self.content.getvalue().decode(encoding)
 
-    @LoadAuth
     def GetContentFile(
         self,
         filename,
@@ -348,25 +376,18 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type acknowledge_abuse: bool
         :raises: ApiRequestError, FileNotUploadedError
         """
-
-        def download(request, export_type):
-            with open(filename, mode="w+b") as fd:
-                downloader = MediaIoBaseDownload(
-                    fd, request, chunksize=chunksize
-                )
-                done = False
-                while not done:
-                    try:
-                        status, done = downloader.next_chunk()
-                    except errors.HttpError as error:
-                        raise ApiRequestError(error) from error
-                    if callback:
-                        callback(status.resumable_progress, status.total_size)
-                if remove_bom and (export_type or mimetype) == "text/plain":
-                    fd.seek(0)
-                    self._RemovePrefix(fd, self._GetBOM("text/plain"))
-
-        self._DownloadContent(download, mimetype, acknowledge_abuse)
+        stream = self.GetContentIOBuffer(
+            mimetype=mimetype,
+            remove_bom=remove_bom,
+            chunksize=chunksize,
+            acknowledge_abuse=acknowledge_abuse,
+        )
+        # The pre-buffered first response determines whether the file is readable.
+        with open(filename, "wb") as fd:
+            for chunk in stream:
+                fd.write(chunk)
+                if callback:
+                    callback(stream.progress, stream.size)
 
     @LoadAuth
     def GetContentIOBuffer(
@@ -394,45 +415,36 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :raises: ApiRequestError, FileNotUploadedError
         """
 
-        def open_stream(request, export_type):
-            prefix = (
-                self._GetBOM("text/plain")
-                if remove_bom and export_type == "text/plain"
-                else b""
-            )
+        def open_stream(request, content_type):
+            prefix = self._GetBOM(content_type) if remove_bom else b""
             return MediaIoReadable(
-                request,
+                self._WrapRequest(request),
                 encoding=encoding,
                 remove_prefix=prefix,
                 chunksize=chunksize,
             )
 
-        return self._DownloadContent(open_stream, mimetype, acknowledge_abuse)
-
-    def _DownloadContent(self, consume, mimetype, acknowledge_abuse):
-        file_id = self.metadata.get("id") or self.get("id")
-        if not file_id:
-            raise FileNotUploadedError()
-
+        file_id = self._FileId()
         files = self.auth.service.files()
-        if self.metadata.get("mimeType") not in WORKSPACE_EXPORT_TYPES:
+        source_type = self.metadata.get("mimeType") or self.get("mimeType")
+        if source_type not in WORKSPACE_EXPORT_TYPES:
             request = files.get_media(
                 fileId=file_id,
                 acknowledgeAbuse=acknowledge_abuse,
                 supportsAllDrives=True,
             )
             try:
-                return consume(self._WrapRequest(request), None)
+                return open_stream(request, mimetype or source_type)
             except ApiRequestError as error:
                 if (
-                    error.error["code"] != 403
+                    error.error.get("code") != 403
                     or error.GetField("reason") != "fileNotDownloadable"
                 ):
                     raise
 
         export_type = mimetype or "text/plain"
         request = files.export_media(fileId=file_id, mimeType=export_type)
-        return consume(self._WrapRequest(request), export_type)
+        return open_stream(request, export_type)
 
     @LoadAuth
     def FetchMetadata(self, fields=None, fetch_all=False):
@@ -447,28 +459,19 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         :raises: ApiRequestError, FileNotUploadedError
         """
-        file_id = self.metadata.get("id") or self.get("id")
+        file_id = self._FileId()
 
         if fetch_all:
             fields = "*"
 
-        if file_id:
-            try:
-                request = self.auth.service.files().get(
-                    fileId=file_id,
-                    fields=fields or DEFAULT_FILE_FIELDS,
-                    # Teamdrive support
-                    supportsAllDrives=True,
-                )
-                request = self._AddResourceKeyHeaders(request)
-                metadata = request.execute(http=self.http)
-            except errors.HttpError as error:
-                raise ApiRequestError(error)
-            else:
-                self.uploaded = True
-                self.UpdateMetadata(metadata)
-        else:
-            raise FileNotUploadedError()
+        request = self.auth.service.files().get(
+            fileId=file_id,
+            fields=fields or DEFAULT_FILE_FIELDS,
+            supportsAllDrives=True,
+        )
+        metadata = self._Execute(request)
+        self.uploaded = True
+        self.UpdateMetadata(metadata)
 
     @LoadMetadata
     def FetchContent(self, mimetype=None, remove_bom=False):
@@ -480,10 +483,20 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             raise FileNotDownloadableError(
                 "Folders and shortcuts have no content"
             )
-        stream = self.GetContentIOBuffer(
-            mimetype=mimetype, remove_bom=remove_bom
-        )
-        self.content = io.BytesIO(b"".join(stream))
+        try:
+            stream = self.GetContentIOBuffer(
+                mimetype=mimetype, remove_bom=remove_bom
+            )
+            self.content = io.BytesIO(b"".join(stream))
+        except ApiRequestError as error:
+            if error.GetField("reason") in {
+                "fileNotExportable",
+                "exportFormatNotFound",
+                "conversionUnsupported",
+                "cannotExportFile",
+            }:
+                raise FileNotDownloadableError(str(error)) from error
+            raise
         self.dirty["content"] = False
         self.has_bom = not remove_bom
         self._export_mimetype = mimetype
@@ -496,43 +509,41 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         metadata and pass the source MIME type as media_mime_type.
         """
         params = dict(param or {}, supportsAllDrives=True)
-        params.setdefault("fields", DEFAULT_FILE_FIELDS)
+        params["fields"] = params.get("fields") or DEFAULT_FILE_FIELDS
         body = self.GetChanges()
         files = self.auth.service.files()
         file_id = self.get("id")
-        try:
-            if self.dirty["content"]:
-                source_type = (
-                    media_mime_type
-                    or self.get("mimeType")
-                    or "application/octet-stream"
-                )
-                params["media_body"] = MediaIoBaseUpload(
-                    self.content, source_type, resumable=True
-                )
-            if file_id:
-                body.pop("id", None)
-                if "parents" in body:
-                    self._MoveParents(body.pop("parents"), params)
-                request = files.update(fileId=file_id, body=body, **params)
-            else:
-                # Retain the ID so subsequent Upload calls update this file.
-                fields = params["fields"]
-                if fields != "*" and "id" not in fields.replace(" ", "").split(
-                    ","
-                ):
-                    params["fields"] = f"id,{fields}"
-                request = files.create(body=body, **params)
-            metadata = self._AddResourceKeyHeaders(request).execute(
-                http=self.http
+        if self.dirty["content"]:
+            source_type = (
+                media_mime_type
+                or self.get("mimeType")
+                or "application/octet-stream"
             )
-        except errors.HttpError as error:
-            raise ApiRequestError(error) from error
-
-        if self.dirty["content"] and (self.get("mimeType") or "").startswith(
+            params["media_body"] = MediaIoBaseUpload(
+                self.content, source_type, resumable=True
+            )
+            # The destination type determines whether we can reuse the source bytes.
+            if not self.get("mimeType"):
+                params["fields"] = _ensure_field(params["fields"], "mimeType")
+        if file_id:
+            body.pop("id", None)
+            if "parents" in body:
+                self._MoveParents(body.pop("parents"), params)
+            request = files.update(fileId=file_id, body=body, **params)
+        else:
+            params["fields"] = _ensure_field(params["fields"], "id")
+            request = files.create(body=body, **params)
+        metadata = self._Execute(request)
+        if (
+            "addParents" in params or "removeParents" in params
+        ) and "parents" not in metadata:
+            self.pop("parents", None)
+        destination_type = (
+            metadata.get("mimeType") or self.get("mimeType") or ""
+        )
+        if self.dirty["content"] and destination_type.startswith(
             "application/vnd.google-apps."
         ):
-            # Read back the converted document on the next content request.
             self.content = None
         self.uploaded = True
         self.dirty["content"] = False
@@ -545,13 +556,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         previous = self.metadata.get("parents")
         if previous is None:
             request = self.auth.service.files().get(
-                fileId=self["id"], fields="parents", supportsAllDrives=True
+                fileId=self._FileId(), fields="parents", supportsAllDrives=True
             )
-            previous = (
-                self._WrapRequest(request)
-                .execute(http=self.http)
-                .get("parents", [])
-            )
+            previous = self._Execute(request).get("parents", [])
+        if previous and parents == ["root"] and "root" not in previous:
+            root = self.auth.service.files().get(fileId="root", fields="id")
+            parents = [self._Execute(root)["id"]]
         if parents and parents[0] not in previous:
             params["addParents"] = parents[0]
         removed = [parent for parent in previous if parent not in parents]
@@ -573,6 +583,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """
         self._SetTrashed(False, param)
 
+    @LoadAuth
     def Delete(self, param=None):
         """Hard-delete a file.
 
@@ -580,7 +591,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type param: dict.
         :raises: ApiRequestError
         """
-        self._FilesDelete(param=param)
+        params = dict(
+            param or {}, fileId=self._FileId(), supportsAllDrives=True
+        )
+        self._Execute(self.auth.service.files().delete(**params))
 
     @LoadAuth
     def Copy(self, target_folder=None, new_title=None, param=None):
@@ -598,21 +612,18 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """
 
         params = dict(param or {}, supportsAllDrives=True)
-        params.setdefault("fields", DEFAULT_FILE_FIELDS)
+        params["fields"] = _ensure_field(
+            params.get("fields") or DEFAULT_FILE_FIELDS, "id"
+        )
         body = {}
         if target_folder is not None:
             body["parents"] = [target_folder["id"]]
         if new_title is not None:
             body["name"] = new_title
-        try:
-            request = self.auth.service.files().copy(
-                fileId=self["id"], body=body, **params
-            )
-            metadata = self._AddResourceKeyHeaders(request).execute(
-                http=self.http
-            )
-        except errors.HttpError as error:
-            raise ApiRequestError(error) from error
+        request = self.auth.service.files().copy(
+            fileId=self._FileId(), body=body, **params
+        )
+        metadata = self._Execute(request)
         return GoogleDriveFile(self.auth, metadata, uploaded=True)
 
     @LoadAuth
@@ -630,33 +641,32 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :return: The permission object.
         :rtype: object
         """
-        param = dict(param or {})
-        param["fileId"] = self.metadata.get("id") or self["id"]
-        param["body"] = new_permission
-        # Teamdrive support
-        param["supportsAllDrives"] = True
-
-        try:
-            request = self.auth.service.permissions().create(**param)
-            permission = self._AddResourceKeyHeaders(request).execute(
-                http=self.http
-            )
-        except errors.HttpError as error:
-            raise ApiRequestError(error)
-        else:
-            self.GetPermissions()  # Update permissions field.
-
+        params = dict(
+            param or {},
+            fileId=self._FileId(),
+            body=new_permission,
+            supportsAllDrives=True,
+        )
+        params["fields"] = params.get("fields") or "*"
+        permission = self._Execute(
+            self.auth.service.permissions().create(**params)
+        )
+        self._ListPermissions()
         return permission
 
     @LoadAuth
     def GetPermissions(self):
         """Return all permissions for the file, including shared drive files."""
+        return self._ListPermissions()
+
+    def _ListPermissions(self):
         return self._ListChildren(
             self.auth.service.permissions(),
             "permissions",
             supportsAllDrives=True,
         )
 
+    @LoadAuth
     def DeletePermission(self, permission_id):
         """Deletes the permission specified by the permission_id.
 
@@ -665,7 +675,20 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :return: True if it succeeds.
         :rtype: bool
         """
-        return self._DeletePermission(permission_id)
+        request = self.auth.service.permissions().delete(
+            fileId=self._FileId(),
+            permissionId=permission_id,
+            supportsAllDrives=True,
+        )
+        self._Execute(request)
+        if "permissions" in self and "permissions" in self.metadata:
+            permissions = [
+                permission
+                for permission in self["permissions"]
+                if permission["id"] != permission_id
+            ]
+            self["permissions"] = self.metadata["permissions"] = permissions
+        return True
 
     @LoadAuth
     def GetRevisions(self):
@@ -673,17 +696,29 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         return self._ListChildren(self.auth.service.revisions(), "revisions")
 
     def _ListChildren(self, resource, key, **params):
-        params.update(fileId=self["id"], fields=f"nextPageToken,{key}(*)")
+        params.update(fileId=self._FileId(), fields=f"nextPageToken,{key}(*)")
         items = []
         while True:
             request = resource.list(**params)
-            page = self._AddResourceKeyHeaders(request).execute(http=self.http)
+            page = self._Execute(request)
             items.extend(page.get(key, []))
             if not page.get("nextPageToken"):
                 break
             params["pageToken"] = page["nextPageToken"]
         self[key] = self.metadata[key] = items
         return items
+
+    def _FileId(self):
+        file_id = self.metadata.get("id") or self.get("id")
+        if not file_id:
+            raise FileNotUploadedError()
+        return file_id
+
+    def _Execute(self, request):
+        try:
+            return self._AddResourceKeyHeaders(request).execute(http=self.http)
+        except errors.HttpError as error:
+            raise ApiRequestError(error) from error
 
     def _WrapRequest(self, request):
         """Replaces request.http with self.http.
@@ -717,69 +752,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         params = dict(param or {}, supportsAllDrives=True)
         params.setdefault("fields", "trashed")
         request = self.auth.service.files().update(
-            fileId=self["id"], body={"trashed": trashed}, **params
+            fileId=self._FileId(), body={"trashed": trashed}, **params
         )
-        try:
-            self._AddResourceKeyHeaders(request).execute(http=self.http)
-        except errors.HttpError as error:
-            raise ApiRequestError(error) from error
+        self._Execute(request)
         self["trashed"] = self.metadata["trashed"] = trashed
-
-    @LoadAuth
-    def _FilesDelete(self, param=None):
-        """Delete a file using Files.Delete()
-        (WARNING: deleting permanently deletes the file!)
-
-        :param param: additional parameter to file.
-        :type param: dict.
-        :raises: ApiRequestError
-        """
-        if param is None:
-            param = {}
-        param["fileId"] = self.metadata.get("id") or self["id"]
-
-        # Teamdrive support
-        param["supportsAllDrives"] = True
-
-        try:
-            self._WrapRequest(
-                self.auth.service.files().delete(**param)
-            ).execute(http=self.http)
-        except errors.HttpError as error:
-            raise ApiRequestError(error)
-        else:
-            return True
-
-    @LoadAuth
-    def _DeletePermission(self, permission_id):
-        """Deletes the permission remotely, and from the file object itself.
-
-        :param permission_id: The ID of the permission.
-        :type permission_id: str
-
-        :return: The permission
-        :rtype: object
-        """
-        file_id = self.metadata.get("id") or self["id"]
-        try:
-            request = self.auth.service.permissions().delete(
-                fileId=file_id,
-                permissionId=permission_id,
-                supportsAllDrives=True,
-            )
-            self._AddResourceKeyHeaders(request).execute(http=self.http)
-        except errors.HttpError as error:
-            raise ApiRequestError(error)
-        else:
-            if "permissions" in self and "permissions" in self.metadata:
-                permissions = [
-                    permission
-                    for permission in self["permissions"]
-                    if permission["id"] != permission_id
-                ]
-                self["permissions"] = permissions
-                self.metadata["permissions"] = permissions
-            return True
 
     @staticmethod
     def _GetBOM(mimetype):
