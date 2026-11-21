@@ -1,0 +1,27 @@
+name: Report live Drive tests
+
+on:
+  workflow_call:
+    inputs:
+      sha:
+        type: string
+        required: true
+      state:
+        type: string
+        required: true
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Publish the result on the PR commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ inputs.sha }}
+          STATE: ${{ inputs.state }}
+        run: |
+          gh api --silent --method POST "repos/$GITHUB_REPOSITORY/statuses/$HEAD_SHA" \
+            -f context='Live Drive tests' -f state="$STATE" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT"

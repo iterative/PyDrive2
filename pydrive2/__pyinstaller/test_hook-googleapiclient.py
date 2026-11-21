@@ -2,25 +2,14 @@ import subprocess
 
 from PyInstaller import __main__ as pyi_main
 
-
-# NOTE: importlib.resources.contents is available in py3.7+, but due to how
-# pyinstaller handles importlib, we need to use the importlib_resources
-# backport if there are any resources methods that are not available in a given
-# python version, which ends up being py<3.10
 _APP_SOURCE = """
-import sys
-if sys.version_info >= (3, 10):
-    from importlib.resources import contents
-else:
-    from importlib_resources import contents
+from importlib.resources import files
 
 import pydrive2.files
 
 
-cache_files = contents(
-    "googleapiclient.discovery_cache.documents"
-)
-assert len(cache_files) > 0
+documents = files("googleapiclient.discovery_cache.documents")
+assert documents.joinpath("drive.v2.json").is_file()
 """
 
 

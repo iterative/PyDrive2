@@ -1,17 +1,18 @@
 import filecmp
 import json
 import os
-import unittest
-from unittest.mock import MagicMock
-import httplib2
-import pytest
 import sys
+import unittest
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from io import BytesIO
+from pathlib import Path
 from tempfile import mkdtemp
 from time import time
+from unittest.mock import MagicMock
 
+import httplib2
+import pytest
 import timeout_decorator
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from googleapiclient import errors
 
 from pydrive2.auth import GoogleAuth
@@ -19,12 +20,12 @@ from pydrive2.drive import GoogleDrive
 from pydrive2.files import ApiRequestError, GoogleDriveFile
 from pydrive2.test import test_util
 from pydrive2.test.test_util import (
-    pydrive_retry,
-    setup_credentials,
     create_file,
     delete_dir,
     delete_file,
+    pydrive_retry,
     settings_file_path,
+    setup_credentials,
 )
 
 
@@ -81,6 +82,7 @@ def auth_with_resource_key_mock() -> GoogleAuth:
     return ga
 
 
+@pytest.mark.drive
 class GoogleDriveFileTest(unittest.TestCase):
     """Tests basic file operations of files.GoogleDriveFile.
     Upload and download of contents and metadata, and thread-safety checks.
@@ -829,7 +831,7 @@ class GoogleDriveFileTest(unittest.TestCase):
             mimetype="text/plain",
             remove_bom=True,
         )
-        downloaded_string = open(downloaded_file_name).read()
+        downloaded_string = Path(downloaded_file_name).read_text()
         self.assertEqual(
             test_string, downloaded_string, "Strings do not match"
         )
@@ -848,9 +850,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         file_name = "_tmp_source_file.txt"
         downloaded_file_name = "_tmp_downloaded_file_name.txt"
         original_file_content = "Generic, non-exhaustive\n ASCII test string."
-        source_file = open(file_name, mode="w+")
-        source_file.write(original_file_content)
-        source_file.close()
+        Path(file_name).write_text(original_file_content)
         original_file_content = test_util.StripNewlines(original_file_content)
 
         return file1, file_name, original_file_content, downloaded_file_name
@@ -890,7 +890,7 @@ class GoogleDriveFileTest(unittest.TestCase):
             pydrive_retry(
                 file1.GetContentFile, downloaded_file_name, remove_bom=True
             )
-            downloaded_content = open(downloaded_file_name).read()
+            downloaded_content = Path(downloaded_file_name).read_text()
             downloaded_content = test_util.StripNewlines(downloaded_content)
             self.assertEqual(original_file_content, downloaded_content)
 
@@ -905,7 +905,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         (
             file1,
             file_name,
-            original_file_content,
+            _,
             downloaded_file_name,
         ) = self.setup_gfile_conversion_test()
         try:
@@ -944,57 +944,6 @@ class GoogleDriveFileTest(unittest.TestCase):
                 file1, file_name, downloaded_file_name
             )
 
-    def test_InsertPrefix(self):
-        # Create BytesIO.
-        file_obj = BytesIO(b"abc")
-        original_length = len(file_obj.getvalue())
-        char_to_insert = "\ufeff".encode()
-
-        # Insert the prefix.
-        GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
-        modified_length = len(file_obj.getvalue())
-        self.assertGreater(modified_length, original_length)
-        self.assertEqual(file_obj.getvalue(), "\ufeffabc".encode())
-
-    def test_InsertPrefixLarge(self):
-        # Create BytesIO.
-        test_content = "abc" * 800
-        file_obj = BytesIO(test_content.encode("utf-8"))
-        original_length = len(file_obj.getvalue())
-        char_to_insert = "\ufeff".encode()
-
-        # Insert the prefix.
-        GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
-        modified_length = len(file_obj.getvalue())
-        self.assertGreater(modified_length, original_length)
-        expected_content = "\ufeff" + test_content
-        self.assertEqual(file_obj.getvalue(), expected_content.encode("utf8"))
-
-    def test_RemovePrefix(self):
-        # Create BytesIO.
-        file_obj = BytesIO("\ufeffabc".encode())
-        original_length = len(file_obj.getvalue())
-        char_to_remove = "\ufeff".encode()
-
-        # Insert the prefix.
-        GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)
-        modified_length = len(file_obj.getvalue())
-        self.assertLess(modified_length, original_length)
-        self.assertEqual(file_obj.getvalue(), b"abc")
-
-    def test_RemovePrefixLarge(self):
-        # Create BytesIO.
-        test_content = "\ufeff" + "abc" * 800
-        file_obj = BytesIO(test_content.encode("utf8"))
-        original_length = len(file_obj.getvalue())
-        char_to_remove = "\ufeff".encode()
-
-        # Insert the prefix.
-        GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)
-        modified_length = len(file_obj.getvalue())
-        self.assertLess(modified_length, original_length)
-        self.assertEqual(file_obj.getvalue(), test_content[1:].encode("utf8"))
-
     # Setup for concurrent upload testing.
     # =====================================
     FILE_UPLOAD_COUNT = 10
@@ -1021,7 +970,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         # Ensure there are no files with the random file name.
         files = pydrive_retry(
             lambda: drive.ListFile(
-                param={"q": "title = '%s' and trashed = false" % remote_name}
+                param={"q": f"title = '{remote_name}' and trashed = false"}
             ).GetList()
         )
         self.assertTrue(len(files) == 0)
@@ -1036,15 +985,22 @@ class GoogleDriveFileTest(unittest.TestCase):
             self.assertIsNone(future.exception())
         thread_pool.shutdown()
 
-        # Ensure all files were uploaded.
-        files = pydrive_retry(
-            lambda: drive.ListFile(
-                param={"q": "title = '%s' and trashed = false" % remote_name}
-            ).GetList()
-        )
-        self.assertTrue(len(files) == self.FILE_UPLOAD_COUNT)
+        file_ids = [file["id"] for file in upload_files]
+        self.assertEqual(len(set(file_ids)), num_of_uploads)
 
-        return [fi["id"] for fi in upload_files]
+        def check_uploaded_files():
+            # A successful upload can take time to appear in title searches.
+            files = drive.ListFile(
+                param={"q": f"title = '{remote_name}' and trashed = false"}
+            ).GetList()
+            if len(files) < num_of_uploads:
+                raise test_util.PyDriveRetriableError(
+                    f"Drive lists {len(files)} of {num_of_uploads} uploads"
+                )
+            self.assertCountEqual([file["id"] for file in files], file_ids)
+
+        pydrive_retry(check_uploaded_files)
+        return file_ids
 
     def _parallel_downloader(self, file_ids, num_of_workers):
         drive = GoogleDrive(self.ga)
@@ -1167,6 +1123,59 @@ class GoogleDriveFileTest(unittest.TestCase):
         for element in ids:
             tmp_file = drive.CreateFile({"id": element})
             pydrive_retry(tmp_file.Delete)
+
+
+class FilePrefixTest(unittest.TestCase):
+    def test_InsertPrefix(self):
+        # Create BytesIO.
+        file_obj = BytesIO(b"abc")
+        original_length = len(file_obj.getvalue())
+        char_to_insert = "\ufeff".encode()
+
+        # Insert the prefix.
+        GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
+        modified_length = len(file_obj.getvalue())
+        self.assertGreater(modified_length, original_length)
+        self.assertEqual(file_obj.getvalue(), "\ufeffabc".encode())
+
+    def test_InsertPrefixLarge(self):
+        # Create BytesIO.
+        test_content = "abc" * 800
+        file_obj = BytesIO(test_content.encode("utf-8"))
+        original_length = len(file_obj.getvalue())
+        char_to_insert = "\ufeff".encode()
+
+        # Insert the prefix.
+        GoogleDriveFile._InsertPrefix(file_obj, char_to_insert)
+        modified_length = len(file_obj.getvalue())
+        self.assertGreater(modified_length, original_length)
+        expected_content = "\ufeff" + test_content
+        self.assertEqual(file_obj.getvalue(), expected_content.encode("utf8"))
+
+    def test_RemovePrefix(self):
+        # Create BytesIO.
+        file_obj = BytesIO("\ufeffabc".encode())
+        original_length = len(file_obj.getvalue())
+        char_to_remove = "\ufeff".encode()
+
+        # Insert the prefix.
+        GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)
+        modified_length = len(file_obj.getvalue())
+        self.assertLess(modified_length, original_length)
+        self.assertEqual(file_obj.getvalue(), b"abc")
+
+    def test_RemovePrefixLarge(self):
+        # Create BytesIO.
+        test_content = "\ufeff" + "abc" * 800
+        file_obj = BytesIO(test_content.encode("utf8"))
+        original_length = len(file_obj.getvalue())
+        char_to_remove = "\ufeff".encode()
+
+        # Insert the prefix.
+        GoogleDriveFile._RemovePrefix(file_obj, char_to_remove)
+        modified_length = len(file_obj.getvalue())
+        self.assertLess(modified_length, original_length)
+        self.assertEqual(file_obj.getvalue(), test_content[1:].encode("utf8"))
 
 
 if __name__ == "__main__":

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # PyDrive2 documentation build configuration file, created by
 # sphinx-quickstart on Sun Jun 12 23:01:40 2016.
@@ -12,8 +11,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
-import sys
 import os
+import sys
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the

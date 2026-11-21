@@ -18,7 +18,7 @@ folder.Upload()
 # Get folder info and print to screen.
 folder_title = folder["title"]
 folder_id = folder["id"]
-print("title: %s, id: %s" % (folder_title, folder_id))
+print(f"title: {folder_title}, id: {folder_id}")
 
 # Upload file to folder.
 f = drive.CreateFile(
