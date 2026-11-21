@@ -1,4 +1,8 @@
+import json
+from urllib.parse import urlsplit
+
 import pytest
+from fsspec.callbacks import Callback
 
 from pydrive2.fs import GDriveFileSystem
 from pydrive2.fs.spec import FOLDER_MIME_TYPE
@@ -85,3 +89,117 @@ def test_shared_drive_delete_permission_error(mock_drive, trash_only):
         filesystem(drive, "shared", trash_only=trash_only).rm_file(
             "shared/note"
         )
+
+
+def test_copy_creates_missing_directories_and_copies_on_drive(mock_drive):
+    source = {"name": "payload", "id": "source", "mimeType": "text/plain"}
+    drive, requests = mock_drive(
+        response({"files": [source]}),
+        response({"files": []}),
+        response({"id": "new"}),
+        response({"files": []}),
+        response({"id": "nested"}),
+        response({"id": "copy"}),
+    )
+    filesystem(drive).cp_file("root/payload", "root/new/nested/copy")
+    (
+        source_lookup,
+        new_lookup,
+        new_folder,
+        nested_lookup,
+        nested_folder,
+        copy,
+    ) = requests
+    assert [r[1] for r in requests] == [
+        "GET",
+        "GET",
+        "POST",
+        "GET",
+        "POST",
+        "POST",
+    ]
+    assert "name='payload'" in query(source_lookup)["q"][0]
+    assert "'root' in parents" in query(new_lookup)["q"][0]
+    assert json.loads(new_folder[2])["parents"] == ["root"]
+    assert "'new' in parents" in query(nested_lookup)["q"][0]
+    assert json.loads(nested_folder[2])["parents"] == ["new"]
+    assert urlsplit(copy[0]).path == "/drive/v3/files/source/copy"
+    assert json.loads(copy[2]) == {"name": "copy", "parents": ["nested"]}
+
+
+@pytest.mark.parametrize(
+    ("code", "reason"), [(503, "backendError"), (403, "rateLimitExceeded")]
+)
+def test_copy_retries_only_copy_request(mock_drive, code, reason):
+    source = {"name": "payload", "id": "source", "mimeType": "text/plain"}
+    drive, requests = mock_drive(
+        response({"files": [source]}),
+        error_response(code, reason),
+        response({"id": "copy"}),
+    )
+    filesystem(drive).cp_file("root/payload", "root/copy")
+    lookup, first, retry = requests
+    assert lookup[1] == "GET"
+    assert first[:3] == retry[:3]
+    assert urlsplit(retry[0]).path.endswith("/source/copy")
+
+
+def test_info_and_listing_request_only_required_fields(mock_drive):
+    item = {
+        "name": "payload",
+        "id": "blob",
+        "mimeType": "text/plain",
+        "size": "3",
+        "md5Checksum": "abc",
+    }
+    drive, requests = mock_drive(response({"files": [item]}), response(item))
+    assert filesystem(drive).info("root/payload") == {
+        "name": "root/payload",
+        "type": "file",
+        "size": 3,
+        "checksum": "abc",
+    }
+    lookup, get = requests
+    assert query(lookup)["fields"] == [
+        "nextPageToken,files(id,name,parents,mimeType,size,md5Checksum)"
+    ]
+    assert query(get)["fields"] == ["mimeType,size,md5Checksum"]
+
+
+@pytest.mark.parametrize(
+    ("media", "expected"),
+    [
+        (
+            [
+                ({"status": "206", "content-range": "bytes 0-1/3"}, b"xy"),
+                ({"status": "206", "content-range": "bytes 2-2/3"}, b"z"),
+            ],
+            [(3, 0), (3, 2), (3, 3)],
+        ),
+        ([({"status": "200"}, b"xyz")], [(None, 3)]),
+    ],
+    ids=["two-chunks", "unknown-total"],
+)
+def test_download_progress_uses_media_responses(
+    mock_drive, tmp_path, media, expected
+):
+    source = {
+        "name": "payload",
+        "id": "file",
+        "mimeType": "application/octet-stream",
+    }
+    drive, requests = mock_drive(response({"files": [source]}), *media)
+    updates = []
+    callback = Callback(
+        hooks={"record": lambda size, value: updates.append((size, value))}
+    )
+    dest = tmp_path / "result"
+    filesystem(drive).get_file(
+        "root/payload", dest, callback=callback, block_size=2
+    )
+    lookup, *downloads = requests
+    assert query(lookup)["q"]
+    assert len(downloads) == len(media)
+    assert all(query(request)["alt"] == ["media"] for request in downloads)
+    assert updates == expected
+    assert dest.read_bytes() == b"xyz"

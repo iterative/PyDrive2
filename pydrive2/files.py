@@ -1,3 +1,4 @@
+import codecs
 import io
 import json
 import mimetypes
@@ -33,7 +34,6 @@ WORKSPACE_EXPORT_TYPES = frozenset(
     }
 )
 
-BLOCK_SIZE = 1024
 # Usage: MIME_TYPE_TO_BOM['<Google Drive mime type>']['<download mimetype>'].
 MIME_TYPE_TO_BOM = {
     "application/vnd.google-apps.document": {"text/plain": "\ufeff".encode()}
@@ -139,19 +139,15 @@ class GoogleDriveFileList(ApiResourceList):
 class IoBuffer:
     """Lightweight retention of one chunk."""
 
-    def __init__(self, encoding):
-        self.encoding = encoding
-        self.chunk = None
+    def __init__(self):
+        self.chunk = b""
 
     def write(self, chunk):
         self.chunk = chunk
 
     def read(self):
-        return (
-            self.chunk.decode(self.encoding)
-            if self.chunk and self.encoding
-            else self.chunk
-        )
+        chunk, self.chunk = self.chunk, b""
+        return chunk
 
 
 class MediaIoReadable:
@@ -171,46 +167,53 @@ class MediaIoReadable:
         :raises: ApiRequestError
         """
         self.done = False
-        self._fd = IoBuffer(encoding)
+        self._fd = IoBuffer()
         self.downloader = MediaIoBaseDownload(
             self._fd, request, chunksize=chunksize
         )
         self.size = None
-        self._pre_buffer = False
-        if pre_buffer:
-            self.read()
-            if remove_prefix:
-                chunk = io.BytesIO(self._fd.chunk or b"")
-                GoogleDriveFile._RemovePrefix(chunk, remove_prefix)
-                self._fd.chunk = chunk.getvalue()
-            self._pre_buffer = True
+        self.progress = 0
+        self._decoder = (
+            codecs.getincrementaldecoder(encoding)() if encoding else None
+        )
+        self._prefix = remove_prefix
+        self._buffer = self._read_chunk() if pre_buffer else None
 
-    def read(self):
-        """
-        :returns: bytes or str -- chunk (or None if done)
-        :raises: ApiRequestError
-        """
-        if self._pre_buffer:
-            self._pre_buffer = False
-            return self._fd.read()
-        if self.done:
-            return None
+    def _next_chunk(self):
         try:
             status, self.done = self.downloader.next_chunk()
-            self.size = status.total_size
         except errors.HttpError as error:
-            raise ApiRequestError(error)
+            raise ApiRequestError(error) from error
+        self.size = status.total_size
+        self.progress = status.resumable_progress
         return self._fd.read()
 
+    def _read_chunk(self):
+        chunk = self._next_chunk()
+        if self._prefix:
+            while (
+                not self.done
+                and len(chunk) < len(self._prefix)
+                and self._prefix.startswith(chunk)
+            ):
+                chunk += self._next_chunk()
+            chunk = chunk.removeprefix(self._prefix)
+            self._prefix = b""
+        if self._decoder:
+            return self._decoder.decode(chunk, final=self.done)
+        return chunk
+
+    def read(self):
+        """Return the next chunk, or None at end of stream."""
+        if self._buffer is not None:
+            chunk, self._buffer = self._buffer, None
+            return chunk
+        if self.done:
+            return None
+        return self._read_chunk()
+
     def __iter__(self):
-        """
-        :raises: ApiRequestError
-        """
-        while True:
-            chunk = self.read()
-            if chunk is None:
-                break
-            yield chunk
+        return iter(self.read, None)
 
     def __len__(self):
         return self.size
@@ -335,7 +338,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self.FetchContent(mimetype, remove_bom)
         return self.content.getvalue().decode(encoding)
 
-    @LoadAuth
     def GetContentFile(
         self,
         filename,
@@ -346,6 +348,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         acknowledge_abuse=False,
     ):
         """Save content of this file as a local file.
+
+        The destination is opened after the first successful read. If a later
+        read fails, the destination contains the chunks written so far.
 
         :param filename: name of the file to write to.
         :type filename: str
@@ -362,55 +367,20 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type acknowledge_abuse: bool
         :raises: ApiRequestError, FileNotUploadedError
         """
-        files = self.auth.service.files()
-        file_id = self._FileId()
-
-        def download(fd, request):
-            downloader = MediaIoBaseDownload(
-                fd, self._WrapRequest(request), chunksize=chunksize
-            )
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
+        stream = self.GetContentIOBuffer(
+            mimetype=mimetype,
+            remove_bom=remove_bom,
+            chunksize=chunksize,
+            acknowledge_abuse=acknowledge_abuse,
+        )
+        # The pre-buffered first response determines whether the file is readable.
+        with open(filename, "wb") as fd:
+            for chunk in stream:
+                fd.write(chunk)
+                # Release the response body before the next HTTP request.
+                del chunk
                 if callback:
-                    callback(status.resumable_progress, status.total_size)
-
-        with open(filename, mode="w+b") as fd:
-            # Should use files.export_media instead of files.get_media if
-            # metadata["mimeType"].startswith("application/vnd.google-apps.").
-            # But that would first require a slow call to FetchMetadata().
-            # We prefer to try-except for speed.
-            try:
-                download(
-                    fd,
-                    files.get_media(
-                        fileId=file_id,
-                        acknowledgeAbuse=acknowledge_abuse,
-                        supportsAllDrives=True,
-                    ),
-                )
-            except errors.HttpError as error:
-                exc = ApiRequestError(error)
-                if (
-                    exc.error["code"] != 403
-                    or exc.GetField("reason") != "fileNotDownloadable"
-                ):
-                    raise exc
-                mimetype = mimetype or "text/plain"
-                fd.seek(0)  # just in case `download()` modified `fd`
-                try:
-                    download(
-                        fd,
-                        files.export_media(fileId=file_id, mimeType=mimetype),
-                    )
-                except errors.HttpError as error:
-                    raise ApiRequestError(error)
-
-            if mimetype == "text/plain" and remove_bom:
-                fd.seek(0)
-                bom = self._GetBOM(mimetype)
-                if bom:
-                    self._RemovePrefix(fd, bom)
+                    callback(stream.progress, stream.size)
 
     @LoadAuth
     def GetContentIOBuffer(
@@ -449,7 +419,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         file_id = self._FileId()
         files = self.auth.service.files()
-        source_type = self.metadata.get("mimeType") or self.get("mimeType")
+        source_type = self._SourceMimeType()
         if source_type not in WORKSPACE_EXPORT_TYPES:
             request = files.get_media(
                 fileId=file_id,
@@ -496,10 +466,11 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self.uploaded = True
         self.UpdateMetadata(metadata)
 
-    @LoadMetadata
     def FetchContent(self, mimetype=None, remove_bom=False):
         """Download file content or a Workspace export into memory."""
-        if self.get("mimeType") in {
+        if not self.uploaded and not self._SourceMimeType():
+            self.FetchMetadata()
+        if self._SourceMimeType() in {
             "application/vnd.google-apps.folder",
             "application/vnd.google-apps.shortcut",
         }:
@@ -731,6 +702,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self[key] = self.metadata[key] = items
         return items
 
+    def _SourceMimeType(self):
+        return self.metadata.get("mimeType") or self.get("mimeType")
+
     def _FileId(self):
         file_id = self.metadata.get("id") or self.get("id")
         if not file_id:
@@ -786,81 +760,3 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         for bom in MIME_TYPE_TO_BOM.values():
             if mimetype in bom:
                 return bom[mimetype]
-
-    @staticmethod
-    def _RemovePrefix(file_object, prefix, block_size=BLOCK_SIZE):
-        """Deletes passed prefix by shifting content of passed file object by to
-        the left. Operation is in-place.
-
-        Args:
-          file_object (obj): The file object to manipulate.
-          prefix (str): The prefix to insert.
-          block_size (int): The size of the blocks which are moved one at a time.
-        """
-        prefix_length = len(prefix)
-        # Detect if prefix exists in file.
-        content_start = file_object.read(prefix_length)
-
-        if content_start == prefix:
-            # Shift content left by prefix length, by copying 1KiB at a time.
-            block_to_write = file_object.read(block_size)
-            current_block_length = len(block_to_write)
-
-            # Read and write location in separate variables for simplicity.
-            read_location = prefix_length + current_block_length
-            write_location = 0
-
-            while current_block_length > 0:
-                # Write next block.
-                file_object.seek(write_location)
-                file_object.write(block_to_write)
-                # Set write location to the next block.
-                write_location += len(block_to_write)
-
-                # Read next block of input.
-                file_object.seek(read_location)
-                block_to_write = file_object.read(block_size)
-                # Update the current block length and read_location.
-                current_block_length = len(block_to_write)
-                read_location += current_block_length
-
-            # Truncate the file to its, now shorter, length.
-            file_object.truncate(read_location - prefix_length)
-
-    @staticmethod
-    def _InsertPrefix(file_object, prefix, block_size=BLOCK_SIZE):
-        """Inserts the passed prefix in the beginning of the file, operation is
-        in-place.
-
-        Args:
-          file_object (obj): The file object to manipulate.
-          prefix (str): The prefix to insert.
-        """
-        # Read the first two blocks.
-        first_block = file_object.read(block_size)
-        second_block = file_object.read(block_size)
-        # Pointer to the first byte of the next block to be read.
-        read_location = block_size * 2
-
-        # Write BOM.
-        file_object.seek(0)
-        file_object.write(prefix)
-        # {read|write}_location separated for readability.
-        write_location = len(prefix)
-
-        # Write and read block alternatingly.
-        while len(first_block):
-            # Write first block.
-            file_object.seek(write_location)
-            file_object.write(first_block)
-            # Increment write_location.
-            write_location += block_size
-
-            # Move second block into first variable.
-            first_block = second_block
-
-            # Read in the next block.
-            file_object.seek(read_location)
-            second_block = file_object.read(block_size)
-            # Increment read_location.
-            read_location += block_size

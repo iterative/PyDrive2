@@ -131,6 +131,15 @@ def test_move(fs, remote_dir):
     assert initial_info == secondary_info
 
 
+def test_copy_file_to_new_directory(fs, remote_dir):
+    source = remote_dir + "/source"
+    target = remote_dir + "/nested/copy"
+    fs.pipe_file(source, b"payload")
+    fs.cp_file(source, target)
+    assert fs.cat_file(target) == b"payload"
+    assert fs.cat_file(source) == b"payload"
+
+
 def test_rm(fs, remote_dir):
     fs.touch(remote_dir + "/a.txt")
     fs.rm(remote_dir + "/a.txt")
