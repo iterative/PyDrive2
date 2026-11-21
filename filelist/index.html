@@ -238,12 +238,19 @@
         <article role="main" id="furo-main-content">
           <section id="file-listing-made-easy">
 <h1>File listing made easy<a class="headerlink" href="#file-listing-made-easy" title="Link to this heading">¶</a></h1>
-<p><em>PyDrive</em> handles paginations and parses response as list of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>.</p>
+<p>PyDrive2 handles pagination and returns
+<a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile" title="pydrive2.files.GoogleDriveFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code></a> instances.</p>
 <section id="get-all-files-which-matches-the-query">
 <h2>Get all files which matches the query<a class="headerlink" href="#get-all-files-which-matches-the-query" title="Link to this heading">¶</a></h2>
-<p>Create <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFileList">GoogleDriveFileList</a> instance with <a class="reference external" href="https://developers.google.com/drive/v2/reference/files/list#request">parameters of Files.list()</a> as <code class="docutils literal notranslate"><span class="pre">dict</span></code>.
-Call <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.apiattr.ApiResourceList.GetList">GetList()</a> and you will get all files that matches your query as a list of <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>.
-The syntax and possible option of the query <code class="docutils literal notranslate"><span class="pre">q</span></code> parameter can be found in <cite>search for files</cite> Google documentation.</p>
+<p>Pass the <a class="reference external" href="https://developers.google.com/workspace/drive/api/reference/rest/v2/files/list#query-parameters">files.list query parameters</a> to
+<a class="reference internal" href="../pydrive2/#pydrive2.drive.GoogleDrive.ListFile" title="pydrive2.drive.GoogleDrive.ListFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ListFile()</span></code></a> as a dictionary. It returns a
+<a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFileList" title="pydrive2.files.GoogleDriveFileList"><code class="xref py py-class docutils literal notranslate"><span class="pre">GoogleDriveFileList</span></code></a>.
+<a class="reference internal" href="../pydrive2/#pydrive2.apiattr.ApiResourceList.GetList" title="pydrive2.apiattr.ApiResourceList.GetList"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GetList()</span></code></a> fetches all matches when
+you omit <code class="docutils literal notranslate"><span class="pre">maxResults</span></code>. If you set <code class="docutils literal notranslate"><span class="pre">maxResults</span></code>, each call fetches one page.</p>
+<p>Google’s <a class="reference external" href="https://developers.google.com/workspace/drive/api/guides/search-files">file search guide</a> explains the <code class="docutils literal notranslate"><span class="pre">q</span></code> parameter using Drive API
+v3 examples. PyDrive2 uses v2. When adapting a query, check the
+<a class="reference external" href="https://developers.google.com/workspace/drive/api/guides/v2-to-v3-reference#resource_field_differences_between_v2_and_v3">field comparison</a> for renamed fields. For example, use <code class="docutils literal notranslate"><span class="pre">title</span></code> for
+<code class="docutils literal notranslate"><span class="pre">name</span></code> and <code class="docutils literal notranslate"><span class="pre">modifiedDate</span></code> for <code class="docutils literal notranslate"><span class="pre">modifiedTime</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 
 <span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span> <span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance</span>
@@ -254,14 +261,13 @@ The syntax and possible option of the query <code class="docutils literal notran
   <span class="nb">print</span><span class="p">(</span><span class="s1">'title: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'title'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
 </pre></div>
 </div>
-<p>You can update metadata or content of these <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a> instances if you need it.</p>
+<p>You can update the metadata or content of each returned file.</p>
 </section>
 <section id="paginate-and-iterate-through-files">
 <h2>Paginate and iterate through files<a class="headerlink" href="#paginate-and-iterate-through-files" title="Link to this heading">¶</a></h2>
-<p><em>PyDrive</em> provides Pythonic way of paginating and iterating through list of files.
-Here is an example how to do this, <code class="docutils literal notranslate"><span class="pre">maxResults</span></code> below defines how many
-files it retrieves at once and we wrap it into a <code class="docutils literal notranslate"><span class="pre">for</span></code> loop to iterate:</p>
-<p>Sample code continues from above:</p>
+<p>To process one page at a time, iterate over the result of
+<a class="reference internal" href="../pydrive2/#pydrive2.drive.GoogleDrive.ListFile" title="pydrive2.drive.GoogleDrive.ListFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ListFile()</span></code></a>. In this example, each page
+contains up to ten files.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Paginate file lists by specifying number of max results</span>
 <span class="k">for</span> <span class="n">file_list</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">'q'</span><span class="p">:</span> <span class="s1">'trashed=true'</span><span class="p">,</span> <span class="s1">'maxResults'</span><span class="p">:</span> <span class="mi">10</span><span class="p">}):</span>
   <span class="nb">print</span><span class="p">(</span><span class="s1">'Received </span><span class="si">%s</span><span class="s1"> files from Files.list()'</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">))</span> <span class="c1"># &lt;= 10</span>
