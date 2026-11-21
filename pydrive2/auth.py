@@ -63,7 +63,10 @@ def LoadAuth(decoratee):
                 self.auth.credentials, user_credentials.Credentials
             ):
                 self.auth._refresh_if_expired()
-            elif self.auth.auth_method == "service":
+            elif (
+                self.auth.credentials is None
+                and self.auth.auth_method == "service"
+            ):
                 self.auth.ServiceAuth()
             else:
                 self.auth.LocalWebserverAuth()
@@ -124,7 +127,7 @@ class GoogleAuth(ApiAttributeMixin):
     settings = ApiAttribute("settings")
     client_config = ApiAttribute("client_config")
     flow = ApiAttribute("flow")
-    credentials = ApiAttribute("credentials")
+    _credentials = ApiAttribute("credentials")
     http = ApiAttribute("http")
     service = ApiAttribute("service")
     auth_method = ApiAttribute("auth_method")
@@ -156,6 +159,19 @@ class GoogleAuth(ApiAttributeMixin):
 
         self._configured_store = self._storage_from_settings()
         self._login_store = self._configured_store
+
+    @property
+    def credentials(self):
+        return self._credentials
+
+    @credentials.setter
+    def credentials(self, value):
+        with self._refresh_lock:
+            if self._credentials is not value:
+                self.service = None
+                if isinstance(self.http, AuthorizedHttp):
+                    self.http = self.http.http
+            self._credentials = value
 
     @property
     def access_token_expired(self):
@@ -301,7 +317,6 @@ class GoogleAuth(ApiAttributeMixin):
                         info, **options
                     )
                 )
-            self.service = None
         self._refresh_if_expired()
         if self.service is None:
             self.Authorize()
@@ -390,6 +405,8 @@ class GoogleAuth(ApiAttributeMixin):
                 credentials.use_client_config(config)
             self.credentials = credentials
             self._login_store = store
+            # A missing user cache starts a user login, even after ServiceAuth.
+            self.auth_method = None
 
     def SaveCredentials(self, backend=None):
         """Saves credentials according to specified backend.
@@ -653,19 +670,19 @@ class GoogleAuth(ApiAttributeMixin):
 
         :raises: AuthenticationError
         """
-        if self.access_token_expired:
-            raise AuthenticationError(
-                "No valid credentials provided to authorize"
+        with self._refresh_lock:
+            if self.access_token_expired:
+                raise AuthenticationError(
+                    "No valid credentials provided to authorize"
+                )
+            if self.http is None:
+                self.http = self._build_http()
+            if isinstance(self.http, AuthorizedHttp):
+                self.http = self.http.http
+            self.http = AuthorizedHttp(self.credentials, http=self.http)
+            self.service = build(
+                "drive", "v2", http=self.http, cache_discovery=False
             )
-
-        if self.http is None:
-            self.http = self._build_http()
-        if isinstance(self.http, AuthorizedHttp):
-            self.http = self.http.http
-        self.http = AuthorizedHttp(self.credentials, http=self.http)
-        self.service = build(
-            "drive", "v2", http=self.http, cache_discovery=False
-        )
 
     def Get_Http_Object(self):
         """Create and authorize an httplib2.Http object. Necessary for

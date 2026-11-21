@@ -31,6 +31,7 @@ from pydrive2.auth import (
     GoogleAuth,
     InvalidCredentialsError,
 )
+from pydrive2.drive import GoogleDrive
 from pydrive2.fs.spec import GDriveAuthError, _client_auth
 from pydrive2.settings import InvalidConfigError
 
@@ -531,6 +532,69 @@ def test_read_only_and_missing_cache(tmp_path, mocker):
     path.write_text('{"token": "provisioned"}')
     assert store.load().token == "provisioned"
     assert list(tmp_path.iterdir()) == [path]
+
+
+@pytest.mark.parametrize("source", ["file", "assignment"])
+def test_switching_credentials_rebuilds_transports(source, tmp_path, mocker):
+    auth = GoogleAuth(settings_file=None)
+    raw_http = httplib2.Http()
+    auth.http = raw_http
+    first = Credentials("first")
+    auth.credentials = first
+    drive = GoogleDrive(auth)
+    execute = mocker.patch(
+        "googleapiclient.http.HttpRequest.execute",
+        autospec=True,
+        return_value={},
+    )
+    drive.GetAbout()
+    old_service = auth.service
+    old_thread_http = drive.http
+    auth.credentials = first
+    assert auth.service is old_service
+
+    second = Credentials("second")
+    if source == "file":
+        path = tmp_path / "second.json"
+        path.write_text(second.to_json())
+        auth.LoadCredentialsFile(path)
+    else:
+        auth.credentials = second
+    assert auth.service is None
+    file = drive.CreateFile({"id": "test-file"})
+    file.DeletePermission("test-permission")
+    request = execute.call_args.args[0]
+    assert auth.service is not old_service
+    assert request.http is auth.http
+    assert request.http.http is raw_http
+    assert request.http.credentials is auth.credentials
+    assert execute.call_args.kwargs["http"] is file.http
+    assert file.http is not old_thread_http
+    assert file.http.credentials is auth.credentials
+    assert auth.credentials.token == "second"
+
+
+def test_expired_user_credentials_after_service_login(
+    service_info, token_endpoint, mocker
+):
+    auth = GoogleAuth(
+        settings={
+            "client_config_backend": "service",
+            "service_config": {"client_json_dict": service_info},
+        }
+    )
+    auth.ServiceAuth()
+    auth.credentials = Credentials(
+        None,
+        refresh_token="user-refresh",
+        token_uri=TOKEN_URI,
+        client_id="id",
+        client_secret="secret",
+    )
+    mocker.patch("googleapiclient.http.HttpRequest.execute", return_value={})
+    GoogleDrive(auth).GetAbout()
+    assert token_endpoint[-1]["refresh_token"] == ["user-refresh"]
+    assert auth.http.credentials is auth.credentials
 
 
 def test_reauth_uses_explicit_profile(tmp_path, mocker):
