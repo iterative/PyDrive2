@@ -349,11 +349,19 @@ class GDriveFileSystem(AbstractFileSystem):
         if name is not None:
             filters += f" and name={_quote_query_value(name)}"
         # Drive can reject large parent queries. Query each parent only once.
+        seen_ids = set()
         for batch in chunks(_PARENT_QUERY_BATCH_SIZE, distinct(query_ids)):
             parents = " or ".join(
                 f"{_quote_query_value(parent)} in parents" for parent in batch
             )
-            yield from self._gdrive_list(f"({parents}) and {filters}")
+            for item in self._gdrive_list(f"({parents}) and {filters}"):
+                file_id = item["id"]
+                if file_id in seen_ids:
+                    continue
+                # Only a full batch can be followed by another parent query.
+                if len(batch) == _PARENT_QUERY_BATCH_SIZE:
+                    seen_ids.add(file_id)
+                yield item
 
     def _get_remote_item_ids(
         self, parent_ids, parent_path, name, use_cache=True

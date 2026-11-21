@@ -844,109 +844,69 @@ class GoogleDriveFileTest(unittest.TestCase):
     # Tests for GDrive conversion.
     # ============================
 
-    def setup_gfile_conversion_test(self):
-        drive = GoogleDrive(self.ga)
-        file1 = drive.CreateFile()
-
-        # Create a file to upload.
-        file_name = "_tmp_source_file.txt"
-        downloaded_file_name = "_tmp_downloaded_file_name.txt"
-        original_file_content = "Generic, non-exhaustive\n ASCII test string."
-        Path(file_name).write_text(original_file_content)
-        original_file_content = test_util.StripNewlines(original_file_content)
-
-        return file1, file_name, original_file_content, downloaded_file_name
-
-    def cleanup_gfile_conversion_test(
-        self, file1, file_name, downloaded_file_name
-    ):
-        # Delete temporary files.
-        os.path.exists(file_name) and os.remove(file_name)
-        os.path.exists(downloaded_file_name) and os.remove(
-            downloaded_file_name
+    def upload_test_document(self):
+        content = "Generic, non-exhaustive\n ASCII test string."
+        source = self.getTempFile("source", content)
+        self.addCleanup(Path(source).unlink, missing_ok=True)
+        file = GoogleDrive(self.ga).CreateFile(
+            {"mimeType": "application/vnd.google-apps.document"}
         )
-        pydrive_retry(file1.Delete)  # Delete uploaded file.
+        file.SetContentFile(source)
+        with file.content:
+            pydrive_retry(file.Upload, media_mime_type="text/plain")
+        self.addCleanup(pydrive_retry, file.Delete)
+        return file, test_util.StripNewlines(content)
 
     def test_GFile_Conversion_Remove_BOM(self):
-        (
-            file1,
-            file_name,
-            original_file_content,
-            downloaded_file_name,
-        ) = self.setup_gfile_conversion_test()
-        try:
-            # Upload source_file and convert into Google Doc format.
-            file1.SetContentFile(file_name)
-            file1["mimeType"] = "application/vnd.google-apps.document"
-            pydrive_retry(file1.Upload, media_mime_type="text/plain")
+        file1, original_file_content = self.upload_test_document()
+        downloaded_file_name = self.getTempFile("export")
+        self.addCleanup(Path(downloaded_file_name).unlink, missing_ok=True)
+        # Download as string.
+        downloaded_content_no_bom = file1.GetContentString(
+            mimetype="text/plain", remove_bom=True
+        )
+        downloaded_content_no_bom = test_util.StripNewlines(
+            downloaded_content_no_bom
+        )
+        self.assertEqual(original_file_content, downloaded_content_no_bom)
 
-            # Download as string.
-            downloaded_content_no_bom = file1.GetContentString(
-                mimetype="text/plain", remove_bom=True
-            )
-            downloaded_content_no_bom = test_util.StripNewlines(
-                downloaded_content_no_bom
-            )
-            self.assertEqual(original_file_content, downloaded_content_no_bom)
-
-            # Download as file.
-            pydrive_retry(
-                file1.GetContentFile, downloaded_file_name, remove_bom=True
-            )
-            downloaded_content = Path(downloaded_file_name).read_text()
-            downloaded_content = test_util.StripNewlines(downloaded_content)
-            self.assertEqual(original_file_content, downloaded_content)
-
-        finally:
-            self.cleanup_gfile_conversion_test(
-                file1, file_name, downloaded_file_name
-            )
+        # Download as file.
+        pydrive_retry(
+            file1.GetContentFile, downloaded_file_name, remove_bom=True
+        )
+        downloaded_content = Path(downloaded_file_name).read_text()
+        downloaded_content = test_util.StripNewlines(downloaded_content)
+        self.assertEqual(original_file_content, downloaded_content)
 
     def test_Gfile_Conversion_Add_Remove_BOM(self):
-        """Tests whether you can switch between the BOM appended and removed
-        version on the fly."""
-        (
-            file1,
-            file_name,
-            _,
-            downloaded_file_name,
-        ) = self.setup_gfile_conversion_test()
-        try:
-            file1.SetContentFile(file_name)
-            file1["mimeType"] = "application/vnd.google-apps.document"
-            pydrive_retry(file1.Upload, media_mime_type="text/plain")
+        """Switch between the exported text with and without the BOM."""
+        file1, _ = self.upload_test_document()
+        content_bom = file1.GetContentString(mimetype="text/plain")
+        content_no_bom = file1.GetContentString(
+            mimetype="text/plain", remove_bom=True
+        )
+        content_bom_2 = file1.GetContentString(mimetype="text/plain")
 
-            content_bom = file1.GetContentString(mimetype="text/plain")
-            content_no_bom = file1.GetContentString(
-                mimetype="text/plain", remove_bom=True
-            )
-            content_bom_2 = file1.GetContentString(mimetype="text/plain")
+        self.assertEqual(content_bom, content_bom_2)
+        self.assertNotEqual(content_bom, content_no_bom)
+        self.assertTrue(len(content_bom) > len(content_no_bom))
 
-            self.assertEqual(content_bom, content_bom_2)
-            self.assertNotEqual(content_bom, content_no_bom)
-            self.assertTrue(len(content_bom) > len(content_no_bom))
+        buffer_bom = pydrive_retry(
+            file1.GetContentIOBuffer,
+            mimetype="text/plain",
+            encoding="utf-8",
+        )
+        buffer_bom = "".join(iter(buffer_bom))
+        self.assertEqual(content_bom, buffer_bom)
 
-            buffer_bom = pydrive_retry(
-                file1.GetContentIOBuffer,
-                mimetype="text/plain",
-                encoding="utf-8",
-            )
-            buffer_bom = "".join(iter(buffer_bom))
-            self.assertEqual(content_bom, buffer_bom)
-
-            buffer_no_bom = pydrive_retry(
-                file1.GetContentIOBuffer,
-                mimetype="text/plain",
-                remove_bom=True,
-                encoding="utf-8",
-            )
-            buffer_no_bom = "".join(iter(buffer_no_bom))
-            self.assertEqual(content_no_bom, buffer_no_bom)
-
-        finally:
-            self.cleanup_gfile_conversion_test(
-                file1, file_name, downloaded_file_name
-            )
+        buffer_no_bom = pydrive_retry(
+            file1.GetContentIOBuffer,
+            mimetype="text/plain",
+            remove_bom=True,
+            encoding="utf-8",
+        )
+        buffer_no_bom = "".join(iter(buffer_no_bom))
+        self.assertEqual(content_no_bom, buffer_no_bom)
 
     # Setup for concurrent upload testing.
     # =====================================

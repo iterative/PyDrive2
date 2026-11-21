@@ -24,6 +24,15 @@ DEFAULT_FILE_FIELDS = (
     "resourceKey,webViewLink,createdTime,modifiedTime"
 )
 
+WORKSPACE_EXPORT_TYPES = frozenset(
+    {
+        "application/vnd.google-apps.document",
+        "application/vnd.google-apps.spreadsheet",
+        "application/vnd.google-apps.presentation",
+        "application/vnd.google-apps.drawing",
+    }
+)
+
 BLOCK_SIZE = 1024
 # Usage: MIME_TYPE_TO_BOM['<Google Drive mime type>']['<download mimetype>'].
 MIME_TYPE_TO_BOM = {
@@ -428,45 +437,37 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :returns: MediaIoReadable -- file-like object.
         :raises: ApiRequestError, FileNotUploadedError
         """
-        files = self.auth.service.files()
-        file_id = self._FileId()
 
-        # Should use files.export_media instead of files.get_media if
-        # metadata["mimeType"].startswith("application/vnd.google-apps.").
-        # But that would first require a slow call to FetchMetadata().
-        # We prefer to try-except for speed.
-        try:
-            request = self._WrapRequest(
-                files.get_media(
-                    fileId=file_id,
-                    acknowledgeAbuse=acknowledge_abuse,
-                    supportsAllDrives=True,
-                )
-            )
+        def open_stream(request, content_type):
+            prefix = self._GetBOM(content_type) if remove_bom else b""
             return MediaIoReadable(
-                request, encoding=encoding, chunksize=chunksize
-            )
-        except ApiRequestError as exc:
-            if (
-                exc.error["code"] != 403
-                or exc.GetField("reason") != "fileNotDownloadable"
-            ):
-                raise
-            mimetype = mimetype or "text/plain"
-            request = self._WrapRequest(
-                files.export_media(fileId=file_id, mimeType=mimetype)
-            )
-            remove_prefix = (
-                self._GetBOM(mimetype)
-                if mimetype == "text/plain" and remove_bom
-                else b""
-            )
-            return MediaIoReadable(
-                request,
+                self._WrapRequest(request),
                 encoding=encoding,
-                remove_prefix=remove_prefix,
+                remove_prefix=prefix,
                 chunksize=chunksize,
             )
+
+        file_id = self._FileId()
+        files = self.auth.service.files()
+        source_type = self.metadata.get("mimeType") or self.get("mimeType")
+        if source_type not in WORKSPACE_EXPORT_TYPES:
+            request = files.get_media(
+                fileId=file_id,
+                acknowledgeAbuse=acknowledge_abuse,
+                supportsAllDrives=True,
+            )
+            try:
+                return open_stream(request, mimetype or source_type)
+            except ApiRequestError as error:
+                if (
+                    error.error.get("code") != 403
+                    or error.GetField("reason") != "fileNotDownloadable"
+                ):
+                    raise
+
+        export_type = mimetype or "text/plain"
+        request = files.export_media(fileId=file_id, mimeType=export_type)
+        return open_stream(request, export_type)
 
     @LoadAuth
     def FetchMetadata(self, fields=None, fetch_all=False):
@@ -533,6 +534,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         params = dict(param or {}, supportsAllDrives=True)
         params["fields"] = params.get("fields") or DEFAULT_FILE_FIELDS
         body = self.GetChanges()
+        if len(body.get("parents", [])) > 1:
+            raise ValueError("A Drive v3 file can have only one parent")
         files = self.auth.service.files()
         file_id = self.get("id")
         if self.dirty["content"]:
@@ -573,8 +576,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
     def _MoveParents(self, parents, params):
         """Translate a changed parent list into Drive v3 update parameters."""
-        if len(parents) > 1:
-            raise ValueError("A Drive v3 file can have only one parent")
         previous = self.metadata.get("parents")
         if previous is None:
             request = self.auth.service.files().get(

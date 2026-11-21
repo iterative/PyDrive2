@@ -232,6 +232,10 @@ remain valid. Use v3 names in metadata dictionaries, field masks, and queries:
   as ``files(id,name)``. See :doc:`filelist` for automatic pagination.
 - For user or group permissions, use ``emailAddress`` in place of
   ``value``. For link sharing, set ``allowFileDiscovery=False``.
+  When calling ``InsertPermission(permission, param=...)``, rename the v2
+  request parameter ``sendNotificationEmails`` to ``sendNotificationEmail``.
+  For example, ``param={"sendNotificationEmail": False}`` disables the
+  notification when sharing with a user or group.
 - To import a file, replace the v2 ``convert`` flag with the target
   Workspace MIME type and pass the original media type to ``Upload()``.
 
@@ -241,7 +245,7 @@ remain valid. Use v3 names in metadata dictionaries, field masks, and queries:
     sheet.SetContentFile("sales.csv")
     sheet.Upload(media_mime_type="text/csv")
 
-See Google's `Drive v2 to v3 reference`_ for the full field mapping.
+See Google's `Drive v2 to v3 reference`_ for the full field and method-parameter mappings.
 
 Upload and update file content
 ------------------------------

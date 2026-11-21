@@ -28,6 +28,30 @@ def test_find_accepts_canonical_parent_of_root_alias(mock_drive, root):
         assert query(listing)["spaces"] == ["appDataFolder"]
 
 
+def test_ls_deduplicates_a_file_shared_across_parent_batches(mock_drive):
+    parents = [f"parent-{i}" for i in range(51)]
+    shared = {
+        "id": "shared",
+        "name": "same",
+        "mimeType": "text/plain",
+        "parents": [parents[0], parents[-1]],
+        "size": "1",
+    }
+    other = dict(shared, id="distinct", parents=[parents[-1]], size="2")
+    drive, requests = mock_drive(
+        response({"files": [shared]}), response({"files": [shared, other]})
+    )
+    fs = filesystem(drive)
+    fs._cache_path_id("duplicate", *parents)
+    assert [
+        (item["name"], item["size"])
+        for item in fs.ls("root/duplicate", detail=True)
+    ] == [("root/duplicate/same", 1), ("root/duplicate/same", 2)]
+    first, second = requests
+    assert query(first)["q"][0].count(" in parents") == 50
+    assert query(second)["q"][0].count(" in parents") == 1
+
+
 def test_find_matches_legacy_parent_before_assuming_root(mock_drive):
     folder = {
         "id": "dir",
