@@ -1,9 +1,20 @@
 import json
 import os
+import sys
 import tempfile
+from hashlib import sha256
 from pathlib import Path
+from threading import Lock, RLock
+from uuid import uuid4
+from weakref import WeakValueDictionary
 
+from filelock import FileLock
 from google.oauth2.credentials import Credentials
+
+_dictionary_locks: WeakValueDictionary[tuple[int, str], RLock] = (
+    WeakValueDictionary()
+)
+_registry_lock = Lock()
 
 
 class InvalidCredentialsError(IOError):
@@ -11,51 +22,78 @@ class InvalidCredentialsError(IOError):
 
 
 class CredentialStore:
-    def __init__(self, destination: Path | tuple[dict[str, str], str], lock):
+    def __init__(self, destination: Path | tuple[dict[str, str], str]):
         self.destination = destination
-        self.lock = lock
+        self.lock: FileLock | RLock
+        if isinstance(destination, Path):
+            self.lock = FileLock(str(destination) + ".lock", mode=0o600)
+        else:
+            dictionary, key = destination
+            with _registry_lock:
+                self.lock = _dictionary_locks.setdefault(
+                    (id(dictionary), key), RLock()
+                )
 
     @property
     def backend(self):
         return "file" if isinstance(self.destination, Path) else "dictionary"
 
-    def load(self):
-        with self.lock:
-            if isinstance(self.destination, Path):
-                serialized = _read_file(self.destination)
-            else:
-                dictionary, key = self.destination
-                serialized = dictionary.get(key)
-            if not serialized:
-                return None
+    def load(self) -> "StoredUserCredentials | None":
+        if isinstance(self.destination, Path):
+            serialized = _read_file(self.destination)
+        else:
+            dictionary, key = self.destination
+            serialized = dictionary.get(key)
+        if not serialized:
+            return None
 
-            try:
-                info = json.loads(serialized)
-                if (
-                    not isinstance(info, dict)
-                    or info.get("type", "authorized_user") != "authorized_user"
-                    or "_class" in info
-                    or "access_token" in info
-                    or not (info.get("token") or info.get("refresh_token"))
-                ):
-                    raise ValueError("Expected google-auth user credentials")
-                # google-auth omits this key when saving online-only logins,
-                # but requires it to be present when loading them.
+        try:
+            info = json.loads(serialized)
+            if (
+                not isinstance(info, dict)
+                or info.get("type", "authorized_user") != "authorized_user"
+                or "_class" in info
+                or "access_token" in info
+                or not (info.get("token") or info.get("refresh_token"))
+            ):
+                raise ValueError("Expected google-auth user credentials")
+            if not info.get("refresh_token"):
+                # The SDK requires these keys even for access-token-only JSON.
                 info.setdefault("refresh_token", None)
-                credentials = StoredUserCredentials.from_authorized_user_info(
-                    info
-                )
-            except (AttributeError, TypeError, ValueError) as exc:
-                raise InvalidCredentialsError(
-                    "Select a fresh user credential file or dictionary key and "
-                    "sign in again with PyDrive2 2.x."
-                ) from exc
-            credentials.store = self
-            return credentials
+                info.setdefault("client_id", None)
+                info.setdefault("client_secret", None)
+            credentials = StoredUserCredentials.from_authorized_user_info(info)
+            if not info.get("expiry") and not credentials.refresh_token:
+                credentials.expiry = None
+            credentials._session_id = info.get(
+                "_pydrive2_session"
+            ) or _token_identity(credentials)
+        except (AttributeError, TypeError, ValueError) as exc:
+            raise InvalidCredentialsError(
+                "Select a fresh user credential file or dictionary key and "
+                "sign in again with PyDrive2 2.x."
+            ) from exc
+        credentials.store = self
+        return credentials
 
     def save(self, credentials: Credentials):
+        if credentials.refresh_token:
+            if not credentials.client_id or not credentials.client_secret:
+                raise InvalidCredentialsError(
+                    "Saving a refresh token requires a client ID and client secret"
+                )
+        elif not credentials.token:
+            raise InvalidCredentialsError("No user token to save")
+        if isinstance(self.destination, Path):
+            self.destination.parent.mkdir(parents=True, exist_ok=True)
         with self.lock:
             serialized = credentials.to_json()
+            session = getattr(credentials, "_session_id", None)
+            if session and session != _token_identity(credentials):
+                # Keep the grant identifiable when its refresh token rotates.
+                info = json.loads(serialized)
+                info["_pydrive2_session"] = session
+                serialized = json.dumps(info)
             if isinstance(self.destination, Path):
                 _write_file(self.destination, serialized)
             else:
@@ -63,8 +101,16 @@ class CredentialStore:
                 dictionary[key] = serialized
 
 
+def _token_identity(credentials):
+    return sha256(
+        (credentials.refresh_token or credentials.token).encode()
+    ).hexdigest()
+
+
 class StoredUserCredentials(Credentials):
     store: CredentialStore | None = None
+    _session_id: str | None = None
+    _pending_refresh: "StoredUserCredentials | None" = None
 
     @classmethod
     def from_flow(cls, credentials, store):
@@ -80,7 +126,21 @@ class StoredUserCredentials(Credentials):
             granted_scopes=credentials.granted_scopes,
         )
         user.store = store
+        user._session_id = _token_identity(user)
         return user
+
+    def __getstate__(self):
+        state = super().__getstate__()
+        state.pop("store", None)
+        state.pop("_pending_refresh", None)
+        return state
+
+    def use_client_config(self, config):
+        # google-auth discards token_uri from cache JSON. Only a matching
+        # application configuration may override its trusted Google endpoint.
+        endpoint = config.get("token_uri")
+        if endpoint and config.get("client_id") == self.client_id:
+            self._token_uri = endpoint
 
     def refresh(self, request):
         store = self.store
@@ -90,9 +150,43 @@ class StoredUserCredentials(Credentials):
         # AuthorizedHttp can refresh during a request, including after a 401.
         previous_token = self.token
         with store.lock:
-            if self.token == previous_token or not self.valid:
+            if self.token != previous_token and self.valid:
+                return
+            cached = store.load()
+            if (
+                cached is None
+                or cached._session_id != self._session_id
+                or cached.client_id != self.client_id
+            ):
+                # A different login or an explicit deletion owns this location.
+                self.store = None
                 super().refresh(request)
-                store.save(self)
+                return
+            # If publication failed after rotation, the old refresh token may
+            # already be invalid. Retry the write before another exchange.
+            pending = self._pending_refresh
+            if pending is not None and cached.token == self.token:
+                cached = pending
+            else:
+                pending = None
+            if not cached.valid or (
+                pending is None and cached.token == previous_token
+            ):
+                # Only the original client's trusted endpoint may receive tokens.
+                cached._token_uri = self.token_uri
+                Credentials.refresh(cached, request)
+                pending = self._pending_refresh = cached
+            if pending is not None:
+                store.save(pending)
+            self._pending_refresh = None
+            self.token = cached.token
+            self.expiry = cached.expiry
+            self._refresh_token = cached.refresh_token
+            self._rapt_token = cached.rapt_token
+            if cached.id_token is not None:
+                self._id_token = cached.id_token
+            if cached.granted_scopes is not None:
+                self._granted_scopes = cached.granted_scopes
 
 
 def _check_path(path):
@@ -105,7 +199,12 @@ def _check_path(path):
 def _read_file(path):
     _check_path(path)
     try:
-        fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        if sys.platform == "win32":
+            from ._windows_credentials import open_for_read
+
+            fd = open_for_read(path)
+        else:
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
     except FileNotFoundError:
         return None
     with os.fdopen(fd, encoding="utf-8") as stream:
@@ -114,8 +213,13 @@ def _read_file(path):
 
 def _write_file(path, serialized):
     _check_path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, name = tempfile.mkstemp(dir=path.parent)
+    if sys.platform == "win32":
+        from ._windows_credentials import create_for_replace
+
+        name = path.with_name(uuid4().hex + ".tmp")
+        fd = create_for_replace(path, name)
+    else:
+        fd, name = tempfile.mkstemp(dir=path.parent)
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as stream:
             stream.write(serialized)

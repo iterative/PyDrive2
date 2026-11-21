@@ -154,11 +154,7 @@ class GoogleAuth(ApiAttributeMixin):
         ValidateSettings(self.settings)
 
         self._configured_store = self._storage_from_settings()
-        self._login_store = (
-            self._configured_store
-            if self.settings.get("save_credentials")
-            else None
-        )
+        self._login_store = self._configured_store
 
     @property
     def access_token_expired(self):
@@ -169,12 +165,12 @@ class GoogleAuth(ApiAttributeMixin):
         return self.credentials is None or not self.credentials.valid
 
     def _use_flow_credentials(self, credentials):
-        if self._login_store is None:
-            self.credentials = credentials
-        else:
-            self.credentials = StoredUserCredentials.from_flow(
+        if self.settings.get("save_credentials"):
+            credentials = StoredUserCredentials.from_flow(
                 credentials, self._login_store
             )
+            self._login_store.save(credentials)
+        self.credentials = credentials
 
     def LocalWebserverAuth(
         self,
@@ -205,12 +201,13 @@ class GoogleAuth(ApiAttributeMixin):
         :raises: AuthenticationRejected, AuthenticationError
         """
         if self.credentials is None and self.settings.get("save_credentials"):
-            self.LoadCredentials()
+            self._load_credentials(self._login_store)
         if not self.access_token_expired:
             return
         if self.credentials is not None and (
             not isinstance(self.credentials, user_credentials.Credentials)
             or self.credentials.refresh_token
+            or self.credentials.refresh_handler
         ):
             self._refresh_if_expired()
             return
@@ -250,8 +247,6 @@ class GoogleAuth(ApiAttributeMixin):
                 ) from exc
             self._use_flow_credentials(credentials)
             self.Authorize()
-            if self.settings.get("save_credentials"):
-                self.SaveCredentials()
             return
         raise AuthenticationError(
             "Could not bind to any configured OAuth callback port"
@@ -318,7 +313,7 @@ class GoogleAuth(ApiAttributeMixin):
                 raise InvalidConfigError(
                     "Please specify credentials file to read"
                 )
-            return CredentialStore(Path(filename), self._refresh_lock)
+            return CredentialStore(Path(filename))
         if backend == "dictionary":
             dictionary = self.settings.get("save_credentials_dict")
             key = self.settings.get("save_credentials_key")
@@ -326,7 +321,7 @@ class GoogleAuth(ApiAttributeMixin):
                 raise InvalidConfigError("Please specify credentials dict")
             if key is None:
                 raise InvalidConfigError("Please specify credentials key")
-            return CredentialStore((dictionary, key), self._refresh_lock)
+            return CredentialStore((dictionary, key))
         if self.settings.get("save_credentials"):
             raise InvalidConfigError(
                 f"Unknown save_credentials_backend: {backend}"
@@ -344,7 +339,7 @@ class GoogleAuth(ApiAttributeMixin):
 
     def _storage_for(self, backend, filename=None):
         if filename is not None:
-            return CredentialStore(Path(filename), self._refresh_lock)
+            return CredentialStore(Path(filename))
         store = self._configured_store
         if store is None or store.backend != backend:
             raise InvalidConfigError(
@@ -377,7 +372,20 @@ class GoogleAuth(ApiAttributeMixin):
 
     def _load_credentials(self, store):
         with self._refresh_lock:
-            self.credentials = store.load()
+            credentials = store.load()
+            if credentials and credentials.refresh_token:
+                config = self.client_config or self.settings.get(
+                    "client_config", {}
+                )
+                if (
+                    not config
+                    and self.settings["client_config_backend"] == "file"
+                    and Path(self.settings["client_config_file"]).is_file()
+                ):
+                    self.LoadClientConfigFile()
+                    config = self.client_config
+                credentials.use_client_config(config)
+            self.credentials = credentials
             self._login_store = store
 
     def SaveCredentials(self, backend=None):
@@ -557,7 +565,10 @@ class GoogleAuth(ApiAttributeMixin):
             if self.credentials is None:
                 raise RefreshError("No credential to refresh.")
             user = isinstance(self.credentials, user_credentials.Credentials)
-            if user and self.credentials.refresh_token is None:
+            if user and not (
+                self.credentials.refresh_token
+                or self.credentials.refresh_handler
+            ):
                 raise RefreshError(
                     "No refresh_token found. "
                     "Please set access_type of OAuth to offline."
@@ -578,9 +589,9 @@ class GoogleAuth(ApiAttributeMixin):
             if (
                 user
                 and self.settings.get("save_credentials")
-                and getattr(self.credentials, "store", None) is None
+                and not isinstance(self.credentials, StoredUserCredentials)
             ):
-                self.SaveCredentials()
+                self._login_store.save(self.credentials)
 
     def GetAuthUrl(self):
         """Creates authentication url where user visits to grant access.

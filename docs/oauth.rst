@@ -149,7 +149,9 @@ Fields explained:
     **Default**: 'file'.
     **Required**: No.
 :save_credentials_file (str):
-    Destination of credentials file.
+    Destination of the credentials file. Give the application a writable
+    directory for the lock and atomic file replacement. In containers, mount
+    the cache directory so the file can be replaced on refresh.
     **Required**: Yes, only if *save_credentials_backend* is 'file'.
 :save_credentials_dict (dict):
     Dict to use for storing credentials.
@@ -214,7 +216,11 @@ customize an authentication flow as follows:
 2. Direct the user to the authorization URL. Receive the authorization code at
    the redirect URI registered for your application and verify the OAuth state
    in the callback.
-3. Pass the authorization code to :meth:`~pydrive2.auth.GoogleAuth.Auth`.
+3. Pass the authorization code to :meth:`~pydrive2.auth.GoogleAuth.Auth` on
+   the same instance. Keep the flow for each login until the callback so the
+   exchange uses its original PKCE verifier. If a separate worker handles
+   the callback, retain the state and verifier in the user's server-side
+   session and restore the verifier on the flow before exchanging the code.
 
 Your *settings.yaml* will work for your customized authentication flow, too.
 
