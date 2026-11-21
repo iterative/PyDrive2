@@ -3,6 +3,7 @@ import json
 import os
 import threading
 import webbrowser
+from contextlib import suppress
 from functools import wraps
 from pathlib import Path
 from typing import ClassVar
@@ -380,10 +381,12 @@ class GoogleAuth(ApiAttributeMixin):
                 if (
                     not config
                     and self.settings["client_config_backend"] == "file"
-                    and Path(self.settings["client_config_file"]).is_file()
                 ):
-                    self.LoadClientConfigFile()
-                    config = self.client_config
+                    # A cached login can refresh without a client secrets file.
+                    path = Path(self.settings["client_config_file"])
+                    with suppress(OSError):
+                        if path.is_file():
+                            config = self._read_client_config_file(path)
                 credentials.use_client_config(config)
             self.credentials = credentials
             self._login_store = store
@@ -455,6 +458,10 @@ class GoogleAuth(ApiAttributeMixin):
         """
         if client_config_file is None:
             client_config_file = self.settings["client_config_file"]
+        self.client_config = self._read_client_config_file(client_config_file)
+
+    @staticmethod
+    def _read_client_config_file(client_config_file):
         try:
             with open(client_config_file, encoding="utf-8") as stream:
                 config = json.load(stream)
@@ -462,19 +469,14 @@ class GoogleAuth(ApiAttributeMixin):
             if client_type not in ("web", "installed"):
                 raise ValueError("Expected web or installed client")
             info = config[client_type]
-            self.client_config = {
-                name: info[name]
-                for name in (
-                    "client_id",
-                    "client_secret",
-                    "auth_uri",
-                    "token_uri",
-                )
+            return {
+                "client_id": info["client_id"],
+                "client_secret": info["client_secret"],
+                "auth_uri": info["auth_uri"],
+                "token_uri": info["token_uri"],
+                "redirect_uri": info["redirect_uris"][0],
+                "revoke_uri": info.get("revoke_uri"),
             }
-            self.client_config.update(
-                redirect_uri=info["redirect_uris"][0],
-                revoke_uri=info.get("revoke_uri"),
-            )
         except (OSError, KeyError, IndexError, TypeError, ValueError) as exc:
             raise InvalidConfigError("Invalid client secrets file") from exc
 

@@ -1,7 +1,10 @@
+import errno
 import json
 import os
+import stat
 import sys
 import tempfile
+from contextlib import ExitStack
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock, RLock
@@ -40,10 +43,11 @@ class CredentialStore:
 
     def load(self) -> "StoredUserCredentials | None":
         if isinstance(self.destination, Path):
-            serialized = _read_file(self.destination)
+            serialized = _read_file(self.destination, self.lock)
         else:
             dictionary, key = self.destination
-            serialized = dictionary.get(key)
+            with self.lock:
+                serialized = dictionary.get(key)
         if not serialized:
             return None
 
@@ -190,24 +194,44 @@ class StoredUserCredentials(Credentials):
 
 
 def _check_path(path):
-    if path.is_symlink():
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return None
+    # Windows uses the name-surrogate bit for symlinks and junctions.
+    if (
+        stat.S_ISLNK(info.st_mode)
+        or getattr(info, "st_reparse_tag", 0) & 0x20000000
+    ):
         raise InvalidCredentialsError(
             "Credentials file cannot be symbolic link"
         )
+    return info
 
 
-def _read_file(path):
-    _check_path(path)
-    try:
-        if sys.platform == "win32":
-            from ._windows_credentials import open_for_read
-
-            fd = open_for_read(path)
-        else:
-            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-    except FileNotFoundError:
+def _read_file(path, lock):
+    if _check_path(path) is None:
         return None
-    with os.fdopen(fd, encoding="utf-8") as stream:
+    with ExitStack() as stack:
+        try:
+            stack.enter_context(lock)
+        except OSError as exc:
+            # A pre-provisioned cache can be mounted read-only.
+            if exc.errno not in (errno.EACCES, errno.EPERM, errno.EROFS):
+                raise
+        try:
+            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+        except FileNotFoundError:
+            return None
+        stream = stack.enter_context(os.fdopen(fd, encoding="utf-8"))
+        if sys.platform == "win32":
+            # Open normally so Windows can hydrate cloud or compressed files.
+            # Verify the opened file before reading since Windows lacks O_NOFOLLOW.
+            info = _check_path(path)
+            if info is None or not os.path.samestat(info, os.fstat(fd)):
+                raise InvalidCredentialsError(
+                    "Credentials file changed while opening"
+                )
         return stream.read()
 
 

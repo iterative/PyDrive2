@@ -2,6 +2,8 @@ import errno
 import json
 import os
 import pickle
+import stat
+import subprocess
 import sys
 import webbrowser
 from base64 import urlsafe_b64encode
@@ -9,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from hashlib import sha256
 from http.client import HTTPConnection
-from threading import Barrier
+from threading import Barrier, Event
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import httplib2
@@ -18,16 +20,19 @@ import requests
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.serialization import pkcs12
+from filelock import Timeout
 from google.auth import jwt
 from google.oauth2.credentials import Credentials
 from google_auth_httplib2 import AuthorizedHttp, Request
 
+from pydrive2._credentials import CredentialStore
 from pydrive2.auth import (
     AuthenticationError,
     GoogleAuth,
     InvalidCredentialsError,
 )
 from pydrive2.fs.spec import GDriveAuthError, _client_auth
+from pydrive2.settings import InvalidConfigError
 
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 EMAIL = "service@example.test"
@@ -483,6 +488,50 @@ def test_credentials_file_rejects_symlinks(tmp_path):
     assert target.read_text() == "original"
 
 
+def test_save_waits_for_open_credential_reader(tmp_path, monkeypatch):
+    path = tmp_path / "user.json"
+    writer = CredentialStore(path)
+    writer.lock.timeout = 0
+    writer.save(Credentials("original"))
+    reader = GoogleAuth(settings_file=None)
+    opened, finish = Event(), Event()
+    fdopen = os.fdopen
+
+    def hold_reader(fd, mode="r", **kwargs):
+        stream = fdopen(fd, mode, **kwargs)
+        if mode == "r":
+            opened.set()
+            assert finish.wait(10)
+        return stream
+
+    monkeypatch.setattr(os, "fdopen", hold_reader)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        loading = pool.submit(reader.LoadCredentialsFile, path)
+        try:
+            assert opened.wait(10)
+            with pytest.raises(Timeout):
+                writer.save(Credentials("updated"))
+        finally:
+            finish.set()
+        loading.result(timeout=10)
+    assert reader.credentials.token == "original"
+    writer.save(Credentials("updated"))
+    assert writer.load().token == "updated"
+
+
+def test_read_only_and_missing_cache(tmp_path, mocker):
+    path = tmp_path / "user.json"
+    store = CredentialStore(path)
+    acquire = mocker.patch.object(
+        store.lock, "acquire", side_effect=OSError(errno.EROFS, "read only")
+    )
+    assert store.load() is None
+    acquire.assert_not_called()
+    path.write_text('{"token": "provisioned"}')
+    assert store.load().token == "provisioned"
+    assert list(tmp_path.iterdir()) == [path]
+
+
 def test_reauth_uses_explicit_profile(tmp_path, mocker):
     default = tmp_path / "default.json"
     profile = tmp_path / "profile.json"
@@ -637,6 +686,50 @@ def test_token_endpoint_comes_from_client_configuration(
     monkeypatch.setattr(httplib2.Http, "request", request)
     other.Refresh()
     assert calls == [endpoint]
+    assert other.client_config == {}
+
+
+@pytest.mark.parametrize("client_file", ["malformed", "service", "other-user"])
+def test_cached_login_ignores_unrelated_client_config(
+    tmp_path, monkeypatch, client_file
+):
+    monkeypatch.chdir(tmp_path)
+    path = tmp_path / "user.json"
+    cached = Credentials(
+        None,
+        refresh_token="refresh",
+        client_id="id",
+        client_secret="secret",
+        token_uri="https://cache-only.example.test/token",
+    )
+    path.write_text(cached.to_json())
+    config = tmp_path / "client_secrets.json"
+    if client_file == "malformed":
+        config.write_text("{")
+    elif client_file == "service":
+        config.write_text('{"type":"service_account"}')
+    else:
+        config.write_text(
+            json.dumps(
+                {
+                    "installed": {
+                        "client_id": "other",
+                        "client_secret": "other-secret",
+                        "token_uri": "https://other.example.test/token",
+                        "auth_uri": "https://other.example.test/auth",
+                        "redirect_uris": ["http://localhost"],
+                    }
+                }
+            )
+        )
+    auth = GoogleAuth(settings_file=None)
+    auth.LoadCredentialsFile(path)
+    assert auth.credentials.refresh_token == "refresh"
+    assert auth.credentials.token_uri == TOKEN_URI
+    assert auth.client_config == {}
+    if client_file != "other-user":
+        with pytest.raises(InvalidConfigError):
+            auth.LoadClientConfigFile()
 
 
 @pytest.mark.parametrize("expiry", [None, datetime(2099, 1, 1)])
@@ -725,3 +818,22 @@ def test_windows_cache_preserves_file_permissions(tmp_path, monkeypatch):
     auth.SaveCredentialsFile(path)
     assert dacl(path) == original
     assert json.loads(path.read_text())["token"] == "updated"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows file compression")
+def test_windows_compressed_cache(tmp_path):
+    import win32file
+
+    path = tmp_path / "user.json"
+    path.write_bytes(b'{"token":"compressed"}' + b" " * 65536)
+    subprocess.run(
+        ["compact.exe", "/C", "/EXE:XPRESS4K", "/F", str(path)], check=True
+    )
+    if (
+        not win32file.GetFileAttributes(str(path))
+        & stat.FILE_ATTRIBUTE_REPARSE_POINT
+    ):
+        pytest.skip("The volume does not support WOF-compressed files")
+    auth = GoogleAuth(settings_file=None)
+    auth.LoadCredentialsFile(path)
+    assert auth.credentials.token == "compressed"

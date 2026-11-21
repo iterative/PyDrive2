@@ -9,42 +9,6 @@ import pywintypes
 import win32con
 import win32file
 import win32security
-import winerror
-
-from ._credentials import InvalidCredentialsError
-
-
-def _fileno(handle, flags):
-    fd = msvcrt.open_osfhandle(int(handle), flags)
-    handle.Detach()  # The CRT descriptor now owns the Windows handle.
-    return fd
-
-
-def open_for_read(path):
-    try:
-        handle = win32file.CreateFile(
-            str(path),
-            win32con.GENERIC_READ,
-            win32con.FILE_SHARE_READ | win32con.FILE_SHARE_DELETE,
-            None,
-            win32con.OPEN_EXISTING,
-            win32file.FILE_FLAG_OPEN_REPARSE_POINT,
-            None,
-        )
-    except pywintypes.error as exc:
-        if exc.winerror in (
-            winerror.ERROR_FILE_NOT_FOUND,
-            winerror.ERROR_PATH_NOT_FOUND,
-        ):
-            raise FileNotFoundError(path) from exc
-        raise
-    attributes = win32file.GetFileInformationByHandle(handle)[0]
-    if attributes & win32con.FILE_ATTRIBUTE_REPARSE_POINT:
-        handle.Close()
-        raise InvalidCredentialsError(
-            "Credentials file cannot be symbolic link"
-        )
-    return _fileno(handle, os.O_RDONLY)
 
 
 def create_for_replace(path, temporary):
@@ -73,4 +37,6 @@ def create_for_replace(path, temporary):
         win32con.FILE_ATTRIBUTE_NORMAL,
         None,
     )
-    return _fileno(handle, os.O_WRONLY)
+    fd = msvcrt.open_osfhandle(int(handle), os.O_WRONLY)
+    handle.Detach()  # The CRT descriptor now owns the Windows handle.
+    return fd
