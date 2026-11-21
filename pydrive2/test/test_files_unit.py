@@ -11,6 +11,7 @@ from pydrive2.files import (
     DEFAULT_FILE_FIELDS,
     ApiRequestError,
     FileNotDownloadableError,
+    FileNotUploadedError,
 )
 from pydrive2.test.http_mock import error_response, query, response
 
@@ -89,6 +90,33 @@ def test_create_retains_id_for_next_upload(mock_drive, fields, expected):
         "/files/new"
     )
     assert json.loads(update[2]) == {"name": "second"}
+
+
+def test_upload_rejects_listed_file_without_id(mock_drive):
+    drive, requests = mock_drive(
+        response({"files": [{"name": "original"}]}),
+        response({"id": "duplicate"}),
+    )
+    (file,) = drive.ListFile({"fields": "files(name)"}).GetList()
+    file["name"] = "renamed"
+    with pytest.raises(FileNotUploadedError, match="Drive file ID"):
+        file.Upload()
+    assert [request[1] for request in requests] == ["GET"]
+
+
+def test_upload_updates_listed_file_with_id(mock_drive):
+    drive, requests = mock_drive(
+        response({"files": [{"id": "existing", "name": "original"}]}),
+        response({"id": "existing", "name": "renamed"}),
+    )
+    (file,) = drive.ListFile({"fields": "files(id,name)"}).GetList()
+    file["name"] = "renamed"
+    file.Upload()
+    listing, update = requests
+    assert listing[1] == "GET"
+    assert update[1] == "PATCH"
+    assert urlsplit(update[0]).path == "/drive/v3/files/existing"
+    assert json.loads(update[2]) == {"name": "renamed"}
 
 
 def test_move_fetches_current_parent_after_projected_update(mock_drive):

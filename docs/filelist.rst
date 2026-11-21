@@ -32,7 +32,8 @@ next page token automatically so field selection preserves pagination.
     for file1 in file_list:
         print('name: %s, id: %s' % (file1['name'], file1['id']))
 
-You can update the metadata or content of each returned file.
+To update a returned file, include ``id`` in any custom field mask, such as
+``files(id,name)``. The default listing already includes the ID.
 
 Paginate and iterate through files
 ----------------------------------

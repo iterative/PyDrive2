@@ -507,8 +507,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         body = self.GetChanges()
         if len(body.get("parents", [])) > 1:
             raise ValueError("A Drive v3 file can have only one parent")
+        file_id = self._FileId() if self.uploaded else self.get("id")
         files = self.auth.service.files()
-        file_id = self.get("id")
         if self.dirty["content"]:
             source_type = (
                 media_mime_type
@@ -708,7 +708,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     def _FileId(self):
         file_id = self.metadata.get("id") or self.get("id")
         if not file_id:
-            raise FileNotUploadedError()
+            raise FileNotUploadedError(
+                "This operation requires a Drive file ID."
+            )
         return file_id
 
     def _Execute(self, request):
