@@ -15,17 +15,17 @@ OAuth2.0 is complex and difficult to start with. To make it more simple,
     # Create local webserver and auto handles authentication.
     gauth.LocalWebserverAuth()
 
-To make this code work, you need to download the application configurations file
-from APIs Console. Follow the authentication steps in the :doc:`quickstart`.
+The :doc:`quickstart` registers ``http://localhost:8080/`` as the redirect
+URI for a web application client. With that client, use
+:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth` and keep port 8080
+available to receive the authorization code. To open the login URL
+yourself, call ``gauth.LocalWebserverAuth(launch_browser=False)``.
+The browser must be able to reach the local callback.
 
-:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth` starts a local server
-to receive the authorization code. To open the login URL yourself, call
-``gauth.LocalWebserverAuth(launch_browser=False)``. The browser must be
-able to reach the local callback.
-
-In PyDrive2 1.x, :meth:`~pydrive2.auth.GoogleAuth.CommandLineAuth` uses
-Google's out-of-band flow. Google allows this flow for apps with
-*Testing* publishing status and blocks it for apps marked *In Production*.
+In PyDrive2 1.x, :meth:`~pydrive2.auth.GoogleAuth.CommandLineAuth` requests
+the out-of-band redirect URI ``urn:ietf:wg:oauth:2.0:oob``. Even in
+*Testing*, this requires an OAuth client that accepts that URI. Google
+blocks out-of-band authorization for apps marked *In Production*.
 See `Google's out-of-band migration guide`_.
 
 .. _Google's out-of-band migration guide:
