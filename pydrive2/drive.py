@@ -43,10 +43,11 @@ class GoogleDrive(ApiAttributeMixin):
     def GetAbout(self, fields="*"):
         """Return information about the Google Drive of the auth instance.
 
+        :param fields: Drive About fields to return. Defaults to all fields.
         :returns: A dictionary of Google Drive information like user, usage, quota etc.
         """
         return (
             self.auth.service.about()
-            .get(fields=fields)
+            .get(fields=fields or "*")
             .execute(http=self.http)
         )

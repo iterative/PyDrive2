@@ -221,6 +221,10 @@ remain valid. Use v3 names in metadata dictionaries, field masks, and queries:
 
 - ``title`` becomes ``name``, ``fileSize`` becomes ``size``, and
   ``alternateLink`` becomes ``webViewLink``.
+- File reads and listings request a subset of metadata by default. To read
+  additional fields, use ``FetchMetadata(fields="owners,capabilities")``,
+  ``FetchMetadata(fetch_all=True)``, or a list selector such as
+  ``files(id,name,shortcutDetails)``.
 - Read ``trashed`` directly and supply parent IDs as strings,
   for example ``{"parents": [folder_id]}``. Assign the new parent list and
   call ``Upload()`` to move an existing file.

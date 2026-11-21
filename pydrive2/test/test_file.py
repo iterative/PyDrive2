@@ -828,7 +828,7 @@ class GoogleDriveFileTest(unittest.TestCase):
 
         # Download content into file and ensure that file content matches original
         # content string.
-        downloaded_file_name = "_tmp_downloaded_file_name.txt"
+        downloaded_file_name = self.getTempFile()
         self.addCleanup(Path(downloaded_file_name).unlink, missing_ok=True)
         pydrive_retry(
             file1.GetContentFile,
