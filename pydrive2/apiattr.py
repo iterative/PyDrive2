@@ -78,14 +78,6 @@ class ApiResource(dict):
         dict_representation = dict.__repr__(self)
         return f"{type(self).__name__}({dict_representation})"
 
-    def update(self, *args, **kwargs):
-        """Overwritten method of dictionary."""
-        BAD_URL_PREFIX = "https://www.googleapis.comhttps:"
-        for k, v in dict(*args, **kwargs).items():
-            if k == "downloadUrl" and v.startswith(BAD_URL_PREFIX):
-                v = v.replace(BAD_URL_PREFIX, "https://www.googleapis.com", 1)
-            self[k] = v
-
     def UpdateMetadata(self, metadata=None):
         """Update metadata and mark all of them to be clean."""
         if metadata:
@@ -155,19 +147,18 @@ class ApiResourceList(ApiAttributeMixin, ApiResource):
     def GetList(self):
         """Get list of API resources.
 
-        If 'maxResults' is not specified, it will automatically iterate through
+        If 'pageSize' is not specified, it will automatically iterate through
         every resources available. Otherwise, it will make API call once and
         update 'pageToken'.
 
         :returns: list -- list of API resources.
         """
-        if self.get("maxResults") is None:
-            self["maxResults"] = 1000
-            result = []
-            for x in self:
-                result.extend(x)
-            del self["maxResults"]
-            return result
+        if self.get("pageSize") is None:
+            self["pageSize"] = 1000
+            try:
+                return [item for page in self for item in page]
+            finally:
+                del self["pageSize"]
         else:
             return next(self)
 

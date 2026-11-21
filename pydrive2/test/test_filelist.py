@@ -30,14 +30,14 @@ class GoogleDriveFileListTest(unittest.TestCase):
         cls.title = test_util.CreateRandomFileName()
         cls.file_list = []
         for _ in range(10):
-            file = cls.drive.CreateFile({"title": cls.title})
+            file = cls.drive.CreateFile({"name": cls.title})
             pydrive_retry(file.Upload)
             cls.addClassCleanup(pydrive_retry, file.Delete)
             cls.file_list.append(file)
 
     def test_01_Files_List_GetList(self):
         drive = GoogleDrive(self.ga)
-        query = f"title = '{self.title}' and trashed = false"
+        query = f"name = '{self.title}' and trashed = false"
         for file1 in pydrive_list_item(drive, query):
             found = False
             for file2 in pydrive_list_item(drive, query):
@@ -47,7 +47,7 @@ class GoogleDriveFileListTest(unittest.TestCase):
 
     def test_02_Files_List_ForLoop(self):
         drive = GoogleDrive(self.ga)
-        query = f"title = '{self.title}' and trashed = false"
+        query = f"name = '{self.title}' and trashed = false"
         files = list(pydrive_list_item(drive, query, 2))
         for file1 in self.file_list:
             found = False
@@ -60,8 +60,8 @@ class GoogleDriveFileListTest(unittest.TestCase):
         drive = GoogleDrive(self.ga)
         flist = drive.ListFile(
             {
-                "q": f"title = '{self.title}' and trashed = false",
-                "maxResults": 2,
+                "q": f"name = '{self.title}' and trashed = false",
+                "pageSize": 2,
             }
         )
         files = []
@@ -84,12 +84,12 @@ class GoogleDriveFileListTest(unittest.TestCase):
         folder1 = drive.CreateFile(
             {
                 "mimeType": "application/vnd.google-apps.folder",
-                "title": self.title,
+                "name": self.title,
             }
         )
         pydrive_retry(folder1.Upload)
         self.addCleanup(pydrive_retry, folder1.Delete)
-        query = f"title = '{self.title}' and trashed = false"
+        query = f"name = '{self.title}' and trashed = false"
         self.assertCountEqual(
             [file["id"] for file in pydrive_list_item(drive, query)],
             [file["id"] for file in self.file_list] + [folder1["id"]],

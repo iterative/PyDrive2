@@ -5,6 +5,7 @@ import threading
 import webbrowser
 from contextlib import suppress
 from functools import wraps
+from inspect import signature
 from pathlib import Path
 from typing import ClassVar
 
@@ -52,6 +53,8 @@ class RefreshError(AuthError):
 def LoadAuth(decoratee):
     """Decorator to check if the auth is valid and loads auth if not."""
 
+    call_signature = signature(decoratee)
+
     @wraps(decoratee)
     def _decorated(self, *args, **kwargs):
         # Initialize auth if needed.
@@ -76,16 +79,17 @@ def LoadAuth(decoratee):
             self.auth.Authorize()
 
         # Ensure that a thread-safe HTTP object is provided.
-        if (
-            kwargs is not None
-            and "param" in kwargs
-            and kwargs["param"] is not None
-            and "http" in kwargs["param"]
-            and kwargs["param"]["http"] is not None
-        ):
-            self.http = kwargs["param"]["http"]
-            del kwargs["param"]["http"]
-
+        transport = None
+        if "param" in call_signature.parameters:
+            call = call_signature.bind(self, *args, **kwargs)
+            params = call.arguments.get("param")
+            if params and "http" in params:
+                params = dict(params)
+                transport = params.pop("http")
+                call.arguments["param"] = params
+                args, kwargs = call.args[1:], call.kwargs
+        if transport is not None:
+            self.http = transport
         else:
             # If HTTP object not specified, create or resuse an HTTP
             # object from the thread local storage.
@@ -681,7 +685,7 @@ class GoogleAuth(ApiAttributeMixin):
                 self.http = self.http.http
             self.http = AuthorizedHttp(self.credentials, http=self.http)
             self.service = build(
-                "drive", "v2", http=self.http, cache_discovery=False
+                "drive", "v3", http=self.http, cache_discovery=False
             )
 
     def Get_Http_Object(self):

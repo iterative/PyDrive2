@@ -28,6 +28,8 @@ from pydrive2.fs.utils import IterStream
 logger = logging.getLogger(__name__)
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
+_INFO_FIELDS = "mimeType,size,md5Checksum"
+_LIST_FIELDS = f"nextPageToken,files(id,name,parents,{_INFO_FIELDS})"
 _PARENT_QUERY_BATCH_SIZE = 50
 
 COMMON_SETTINGS = {
@@ -46,6 +48,18 @@ class _IdsCache(TypedDict):
 
 class GDriveAuthError(Exception):
     pass
+
+
+def _file_entry(name, item):
+    if item["mimeType"] == FOLDER_MIME_TYPE:
+        return {"name": name.rstrip("/") + "/", "type": "directory", "size": 0}
+    size = item.get("size")
+    return {
+        "name": name,
+        "type": "file",
+        "size": int(size) if size is not None else None,
+        "checksum": item.get("md5Checksum"),
+    }
 
 
 def _quote_query_value(value):
@@ -289,8 +303,10 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @cached_property
     def _list_params(self):
-        params = {"corpora": "default"}
-        if self.root != "root" and self.root != "appDataFolder":
+        params = {"corpora": "user"}
+        if self.root == "appDataFolder":
+            params["spaces"] = "appDataFolder"
+        elif self.root != "root":
             drive_id = self._gdrive_shared_drive_id(self.root)
             if drive_id:
                 logger.debug(
@@ -320,7 +336,11 @@ class GDriveFileSystem(AbstractFileSystem):
         return item.get("driveId", None)
 
     def _gdrive_list(self, query):
-        param = {"q": query, "maxResults": 1000}
+        param = {
+            "q": query,
+            "pageSize": 1000,
+            "fields": _LIST_FIELDS,
+        }
         param.update(self._list_params)
         file_list = self.client.ListFile(param)
 
@@ -330,32 +350,40 @@ class GDriveFileSystem(AbstractFileSystem):
         # Fetch pages until None is received, lazily flatten the thing.
         return chain.from_iterable(iter(get_list, None))
 
-    def _gdrive_list_ids(self, query_ids, *, title=None):
+    def _gdrive_list_ids(self, query_ids, *, name=None):
         filters = "trashed=false"
-        if title is not None:
-            filters += f" and title={_quote_query_value(title)}"
+        if name is not None:
+            filters += f" and name={_quote_query_value(name)}"
         # Drive can reject large parent queries. Query each parent only once.
+        seen_ids = set()
         for batch in chunks(_PARENT_QUERY_BATCH_SIZE, distinct(query_ids)):
             parents = " or ".join(
                 f"{_quote_query_value(parent)} in parents" for parent in batch
             )
-            yield from self._gdrive_list(f"({parents}) and {filters}")
+            for item in self._gdrive_list(f"({parents}) and {filters}"):
+                file_id = item["id"]
+                if file_id in seen_ids:
+                    continue
+                # Only a full batch can be followed by another parent query.
+                if len(batch) == _PARENT_QUERY_BATCH_SIZE:
+                    seen_ids.add(file_id)
+                yield item
 
     def _get_remote_item_ids(
-        self, parent_ids, parent_path, title, use_cache=True
+        self, parent_ids, parent_path, name, use_cache=True
     ):
         if not parent_ids:
             return None
         res = []
-        for item in self._gdrive_list_ids(parent_ids, title=title):
+        for item in self._gdrive_list_ids(parent_ids, name=name):
             # GDrive list API is case insensitive, we need to compare
-            # all results and pick the ones with the right title
-            if item["title"] == title:
+            # all results and pick the ones with the right name
+            if item["name"] == name:
                 res.append(item["id"])
 
                 if item["mimeType"] == FOLDER_MIME_TYPE and use_cache:
                     self._cache_path_id(
-                        posixpath.join(parent_path, item["title"]), item["id"]
+                        posixpath.join(parent_path, item["name"]), item["id"]
                     )
 
         return res
@@ -373,16 +401,16 @@ class GDriveFileSystem(AbstractFileSystem):
         if item_ids:
             return item_ids
 
-        parent_path, title = posixpath.split(path)
+        parent_path, name = posixpath.split(path)
         parent_ids = self._path_to_item_ids(parent_path, create, use_cache)
         item_ids = self._get_remote_item_ids(
-            parent_ids, parent_path, title, use_cache
+            parent_ids, parent_path, name, use_cache
         )
         if item_ids:
             return item_ids
 
         return (
-            [self._create_dir(min(parent_ids), title, path)] if create else []
+            [self._create_dir(min(parent_ids), name, path)] if create else []
         )
 
     def _get_item_id(self, path, create=False, use_cache=True):
@@ -397,21 +425,24 @@ class GDriveFileSystem(AbstractFileSystem):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
     @_gdrive_retry
-    def _gdrive_create_dir(self, parent_id, title):
-        parent = {"id": parent_id}
+    def _gdrive_create_dir(self, parent_id, name):
         item = self.client.CreateFile(
-            {"title": title, "parents": [parent], "mimeType": FOLDER_MIME_TYPE}
+            {
+                "name": name,
+                "parents": [parent_id],
+                "mimeType": FOLDER_MIME_TYPE,
+            }
         )
         item.Upload()
         return item
 
     @wrap_with(threading.RLock())
-    def _create_dir(self, parent_id, title, remote_path):
+    def _create_dir(self, parent_id, name, remote_path):
         cached = self._ids_cache["dirs"].get(remote_path)
         if cached:
             return cached[0]
 
-        item = self._gdrive_create_dir(parent_id, title)
+        item = self._gdrive_create_dir(parent_id, name)
         self._cache_path_id(remote_path, item["id"])
 
         return item["id"]
@@ -429,18 +460,11 @@ class GDriveFileSystem(AbstractFileSystem):
         bucket, base = self.split_path(path)
         item_id = self._get_item_id(path)
         gdrive_file = self.client.CreateFile({"id": item_id})
-        gdrive_file.FetchMetadata()
+        gdrive_file.FetchMetadata(fields=_INFO_FIELDS)
 
-        metadata = {"name": posixpath.join(bucket, base.rstrip("/"))}
-        if gdrive_file["mimeType"] == FOLDER_MIME_TYPE:
-            metadata["type"] = "directory"
-            metadata["size"] = 0
-            metadata["name"] += "/"
-        else:
-            metadata["type"] = "file"
-            metadata["size"] = int(gdrive_file.get("fileSize"))
-            metadata["checksum"] = gdrive_file.get("md5Checksum")
-        return metadata
+        return _file_entry(
+            posixpath.join(bucket, base.rstrip("/")), gdrive_file
+        )
 
     def ls(self, path, detail=False):
         bucket, base = self.split_path(path)
@@ -455,25 +479,8 @@ class GDriveFileSystem(AbstractFileSystem):
         root_path = posixpath.join(bucket, base)
         contents = []
         for item in self._gdrive_list_ids(dir_ids):
-            item_path = posixpath.join(root_path, item["title"])
-            if item["mimeType"] == FOLDER_MIME_TYPE:
-                contents.append(
-                    {
-                        "type": "directory",
-                        "name": item_path.rstrip("/") + "/",
-                        "size": 0,
-                    }
-                )
-            else:
-                size = item.get("fileSize")
-                contents.append(
-                    {
-                        "type": "file",
-                        "name": item_path,
-                        "size": int(size) if size is not None else size,
-                        "checksum": item.get("md5Checksum"),
-                    }
-                )
+            item_path = posixpath.join(root_path, item["name"])
+            contents.append(_file_entry(item_path, item))
 
         if detail:
             return contents
@@ -506,20 +513,25 @@ class GDriveFileSystem(AbstractFileSystem):
             new_query_ids: dict[str, str] = {}
             dir_ids.append(new_query_ids)
             for item in self._gdrive_list_ids(query_ids):
-                parent_id = item["parents"][0]["id"]
-                item_path = posixpath.join(query_ids[parent_id], item["title"])
+                # A root alias in the query is returned as its canonical ID.
+                parent_id = next(
+                    (p for p in item.get("parents", ()) if p in query_ids),
+                    None,
+                )
+                if parent_id is None:
+                    if (
+                        self.root not in {"root", "appDataFolder"}
+                        or self.root not in query_ids
+                    ):
+                        continue
+                    parent_id = self.root
+                item_path = posixpath.join(query_ids[parent_id], item["name"])
                 if item["mimeType"] == FOLDER_MIME_TYPE:
                     new_query_ids[item["id"]] = item_path
                     self._cache_path_id(item_path, item["id"])
                     continue
-                size = item.get("fileSize")
                 contents.append(
-                    {
-                        "name": posixpath.join(bucket, item_path),
-                        "type": "file",
-                        "size": int(size) if size is not None else size,
-                        "checksum": item.get("md5Checksum"),
-                    }
+                    _file_entry(posixpath.join(bucket, item_path), item)
                 )
 
         if detail:
@@ -544,22 +556,27 @@ class GDriveFileSystem(AbstractFileSystem):
             self.upload_fobj(stream, rpath, callback=callback)
 
     @_gdrive_retry
-    def _gdrive_upload_fobj(self, title, parent_id, stream, callback=None):
-        item = self.client.CreateFile(
-            {"title": title, "parents": [{"id": parent_id}]}
-        )
+    def _gdrive_upload_fobj(self, name, parent_id, stream, callback=None):
+        item = self.client.CreateFile({"name": name, "parents": [parent_id]})
         item.content = stream
         item.Upload()
         return item
 
     def cp_file(self, lpath, rpath, **kwargs):
-        """In-memory streamed copy"""
-        with self.open(lpath) as stream:
-            # IterStream objects doesn't support full-length
-            # seek() calls, so we have to wrap the data with
-            # an external buffer.
-            buffer = io.BytesIO(stream.read())
-            self.upload_fobj(buffer, rpath)
+        """Ask Drive to copy the file directly into the destination folder."""
+        source_id = self._get_item_id(lpath)
+        parent_id = self._get_item_id(self._parent(rpath), create=True)
+        name = posixpath.basename(rpath.rstrip("/"))
+        self._gdrive_copy_file(source_id, parent_id, name)
+
+    @_gdrive_retry
+    def _gdrive_copy_file(self, source_id, parent_id, name):
+        source = self.client.CreateFile({"id": source_id})
+        source.Copy(
+            target_folder={"id": parent_id},
+            new_title=name,
+            param={"fields": "id"},
+        )
 
     @_gdrive_retry
     def mv(self, path1, path2, maxdepth=None, **kwargs):
@@ -582,11 +599,11 @@ class GDriveFileSystem(AbstractFileSystem):
         file1 = self.client.CreateFile({"id": file1_id})
 
         if src_name != dst_name:
-            file1["title"] = dst_name
+            file1["name"] = dst_name
 
         if src_parent != dst_parent:
             file2_parent_id = self._get_item_id(dst_parent)
-            file1["parents"] = [{"id": file2_parent_id}]
+            file1["parents"] = [file2_parent_id]
 
         # TODO need to invalidate the cache for the old path, see #232
         file1.Upload()
@@ -608,12 +625,15 @@ class GDriveFileSystem(AbstractFileSystem):
             extra_args["chunksize"] = block_size
 
         if callback:
+            reported_size = None
 
-            def cb(value, _):
+            def cb(value, total):
+                nonlocal reported_size
+                if total is not None and total != reported_size:
+                    callback.set_size(total)
+                    reported_size = total
                 callback.absolute_update(value)
 
-            gdrive_file.FetchMetadata(fields="fileSize")
-            callback.set_size(int(gdrive_file.get("fileSize")))
             extra_args["callback"] = cb
 
         gdrive_file.GetContentFile(rpath, **extra_args)
@@ -655,7 +675,10 @@ class GDriveFileSystem(AbstractFileSystem):
             if (
                 http_error_code == 403
                 and self._list_params["corpora"] == "drive"
-                and exc.GetField("location") == "file.permissions"
+                and (
+                    exc.GetField("reason") == "insufficientFilePermissions"
+                    or exc.GetField("location") == "file.permissions"
+                )
             ):
                 raise PermissionError(
                     "Insufficient permissions to {}. You should have {} "
