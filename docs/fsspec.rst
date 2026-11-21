@@ -1,8 +1,8 @@
 fsspec filesystem
 =================
 
-*PyDrive2* provides easy way to work with your files through `fsspec`_
-compatible `GDriveFileSystem`_.
+:class:`~pydrive2.fs.GDriveFileSystem` provides an `fsspec`_-compatible
+interface to Google Drive.
 
 Installation
 ------------
@@ -103,7 +103,8 @@ Using json keyfile string:
         client_json=json_string,
     )
 
-Use `client_user_email` if you are using `delegation of authority`_.
+If your service account uses `domain-wide delegation`_, set
+``client_user_email`` to the email address of the user it should act as.
 
 Additional parameters
 ---------------------
@@ -111,8 +112,8 @@ Additional parameters
 :trash_only (bool):
     Move files to trash instead of deleting.
 :acknowledge_abuse (bool):
-    Acknowledging the risk and download file identified as abusive. See
-    `Abusive files`_ for more info.
+    Acknowledge the risk when downloading a file flagged as abusive.
+    See :ref:`abusive-files`.
 
 Using filesystem
 ----------------
@@ -133,9 +134,7 @@ about and manipulating files, refer to fsspec docs on
 `how to use a filesystem`_.
 
 .. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
-.. _`GDriveFileSystem`: /PyDrive2/pydrive2/#pydrive2.fs.GDriveFileSystem
-.. _`delegation of authority`:
-   https://developers.google.com/admin-sdk/directory/v1/guides/delegation
-.. _`Abusive files`: /PyDrive2/filemanagement/index.html#abusive-files
+.. _domain-wide delegation:
+   https://developers.google.com/workspace/guides/create-credentials#set-up-domain-wide-delegation
 .. _`how to use a filesystem`:
    https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system

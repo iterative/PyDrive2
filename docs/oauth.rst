@@ -15,22 +15,17 @@ OAuth2.0 is complex and difficult to start with. To make it more simple,
     # Create local webserver and auto handles authentication.
     gauth.LocalWebserverAuth()
 
-To make this code work, you need to download the application configurations
-file from APIs Console. Take a look at quickstart_ for detailed instructions.
+The :doc:`quickstart` registers ``http://localhost:8080/`` as the redirect
+URI for a web application client. With that client, use
+:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth` and keep port 8080
+available to receive the authorization code.
 
-`LocalWebserverAuth()`_ is a built-in method of `GoogleAuth`_ which sets up
-local webserver to automatically receive authentication code from user and
-authorizes by itself. `CommandLineAuth()`_ prints the login URL and waits for
-the same local callback. Open the URL in a browser that can reach the
-callback port on the machine running PyDrive2. For unattended jobs, use a
-service account or previously saved user credentials with a refresh token.
-
-.. _quickstart: /PyDrive2/quickstart/#authentication
-.. _`LocalWebserverAuth()`:
-   /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth
-.. _`GoogleAuth`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth
-.. _`CommandLineAuth()`:
-   /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.CommandLineAuth
+To open the login URL yourself, call
+``gauth.LocalWebserverAuth(launch_browser=False)`` or
+:meth:`~pydrive2.auth.GoogleAuth.CommandLineAuth`. Both print the URL
+and wait for the same local callback. Open the URL in a browser that can
+reach the callback port on the machine running PyDrive2. For unattended
+jobs, use a service account or saved user credentials with a refresh token.
 
 Automatic and custom authentication with *settings.yaml*
 --------------------------------------------------------
@@ -109,15 +104,15 @@ Fields explained:
     **Required**: Yes, only if *client_config_backend* is 'settings'
 :client_config['auth_uri'] (str):
     The authorization server endpoint URI.
-    **Default**: 'https://accounts.google.com/o/oauth2/auth'.
+    **Default**: ``https://accounts.google.com/o/oauth2/auth``.
     **Required**: No.
 :client_config['token_uri'] (str):
     The token server endpoint URI.
-    **Default**: 'https://accounts.google.com/o/oauth2/token'.
+    **Default**: ``https://accounts.google.com/o/oauth2/token``.
     **Required**: No.
 :client_config['redirect_uri'] (str):
     Redirection endpoint URI.
-    **Default**: 'http://localhost'.
+    **Default**: ``http://localhost``.
     **Required**: No.
 :client_config['revoke_uri'] (str):
     Revoke endpoint URI.
@@ -130,7 +125,8 @@ Fields explained:
     **Required**: Yes, only if *client_config_backend* is 'service' or
     'settings' and not using *client_config*
 :service_config['client_user_email'] (str):
-    User email that authority was delegated_ to.
+    Email address of the user the service account acts as through
+    `domain-wide delegation`_.
     **Required**: No.
 :service_config['client_json_file_path'] (str):
     Path to service account `.json` key file.
@@ -166,12 +162,12 @@ Fields explained:
     **Default**: False.
     **Required**: No.
 :oauth_scope (list of str):
-    OAuth scope to authenticate.
-    **Default**: ['https://www.googleapis.com/auth/drive'].
+    OAuth scopes to request.
+    **Default**: ``['https://www.googleapis.com/auth/drive']``.
     **Required**: No.
 
-.. _delegated:
-   https://developers.google.com/admin-sdk/directory/v1/guides/delegation
+.. _domain-wide delegation:
+   https://developers.google.com/workspace/guides/create-credentials#set-up-domain-wide-delegation
 
 Upgrading from PyDrive2 1.x
 ___________________________
@@ -214,11 +210,11 @@ You might want to build your own authentication flow. For example, you might
 want to integrate your existing website with Drive API. In that case, you can
 customize an authentication flow as follows:
 
-1. Get authentication Url from `GetAuthUrl()`_.
+1. Get the authorization URL from :meth:`~pydrive2.auth.GoogleAuth.GetAuthUrl`.
 2. Direct the user to the authorization URL. Receive the authorization code at
    the redirect URI registered for your application and verify the OAuth state
    in the callback.
-3. Call `Auth(code)`_ with the authentication code you retrieved from step 2.
+3. Pass the authorization code to :meth:`~pydrive2.auth.GoogleAuth.Auth`.
 
 Your *settings.yaml* will work for your customized authentication flow, too.
 
@@ -236,10 +232,6 @@ Here is a sample code for your customized authentication flow
     code = ReceiveVerifiedCallback(auth_url)
     gauth.Auth(code) # Authorize and build service from the code
 
-.. _`GetAuthUrl()`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.GetAuthUrl
-.. _`Auth(code)`: /PyDrive2/pydrive2/#pydrive2.auth.GoogleAuth.Auth
-
-
 Authentication with a service account
 -------------------------------------
 
@@ -254,7 +246,8 @@ Typically, service accounts are used in scenarios such as:
 - Running workloads which are not tied to the lifecycle of a human user.
 
 If we use OAuth client ID we need to do one manual login into the account with
-`LocalWebserverAuth()`_. If we use a service account the login is automatic.
+:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth`. If we use a service
+account the login is automatic.
 
 
 .. code-block:: python
