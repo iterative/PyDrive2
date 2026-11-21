@@ -81,6 +81,23 @@ def test_ls_repeated_cached_parent_across_batches(listing_fs, monkeypatch):
     assert batches == [parents[:50], parents[50:]]
 
 
+def test_ls_uses_parents_cached_at_start(listing_fs, monkeypatch):
+    parents = [f"id-{i}" for i in range(51)]
+    listing_fs._cache_path_id("dir", *parents)
+
+    def list_query(query):
+        if "'id-0' in parents" in query:
+            # Simulate another caller caching a parent during the first batch.
+            listing_fs._cache_path_id("dir", "late-parent")
+        if "'late-parent' in parents" in query:
+            return [{"title": "late-file", "mimeType": "text/plain"}]
+        return []
+
+    monkeypatch.setattr(listing_fs, "_gdrive_list", list_query)
+    assert listing_fs.ls("root/dir") == []
+    assert listing_fs.ls("root/dir") == ["root/dir/late-file"]
+
+
 def test_path_lookup_batches_duplicate_folder_names(listing_fs, monkeypatch):
     parents = [f"id-{i}" for i in range(51)]
     listing_fs._cache_path_id("duplicate", *parents)

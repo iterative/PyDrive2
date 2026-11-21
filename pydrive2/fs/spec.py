@@ -364,7 +364,8 @@ class GDriveFileSystem(AbstractFileSystem):
         if not path:
             return [self.root]
         if use_cache:
-            return self._ids_cache["dirs"].get(path, [])
+            # Another caller can add parents while a batched lookup is running.
+            return self._ids_cache["dirs"].get(path, []).copy()
         return []
 
     def _path_to_item_ids(self, path, create=False, use_cache=True):
