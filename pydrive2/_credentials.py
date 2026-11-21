@@ -4,7 +4,7 @@ import os
 import stat
 import sys
 import tempfile
-from contextlib import ExitStack
+from contextlib import nullcontext
 from hashlib import sha256
 from pathlib import Path
 from threading import Lock, RLock
@@ -212,27 +212,35 @@ def _check_path(path):
 def _read_file(path, lock):
     if _check_path(path) is None:
         return None
-    with ExitStack() as stack:
-        try:
-            stack.enter_context(lock)
-        except OSError as exc:
-            # A pre-provisioned cache can be mounted read-only.
-            if exc.errno not in (errno.EACCES, errno.EPERM, errno.EROFS):
-                raise
-        try:
-            fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
-        except FileNotFoundError:
-            return None
-        stream = stack.enter_context(os.fdopen(fd, encoding="utf-8"))
-        if sys.platform == "win32":
-            # Open normally so Windows can hydrate cloud or compressed files.
-            # Verify the opened file before reading since Windows lacks O_NOFOLLOW.
-            info = _check_path(path)
-            if info is None or not os.path.samestat(info, os.fstat(fd)):
-                raise InvalidCredentialsError(
-                    "Credentials file changed while opening"
-                )
-        return stream.read()
+    try:
+        read_lock = lock.acquire()
+    except OSError as exc:
+        # A pre-provisioned cache can be mounted read-only.
+        if exc.errno not in (errno.EACCES, errno.EPERM, errno.EROFS):
+            raise
+        read_lock = nullcontext()
+    try:
+        with (
+            read_lock,
+            open(path, encoding="utf-8", opener=_open_no_follow) as reader,
+        ):
+            if sys.platform == "win32":
+                # Open normally to hydrate cloud or compressed files. Windows
+                # lacks O_NOFOLLOW, so verify the opened file before reading.
+                info = _check_path(path)
+                if info is None or not os.path.samestat(
+                    info, os.fstat(reader.fileno())
+                ):
+                    raise InvalidCredentialsError(
+                        "Credentials file changed while opening"
+                    )
+            return reader.read()
+    except FileNotFoundError:
+        return None
+
+
+def _open_no_follow(path, flags):
+    return os.open(path, flags | getattr(os, "O_NOFOLLOW", 0))
 
 
 def _write_file(path, serialized):

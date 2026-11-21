@@ -7,6 +7,7 @@ import sys
 import webbrowser
 from base64 import urlsafe_b64encode
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from datetime import datetime
 from hashlib import sha256
 from http.client import HTTPConnection
@@ -494,16 +495,17 @@ def test_save_waits_for_open_credential_reader(tmp_path, monkeypatch):
     writer.save(Credentials("original"))
     reader = GoogleAuth(settings_file=None)
     opened, finish = Event(), Event()
-    fdopen = os.fdopen
 
-    def hold_reader(fd, mode="r", **kwargs):
-        stream = fdopen(fd, mode, **kwargs)
-        if mode == "r":
+    @contextmanager
+    def hold_reader(*args, **kwargs):
+        with open(*args, **kwargs) as stream:
             opened.set()
             assert finish.wait(10)
-        return stream
+            yield stream
 
-    monkeypatch.setattr(os, "fdopen", hold_reader)
+    monkeypatch.setattr(
+        "pydrive2._credentials.open", hold_reader, raising=False
+    )
     with ThreadPoolExecutor(max_workers=1) as pool:
         loading = pool.submit(reader.LoadCredentialsFile, path)
         try:
