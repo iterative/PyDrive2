@@ -1,11 +1,14 @@
 import json
 from urllib.parse import parse_qs, urlsplit
 
+import pytest
 from google.oauth2.credentials import Credentials
 from googleapiclient.http import HttpMockSequence
 
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
+from pydrive2.files import FileNotDownloadableError
+from pydrive2.fs import GDriveFileSystem
 
 
 def mock_drive(*responses):
@@ -19,6 +22,38 @@ def mock_drive(*responses):
 
 def response(data):
     return {"status": "200"}, json.dumps(data)
+
+
+@pytest.mark.parametrize("kind", ["folder", "shortcut"])
+def test_get_content_of_non_downloadable_file(kind):
+    drive, requests = mock_drive(
+        response(
+            {"id": "file", "mimeType": f"application/vnd.google-apps.{kind}"}
+        )
+    )
+    with pytest.raises(FileNotDownloadableError):
+        drive.CreateFile({"id": "file"}).GetContentString()
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize("root", ["root", "appDataFolder"])
+def test_find_accepts_canonical_parent_of_root_alias(root):
+    item = {
+        "id": "child",
+        "name": "note",
+        "mimeType": "text/plain",
+        "parents": ["canonical-root-id"],
+        "size": "5",
+    }
+    drive, requests = mock_drive(response({"files": [item]}))
+    fs = GDriveFileSystem(
+        root, google_auth=drive.auth, skip_instance_cache=True
+    )
+    assert fs.find(root) == [f"{root}/note"]
+    params = parse_qs(urlsplit(requests[0][0]).query)
+    assert f"'{root}' in parents" in params["q"][0]
+    if root == "appDataFolder":
+        assert params["spaces"] == ["appDataFolder"]
 
 
 def test_v3_list_and_about():

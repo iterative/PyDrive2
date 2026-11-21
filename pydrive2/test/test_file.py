@@ -816,8 +816,12 @@ class GoogleDriveFileTest(unittest.TestCase):
         file1["mimeType"] = "application/vnd.google-apps.document"
         pydrive_retry(file1.Upload, media_mime_type="text/plain")
 
-        # Download string as plain text.
-        downloaded_string = file1.GetContentString(mimetype="text/plain")
+        self.addCleanup(pydrive_retry, file1.Delete)
+
+        # A plain-text Google Docs export includes a UTF-8 BOM.
+        downloaded_string = file1.GetContentString(
+            mimetype="text/plain", remove_bom=True
+        )
         self.assertEqual(
             test_string, downloaded_string, "Strings do not match"
         )
@@ -825,6 +829,7 @@ class GoogleDriveFileTest(unittest.TestCase):
         # Download content into file and ensure that file content matches original
         # content string.
         downloaded_file_name = "_tmp_downloaded_file_name.txt"
+        self.addCleanup(Path(downloaded_file_name).unlink, missing_ok=True)
         pydrive_retry(
             file1.GetContentFile,
             downloaded_file_name,
@@ -835,9 +840,6 @@ class GoogleDriveFileTest(unittest.TestCase):
         self.assertEqual(
             test_string, downloaded_string, "Strings do not match"
         )
-
-        # Delete temp file.
-        delete_file(downloaded_file_name)
 
     # Tests for GDrive conversion.
     # ============================
