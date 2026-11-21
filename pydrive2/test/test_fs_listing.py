@@ -26,11 +26,13 @@ def test_list_ids_batches(listing_fs, monkeypatch, count, container):
         assert 0 < len(parents) <= 50
         assert query.endswith(") and trashed=false")
         listed.extend(parents)
-        return iter(parents)
+        return ({"id": parent} for parent in parents)
 
     monkeypatch.setattr(listing_fs, "_gdrive_list", list_query)
 
-    assert list(listing_fs._gdrive_list_ids(container(ids))) == ids
+    assert [
+        item["id"] for item in listing_fs._gdrive_list_ids(container(ids))
+    ] == ids
     assert listed == ids
 
 
@@ -42,17 +44,22 @@ def test_list_ids_lazy(listing_fs, monkeypatch):
             consumed.append(index)
             yield str(index)
 
-    list_query = Mock(side_effect=[iter(["page-1", "page-2"]), iter(["last"])])
+    list_query = Mock(
+        side_effect=[
+            iter([{"id": "page-1"}, {"id": "page-2"}]),
+            iter([{"id": "last"}]),
+        ]
+    )
     monkeypatch.setattr(listing_fs, "_gdrive_list", list_query)
     result = listing_fs._gdrive_list_ids(parents())
     assert consumed == []
     list_query.assert_not_called()
 
-    assert next(result) == "page-1"
+    assert next(result)["id"] == "page-1"
     assert len(consumed) == 50
-    assert next(result) == "page-2"
+    assert next(result)["id"] == "page-2"
     assert list_query.call_count == 1
-    assert list(result) == ["last"]
+    assert list(result) == [{"id": "last"}]
     assert len(consumed) == 51
     assert list_query.call_count == 2
 
@@ -90,7 +97,13 @@ def test_ls_uses_parents_cached_at_start(listing_fs, monkeypatch):
             # Simulate another caller caching a parent during the first batch.
             listing_fs._cache_path_id("dir", "late-parent")
         if "'late-parent' in parents" in query:
-            return [{"name": "late-file", "mimeType": "text/plain"}]
+            return [
+                {
+                    "id": "late-file",
+                    "name": "late-file",
+                    "mimeType": "text/plain",
+                }
+            ]
         return []
 
     monkeypatch.setattr(listing_fs, "_gdrive_list", list_query)
@@ -147,6 +160,7 @@ def test_find_wide_directory(listing_fs, monkeypatch, detail):
             )
         return iter(
             {
+                "id": f"data-{parent}",
                 "name": "data",
                 "mimeType": "application/octet-stream",
                 "parents": [parent],

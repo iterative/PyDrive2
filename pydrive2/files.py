@@ -511,6 +511,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         params = dict(param or {}, supportsAllDrives=True)
         params["fields"] = params.get("fields") or DEFAULT_FILE_FIELDS
         body = self.GetChanges()
+        if len(body.get("parents", [])) > 1:
+            raise ValueError("A Drive v3 file can have only one parent")
         files = self.auth.service.files()
         file_id = self.get("id")
         if self.dirty["content"]:
@@ -551,8 +553,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
     def _MoveParents(self, parents, params):
         """Translate a changed parent list into Drive v3 update parameters."""
-        if len(parents) > 1:
-            raise ValueError("A Drive v3 file can have only one parent")
         previous = self.metadata.get("parents")
         if previous is None:
             request = self.auth.service.files().get(

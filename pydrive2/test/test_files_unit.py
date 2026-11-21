@@ -25,6 +25,21 @@ def test_get_content_of_non_downloadable_file(mock_drive, kind):
     assert len(requests) == 1
 
 
+def test_cached_workspace_content_uses_export(mock_drive):
+    metadata = {
+        "id": "doc",
+        "mimeType": "application/vnd.google-apps.document",
+    }
+    drive, requests = mock_drive(
+        response({"files": [metadata]}), ({"status": "200"}, b"document")
+    )
+    (file,) = drive.ListFile().GetList()
+    assert file.GetContentString() == "document"
+    listing, export = requests
+    assert urlsplit(listing[0]).path.endswith("/files")
+    assert urlsplit(export[0]).path.endswith("/files/doc/export")
+
+
 @pytest.mark.parametrize(
     ("code", "reason", "exception"),
     [
@@ -107,10 +122,13 @@ def test_move_to_existing_root_by_alias(mock_drive):
     assert not {"addParents", "removeParents"}.intersection(query(update))
 
 
-def test_move_rejects_multiple_parents(mock_drive):
+@pytest.mark.parametrize(
+    "metadata", [{"name": "new"}, {"id": "existing"}], ids=["create", "update"]
+)
+def test_upload_rejects_multiple_parents(mock_drive, metadata):
     drive, requests = mock_drive()
     with pytest.raises(ValueError, match="one parent"):
-        drive.CreateFile({"id": "file", "parents": ["A", "B"]}).Upload()
+        drive.CreateFile(dict(metadata, parents=["A", "B"])).Upload()
     assert not requests
 
 
