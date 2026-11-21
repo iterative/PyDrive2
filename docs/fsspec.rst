@@ -11,6 +11,30 @@ Installation
 
   pip install 'pydrive2[fsspec]'
 
+Once installed, ``fsspec`` finds the filesystem under the ``gdrive``
+protocol, so files can be opened without importing PyDrive2 first:
+
+.. code-block:: python
+
+    import fsspec
+
+    fs = fsspec.filesystem(
+        "gdrive",
+        "root",
+        client_id="my_client_id",
+client_secret=<redacted>
+    )
+
+    with fsspec.open(
+        "gdrive://root/path/to/file.txt",
+        client_id="my_client_id",
+client_secret=<redacted>
+    ) as f:
+        print(f.read())
+
+Credentials are still required: without them the filesystem raises
+``ValueError`` telling you which credential to supply.
+
 Local webserver
 ---------------
 
