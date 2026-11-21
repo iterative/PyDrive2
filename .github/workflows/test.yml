@@ -54,6 +54,7 @@ jobs:
         python-version: ${{ matrix.pyv }}
 
     - name: Install dependencies
+      id: install
       run: python -m pip install -e '.[fsspec, tests]'
 
     - name: Run offline tests
@@ -61,7 +62,9 @@ jobs:
 
     - name: Run live Drive tests
       id: live
+      # An offline failure still fails the job, but the live suite can run.
       if: >-
+        !cancelled() && steps.install.outcome == 'success' &&
         github.actor != 'dependabot[bot]' &&
         !startsWith(github.head_ref || github.ref_name, 'dependabot/') &&
         ((github.event_name == 'pull_request' &&
