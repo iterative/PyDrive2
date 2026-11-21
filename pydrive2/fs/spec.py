@@ -177,9 +177,11 @@ def _service_auth(
 class GDriveFileSystem(AbstractFileSystem):
     """Access to gdrive as an fsspec filesystem"""
 
+    protocol = "gdrive"
+
     def __init__(
         self,
-        path,
+        path="root",
         google_auth=None,
         client_id=None,
         client_secret=None,
@@ -194,7 +196,8 @@ class GDriveFileSystem(AbstractFileSystem):
     ):
         """Create an instance of GDriveFileSystem.
 
-        :param path: gdrive path.
+        :param path: gdrive path. Defaults to ``"root"`` (the Drive
+            root), so ``fsspec`` can build the filesystem without one.
         :type path: str.
         :param google_auth: Authenticated GoogleAuth instance.
         :type google_auth: GoogleAuth.
