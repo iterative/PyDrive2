@@ -40,9 +40,13 @@ class GoogleDrive(ApiAttributeMixin):
         return GoogleDriveFileList(auth=self.auth, param=param)
 
     @LoadAuth
-    def GetAbout(self):
+    def GetAbout(self, fields="*"):
         """Return information about the Google Drive of the auth instance.
 
         :returns: A dictionary of Google Drive information like user, usage, quota etc.
         """
-        return self.auth.service.about().get().execute(http=self.http)
+        return (
+            self.auth.service.about()
+            .get(fields=fields)
+            .execute(http=self.http)
+        )

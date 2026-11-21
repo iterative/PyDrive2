@@ -76,4 +76,4 @@ those tests locally, configure a service account as described below.
 .. _Google API Console: https://console.developers.google.com
 .. _Create a new:
    https://cloud.google.com/resource-manager/docs/creating-managing-projects#creating_a_project
-.. _Enable the Drive API: https://developers.google.com/drive/api/v2/about-sdk
+.. _Enable the Drive API: https://developers.google.com/workspace/drive/api/guides/about-sdk

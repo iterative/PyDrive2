@@ -276,8 +276,10 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @cached_property
     def _list_params(self):
-        params = {"corpora": "default"}
-        if self.root != "root" and self.root != "appDataFolder":
+        params = {"corpora": "user"}
+        if self.root == "appDataFolder":
+            params["spaces"] = "appDataFolder"
+        elif self.root != "root":
             drive_id = self._gdrive_shared_drive_id(self.root)
             if drive_id:
                 logger.debug(
@@ -307,7 +309,7 @@ class GDriveFileSystem(AbstractFileSystem):
         return item.get("driveId", None)
 
     def _gdrive_list(self, query):
-        param = {"q": query, "maxResults": 1000}
+        param = {"q": query, "pageSize": 1000}
         param.update(self._list_params)
         file_list = self.client.ListFile(param)
 
@@ -334,18 +336,19 @@ class GDriveFileSystem(AbstractFileSystem):
                 f"'{parent_id}' in parents" for parent_id in parent_ids
             )
         )
-        query += " and title='{}'".format(title.replace("'", "\\'"))
+        escaped_name = title.replace("\\", "\\\\").replace("'", "\\'")
+        query += f" and name='{escaped_name}'"
 
         res = []
         for item in self._gdrive_list(query):
             # GDrive list API is case insensitive, we need to compare
             # all results and pick the ones with the right title
-            if item["title"] == title:
+            if item["name"] == title:
                 res.append(item["id"])
 
                 if item["mimeType"] == FOLDER_MIME_TYPE and use_cache:
                     self._cache_path_id(
-                        posixpath.join(parent_path, item["title"]), item["id"]
+                        posixpath.join(parent_path, item["name"]), item["id"]
                     )
 
         return res
@@ -387,9 +390,12 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @_gdrive_retry
     def _gdrive_create_dir(self, parent_id, title):
-        parent = {"id": parent_id}
         item = self.client.CreateFile(
-            {"title": title, "parents": [parent], "mimeType": FOLDER_MIME_TYPE}
+            {
+                "name": title,
+                "parents": [parent_id],
+                "mimeType": FOLDER_MIME_TYPE,
+            }
         )
         item.Upload()
         return item
@@ -427,7 +433,8 @@ class GDriveFileSystem(AbstractFileSystem):
             metadata["name"] += "/"
         else:
             metadata["type"] = "file"
-            metadata["size"] = int(gdrive_file.get("fileSize"))
+            size = gdrive_file.get("size")
+            metadata["size"] = int(size) if size is not None else None
             metadata["checksum"] = gdrive_file.get("md5Checksum")
         return metadata
 
@@ -444,7 +451,7 @@ class GDriveFileSystem(AbstractFileSystem):
         root_path = posixpath.join(bucket, base)
         contents = []
         for item in self._gdrive_list_ids(dir_ids):
-            item_path = posixpath.join(root_path, item["title"])
+            item_path = posixpath.join(root_path, item["name"])
             if item["mimeType"] == FOLDER_MIME_TYPE:
                 contents.append(
                     {
@@ -454,7 +461,7 @@ class GDriveFileSystem(AbstractFileSystem):
                     }
                 )
             else:
-                size = item.get("fileSize")
+                size = item.get("size")
                 contents.append(
                     {
                         "type": "file",
@@ -495,13 +502,13 @@ class GDriveFileSystem(AbstractFileSystem):
             new_query_ids: dict[str, str] = {}
             dir_ids.append(new_query_ids)
             for item in self._gdrive_list_ids(query_ids):
-                parent_id = item["parents"][0]["id"]
-                item_path = posixpath.join(query_ids[parent_id], item["title"])
+                parent_id = item["parents"][0]
+                item_path = posixpath.join(query_ids[parent_id], item["name"])
                 if item["mimeType"] == FOLDER_MIME_TYPE:
                     new_query_ids[item["id"]] = item_path
                     self._cache_path_id(item_path, item["id"])
                     continue
-                size = item.get("fileSize")
+                size = item.get("size")
                 contents.append(
                     {
                         "name": posixpath.join(bucket, item_path),
@@ -534,9 +541,7 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @_gdrive_retry
     def _gdrive_upload_fobj(self, title, parent_id, stream, callback=None):
-        item = self.client.CreateFile(
-            {"title": title, "parents": [{"id": parent_id}]}
-        )
+        item = self.client.CreateFile({"name": title, "parents": [parent_id]})
         item.content = stream
         item.Upload()
         return item
@@ -571,11 +576,11 @@ class GDriveFileSystem(AbstractFileSystem):
         file1 = self.client.CreateFile({"id": file1_id})
 
         if src_name != dst_name:
-            file1["title"] = dst_name
+            file1["name"] = dst_name
 
         if src_parent != dst_parent:
             file2_parent_id = self._get_item_id(dst_parent)
-            file1["parents"] = [{"id": file2_parent_id}]
+            file1["parents"] = [file2_parent_id]
 
         # TODO need to invalidate the cache for the old path, see #232
         file1.Upload()
@@ -601,8 +606,8 @@ class GDriveFileSystem(AbstractFileSystem):
             def cb(value, _):
                 callback.absolute_update(value)
 
-            gdrive_file.FetchMetadata(fields="fileSize")
-            callback.set_size(int(gdrive_file.get("fileSize")))
+            gdrive_file.FetchMetadata(fields="size")
+            callback.set_size(int(gdrive_file.get("size")))
             extra_args["callback"] = cb
 
         gdrive_file.GetContentFile(rpath, **extra_args)

@@ -681,7 +681,7 @@ class GoogleAuth(ApiAttributeMixin):
                 self.http = self.http.http
             self.http = AuthorizedHttp(self.credentials, http=self.http)
             self.service = build(
-                "drive", "v2", http=self.http, cache_discovery=False
+                "drive", "v3", http=self.http, cache_discovery=False
             )
 
     def Get_Http_Object(self):

@@ -8,6 +8,7 @@ usage: upload.py <Google Drive folder ID> <local file path>
 example usage: upload.py 0B5XXXXY9KddXXXXXXXA2c3ZXXXX /path/to/my/file
 """
 
+import mimetypes
 import sys
 from os import path
 
@@ -34,25 +35,29 @@ parentId = sys.argv[1]
 myFilePath = sys.argv[2]
 myFileName = path.basename(sys.argv[2])
 
-# Check if file name already exists in folder.
+# Drive query string literals escape backslashes and single quotes.
+escaped_name = myFileName.replace("\\", "\\\\").replace("'", "\\'")
 file_list = drive.ListFile(
     {
-        "q": f'"{parentId}" in parents and title="{myFileName}" and trashed=false'
+        "q": f"'{parentId}' in parents and name='{escaped_name}' and trashed=false"
     }
 ).GetList()
 
 # If file is found, update it, otherwise create new file.
-if len(file_list) == 1:
+if len(file_list) > 1:
+    sys.exit("Multiple files match. Choose a unique destination name.")
+if file_list:
     myFile = file_list[0]
 else:
-    myFile = drive.CreateFile(
-        {"parents": [{"kind": "drive#fileLink", "id": parentId}]}
-    )
+    myFile = drive.CreateFile({"parents": [parentId]})
 
 # Upload new file content.
 myFile.SetContentFile(myFilePath)
-myFile["title"] = myFileName
-# The `convert` flag indicates to Google Drive whether to convert the
-# uploaded file into a Google Drive native format, i.e. Google Sheet for
-# CSV or Google Document for DOCX.
-myFile.Upload({"convert": True})
+myFile["name"] = myFileName
+source_type = mimetypes.guess_type(myFilePath)[0] or "application/octet-stream"
+targets = drive.GetAbout(fields="importFormats")["importFormats"].get(
+    source_type, []
+)
+if targets and not file_list:
+    myFile["mimeType"] = targets[0]
+myFile.Upload(media_mime_type=source_type)
