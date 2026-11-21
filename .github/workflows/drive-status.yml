@@ -22,6 +22,11 @@ jobs:
           HEAD_SHA: ${{ inputs.sha }}
           STATE: ${{ inputs.state }}
         run: |
+          case "$STATE" in
+            pending) description='Test workflow started. Open Details for progress.' ;;
+            success) description='All required tests passed.' ;;
+            failure) description='Test run did not pass. Open Details for the job logs.' ;;
+          esac
           gh api --silent --method POST "repos/$GITHUB_REPOSITORY/statuses/$HEAD_SHA" \
-            -f context='Live Drive tests' -f state="$STATE" \
+            -f context='Live Drive tests' -f state="$STATE" -f description="$description" \
             -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/attempts/$GITHUB_RUN_ATTEMPT"
