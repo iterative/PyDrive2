@@ -57,6 +57,60 @@ def test_list_ids_lazy(listing_fs, monkeypatch):
     assert list_query.call_count == 2
 
 
+def test_ls_repeated_cached_parent_across_batches(listing_fs, monkeypatch):
+    parents = [f"id-{i}" for i in range(51)]
+    listing_fs._cache_path_id("duplicate", *parents, parents[0])
+    batches = []
+
+    def list_file(params):
+        batch = re.findall(r"'([^']+)' in parents", params["q"])
+        batches.append(batch)
+        # Distinct children with the same title must all remain in the listing.
+        children = [
+            {
+                "id": f"child-{parent}",
+                "title": "file",
+                "mimeType": "text/plain",
+            }
+            for parent in dict.fromkeys(batch)
+        ]
+        return iter([children[:1], [], children[1:]])
+
+    monkeypatch.setattr(listing_fs.client, "ListFile", list_file)
+    assert listing_fs.ls("root/duplicate") == ["root/duplicate/file"] * 51
+    assert batches == [parents[:50], parents[50:]]
+
+
+def test_path_lookup_batches_duplicate_folder_names(listing_fs, monkeypatch):
+    parents = [f"id-{i}" for i in range(51)]
+    listing_fs._cache_path_id("duplicate", *parents)
+    title = r"File's\name"
+    batches = []
+
+    def list_file(params):
+        query = params["q"]
+        batch = re.findall(r"'([^']+)' in parents", query)
+        assert 0 < len(batch) <= 50
+        assert r"title='File\'s\\name'" in query
+        assert "trashed=false" in query
+        batches.append(batch)
+        if parents[-1] in batch:
+            item_id, item_title = "found", title
+        else:
+            item_id, item_title = "wrong-case", title.lower()
+        item = {
+            "id": item_id,
+            "title": item_title,
+            "mimeType": FOLDER_MIME_TYPE,
+        }
+        return iter([[item]])
+
+    monkeypatch.setattr(listing_fs.client, "ListFile", list_file)
+    assert listing_fs.exists(f"root/duplicate/{title}")
+    assert listing_fs._ids_cache["dirs"][f"duplicate/{title}"] == ["found"]
+    assert batches == [parents[:50], parents[50:]]
+
+
 @pytest.mark.parametrize("detail", [False, True])
 def test_find_wide_directory(listing_fs, monkeypatch, detail):
     folders = [f"folder-{index}" for index in range(251)]
