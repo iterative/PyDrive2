@@ -140,6 +140,20 @@ def test_copy_file_to_new_directory(fs, remote_dir):
     assert fs.cat_file(source) == b"payload"
 
 
+def test_invalidating_parent_reloads_replaced_mount(fs, remote_dir):
+    mount = remote_dir + "/mount"
+    fs.touch(mount + "/before")
+    reader = GDriveFileSystem(
+        mount, google_auth=fs.client.auth, skip_instance_cache=True
+    )
+    assert reader.ls(mount) == [mount + "/before"]
+
+    fs.mv(mount, remote_dir + "/original")
+    fs.touch(mount + "/after")
+    reader.invalidate_cache(remote_dir)
+    assert reader.ls(mount) == [mount + "/after"]
+
+
 def test_rm(fs, remote_dir):
     fs.touch(remote_dir + "/a.txt")
     fs.rm(remote_dir + "/a.txt")
