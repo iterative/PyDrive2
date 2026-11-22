@@ -53,6 +53,19 @@ jobs:
       with:
         python-version: ${{ matrix.pyv }}
 
+    - name: Check gdrive registration from the base wheel
+      if: matrix.os == 'ubuntu-latest' && matrix.pyv == '3.11'
+      run: |
+        python -m venv "$RUNNER_TEMP/gdrive-base"
+        py="$RUNNER_TEMP/gdrive-base/bin/python"
+        "$py" -m pip install . fsspec gdrive-fsspec
+        "$py" -I - <<'PY'
+        import fsspec
+        cls = fsspec.get_filesystem_class("gdrive")
+        from pydrive2.fs import GDriveFileSystem
+        assert cls is GDriveFileSystem
+        PY
+
     - name: Install dependencies
       id: install
       run: python -m pip install -e '.[fsspec, tests]'

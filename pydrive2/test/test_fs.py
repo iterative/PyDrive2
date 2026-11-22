@@ -327,6 +327,23 @@ def test_open_rw(fs, remote_dir):
         assert stream.read() == data
 
 
+def test_fsspec_urls(fs, remote_dir):
+    options = {"google_auth": fs.client.auth}
+    named_url = f"gdrive://{remote_dir}/report.txt"
+    with fsspec.open(named_url, "wt", **options) as stream:
+        stream.write("hello")
+    file_id = fs._get_item_id(remote_dir + "/report.txt")
+    file_url = f"gdrive://{file_id}"
+    with fsspec.open(file_url, "rt", **options) as stream:
+        assert stream.read() == "hello"
+
+    by_id, path = fsspec.core.url_to_fs(file_url, **options)
+    assert by_id.exists(path)
+    by_id.rm(path)
+    assert not by_id.exists(path)
+    assert not fs.exists(remote_dir + "/report.txt")
+
+
 def test_concurrent_operations(fs, fs_factory, remote_dir):
     # Include an extra dir name to force upload operations creating it
     # this way we can also test that only a single directory is created

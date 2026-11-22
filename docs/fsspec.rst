@@ -11,6 +11,48 @@ Installation
 
   pip install 'pydrive2[fsspec]'
 
+The ``[fsspec]`` extra installs fsspec. If fsspec is already installed,
+installing plain PyDrive2 also registers ``gdrive://``. This registration
+takes precedence over fsspec's built-in mapping to ``gdrive-fsspec``. If
+both packages are installed, ``fsspec.open("gdrive://...")`` uses PyDrive2's
+paths and credentials. To select the other backend, instantiate
+``gdrive_fsspec.GoogleDriveFileSystem`` directly.
+
+The first path component is a case-sensitive Drive ID, ``root``, or
+``appDataFolder``. Open an existing file by ID, or name a file relative to a
+folder that the account can access:
+
+.. code-block:: python
+
+    import fsspec
+
+    options = {
+        "use_service_account": True,
+        "client_json_file_path": "/path/to/service-account.json",
+    }
+    with fsspec.open("gdrive://FILE_ID", "rb", **options) as stream:
+        data = stream.read()
+
+    with fsspec.open("gdrive://FOLDER_ID/report.csv", "rt", **options) as stream:
+        header = stream.readline()
+
+    fs = fsspec.filesystem("gdrive", path="FOLDER_ID", **options)
+    names = fs.ls("FOLDER_ID")
+
+A filesystem instance is scoped to one root. Use URLs under the same folder
+ID or root alias in a single ``fsspec.open_files`` call. Sibling URLs reuse
+the filesystem and its directory ID cache. Reads by file ID skip name
+lookups. Reads are sequential. To create a file, use a folder ID or root
+alias followed by a filename. As with the direct PyDrive2 filesystem,
+a write creates a Drive item even when a sibling has the same name. All
+reads require credentials, including files shared by link.
+
+Drive queries for directory entries exclude trashed items. For a bare file
+ID, ``exists()`` returns false and ``info()`` raises ``FileNotFoundError``
+when the item is in the trash. Opening or downloading by ID requests the
+content directly. Drive can still serve a trashed file this way if the
+account has access.
+
 Local webserver
 ---------------
 
