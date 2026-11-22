@@ -1,4 +1,5 @@
 import gc
+import io
 import json
 import weakref
 from codecs import BOM_UTF8
@@ -447,3 +448,59 @@ def test_disk_download_releases_each_chunk_before_requesting_the_next(
     dest = tmp_path / "download"
     drive.CreateFile({"id": "file"}).GetContentFile(dest, chunksize=2)
     assert dest.read_bytes() == b"abcd"
+
+
+def test_path_upload_closes_file_and_can_retry(
+    mock_drive, tmp_path, monkeypatch
+):
+    source = tmp_path / "source"
+    source.write_bytes(b"payload")
+    drive, requests = mock_drive(
+        error_response(503, "backendError"),
+        ({"status": "200", "location": "https://example.test/session"}, ""),
+        response({"id": "uploaded"}),
+        response({"id": "uploaded"}),
+    )
+    http = drive.auth.thread_local.http
+    send = http.request
+    payloads = []
+
+    def record(uri, method, body=None, **kwargs):
+        if method == "PUT":
+            payloads.append(body.read())
+        return send(uri, method, body=body, **kwargs)
+
+    monkeypatch.setattr(http, "request", record)
+    file = drive.CreateFile()
+    monkeypatch.chdir(tmp_path)
+    file.SetContentFile("source")
+    opened = file.content
+    with pytest.raises(ApiRequestError):
+        file.Upload()
+    assert opened.closed
+    monkeypatch.chdir(tmp_path.parent)
+    file.Upload()
+    assert payloads == [b"payload"]
+    assert file.content is None
+    source.unlink()
+    file["name"] = "renamed"
+    file.Upload()
+    assert requests[-1][1] == "PATCH"
+
+
+def test_replacing_upload_content_respects_ownership(mock_drive, tmp_path):
+    source = tmp_path / "source"
+    source.write_bytes(b"payload")
+    drive, _ = mock_drive(
+        ({"status": "200", "location": "https://example.test/session"}, ""),
+        response({"id": "uploaded"}),
+    )
+    file = drive.CreateFile()
+    file.SetContentFile(source)
+    owned = file.content
+    external = io.BytesIO(b"external")
+    file.content = external
+    assert owned.closed
+    file.Upload()
+    file.SetContentString("replacement")
+    assert external.getvalue() == b"external"

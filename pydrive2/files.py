@@ -226,7 +226,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     Can access and modify metadata like dictionary.
     """
 
-    content = ApiAttribute("content")
+    _content = ApiAttribute("content")
     uploaded = ApiAttribute("uploaded")
     metadata = ApiAttribute("metadata")
 
@@ -244,6 +244,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         ApiResource.__init__(self)
         self.metadata = {}
         self.dirty = {"content": False}
+        self._owns_content = False
         self.auth = auth
         self.uploaded = uploaded
         if uploaded:
@@ -275,6 +276,17 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             else:
                 raise FileNotUploadedError()
 
+    @property
+    def content(self):
+        return self._content
+
+    @content.setter
+    def content(self, stream):
+        if self._owns_content and self._content is not stream:
+            self._content.close()
+            self._owns_content = False
+        self._content = stream
+
     def SetContentString(self, content, encoding="utf-8"):
         """Set content of this file to be a string.
 
@@ -297,14 +309,17 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         """Set content of this file from a file.
 
         Opens the file specified by this method.
-        Will be read, uploaded, and closed by Upload() method.
+        Upload() closes the file after each attempt. If an upload fails,
+        retrying it reopens the same path. Assigning another content source
+        also closes the file opened here.
         Sets metadata 'name' and 'mimeType' automatically if not specified and
         the file is uploaded for the first time (id is not set).
 
         :param filename: name of the file to be uploaded.
         :type filename: str.
         """
-        self.content = open(filename, "rb")  # noqa: SIM115 - retained for upload
+        self.content = open(os.path.abspath(filename), "rb")  # noqa: SIM115
+        self._owns_content = True
         if self.get("id") is None:
             if self.get("name") is None:
                 self["name"] = os.path.basename(filename)
@@ -495,13 +510,22 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self.has_bom = not remove_bom
         self._export_mimetype = mimetype
 
-    @LoadAuth
     def Upload(self, param=None, *, media_mime_type=None):
         """Create or update a file, optionally importing uploaded media.
 
         For a Workspace import, set the destination MIME type in the file
         metadata and pass the source MIME type as media_mime_type.
         """
+        if self._owns_content:
+            if self.content.closed:
+                # A previous attempt failed. Reopen the source for this retry.
+                self._content = open(self.content.name, "rb")  # noqa: SIM115
+            with self.content:
+                return self._Upload(param, media_mime_type)
+        return self._Upload(param, media_mime_type)
+
+    @LoadAuth
+    def _Upload(self, param, media_mime_type):
         params = dict(param or {}, supportsAllDrives=True)
         params["fields"] = params.get("fields") or DEFAULT_FILE_FIELDS
         body = self.GetChanges()
@@ -537,8 +561,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         destination_type = (
             metadata.get("mimeType") or self.get("mimeType") or ""
         )
-        if self.dirty["content"] and destination_type.startswith(
-            "application/vnd.google-apps."
+        if self._owns_content or (
+            self.dirty["content"]
+            and destination_type.startswith("application/vnd.google-apps.")
         ):
             self.content = None
         self.uploaded = True
