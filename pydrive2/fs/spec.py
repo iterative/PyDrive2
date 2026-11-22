@@ -66,9 +66,13 @@ class GDriveAuthError(Exception):
     pass
 
 
+def _directory_entry(name):
+    return {"name": name, "type": "directory", "size": 0}
+
+
 def _file_entry(name, item):
     if item["mimeType"] == FOLDER_MIME_TYPE:
-        return {"name": name.rstrip("/") + "/", "type": "directory", "size": 0}
+        return _directory_entry(name.rstrip("/") + "/")
     size = item.get("size")
     return {
         "name": name,
@@ -394,7 +398,10 @@ class GDriveFileSystem(AbstractFileSystem):
         if self.root == "appDataFolder":
             params["spaces"] = "appDataFolder"
         elif self.root != "root":
-            drive_id = self._gdrive_shared_drive_id(self.root)
+            try:
+                drive_id, _ = self._root_location
+            except FileNotFoundError as exc:
+                raise PermissionError from exc
             if drive_id:
                 logger.debug(
                     f"GDrive remote '{self.path}' is using shared drive id '{drive_id}'."
@@ -403,24 +410,13 @@ class GDriveFileSystem(AbstractFileSystem):
                 params["corpora"] = "drive"
         return params
 
+    @cached_property
     @_gdrive_retry
-    def _gdrive_shared_drive_id(self, item_id):
-        from pydrive2.files import ApiRequestError
-
-        param = {"id": item_id}
-        # it does not create a file on the remote
-        item = self.client.CreateFile(param)
-        # ID of the shared drive the item resides in.
-        # Only populated for items in shared drives.
-        try:
-            item.FetchMetadata("driveId")
-        except ApiRequestError as exc:
-            error_code = exc.error.get("code", 0)
-            if error_code == 404:
-                raise PermissionError from exc
-            raise
-
-        return item.get("driveId", None)
+    def _root_location(self):
+        item = self.client.CreateFile({"id": self.root})
+        with _translate_not_found(self.root):
+            item.FetchMetadata("driveId,mimeType")
+        return item.get("driveId"), item.get("mimeType")
 
     def _gdrive_list(self, query):
         param = {
@@ -560,11 +556,15 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             return True
 
-    @_gdrive_retry
     def info(self, path):
-        bucket, base = self.split_path(path)
         with _translate_not_found(path):
             item_id = self._get_item_id(path)
+        return self._info_by_id(path, item_id)
+
+    @_gdrive_retry
+    def _info_by_id(self, path, item_id):
+        bucket, base = self.split_path(path)
+        with _translate_not_found(path):
             gdrive_file = self.client.CreateFile({"id": item_id})
             fields = _INFO_FIELDS if base else f"{_INFO_FIELDS},trashed"
             gdrive_file.FetchMetadata(fields=fields)
@@ -640,20 +640,16 @@ class GDriveFileSystem(AbstractFileSystem):
         known_dir = (not base and root in {"root", "appDataFolder"}) or (
             base != self.base and any(known.get(i) == base for i in start_ids)
         )
-        contents = []
-        if withdirs or not pending:
-            if known_dir:
-                entry = _file_entry(start, {"mimeType": FOLDER_MIME_TYPE})
-            else:
-                try:
-                    entry = self.info(path)
-                except FileNotFoundError:
-                    return {} if detail else []
-            if entry["type"] == "file":
-                return {start: entry} if detail else [start]
-            if withdirs:
-                contents.append(entry)
+        root_type = None
+        if not base and root not in {"root", "appDataFolder"}:
+            try:
+                _, root_type = self._root_location
+            except FileNotFoundError:
+                return {} if detail else []
+            if root_type != FOLDER_MIME_TYPE:
+                pending = {}
 
+        contents = []
         seen: set[str] = set()
         while pending:
             query_ids = pending
@@ -672,30 +668,34 @@ class GDriveFileSystem(AbstractFileSystem):
                     ):
                         continue
                     parent_id = root
+                known_dir = True
                 item_path = posixpath.join(query_ids[parent_id], item["name"])
+                name = posixpath.join(root, item_path)
                 if item["mimeType"] == FOLDER_MIME_TYPE:
                     item_id = item["id"]
                     self._cache_path_id(item_path, item_id, cache=cache)
                     if item_id not in seen and descend(item_path):
                         pending[item_id] = item_path
-                    if not withdirs:
-                        continue
-                contents.append(
-                    _file_entry(posixpath.join(root, item_path), item)
-                )
+                    if withdirs:
+                        contents.append(_directory_entry(name))
+                else:
+                    contents.append(_file_entry(name, item))
 
-        # An untyped mount ID can also refer directly to a file.
-        if not contents and not known_dir and not withdirs:
+        if not known_dir and (withdirs or root_type != FOLDER_MIME_TYPE):
+            # Without children, an untyped starting path can be a file or
+            # an empty directory. Check current metadata (including trash).
             try:
-                entry = self.info(path)
+                entry = self._info_by_id(path, min(start_ids))
             except FileNotFoundError:
                 return {} if detail else []
             if entry["type"] == "file":
-                contents.append(entry)
+                return {start: entry} if detail else [start]
 
+        if withdirs:
+            contents.insert(0, _directory_entry(start))
         if detail:
-            return {entry["name"].rstrip("/"): entry for entry in contents}
-        return [entry["name"].rstrip("/") for entry in contents]
+            return {entry["name"]: entry for entry in contents}
+        return [entry["name"] for entry in contents]
 
     def upload_fobj(self, stream, rpath, callback=None, **kwargs):
         parent, name = self._split_file_path(rpath)

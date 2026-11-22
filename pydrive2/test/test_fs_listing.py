@@ -290,6 +290,7 @@ def test_find_honors_depth_and_directories(listing_fs, monkeypatch, warm):
     found = listing_fs.find("root/dir", maxdepth=1, withdirs=True, detail=True)
     assert set(found) == {"root/dir", "root/dir/file", "root/dir/sub"}
     assert found["root/dir/sub"]["type"] == "directory"
+    assert all(name == item["name"] for name, item in found.items())
     assert "S" not in queried and "other" not in queried
     assert listing_fs.find("root/dir", 1, True, True) == found
     assert listing_fs.find("root/dir", True) == listing_fs.find(

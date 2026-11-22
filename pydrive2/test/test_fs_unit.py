@@ -352,3 +352,62 @@ def test_large_write_after_close_does_not_open_a_tempfile(mock_drive, mocker):
     with pytest.raises(ValueError, match="closed"):
         writer.write(b"too large")
     backing_file.assert_not_called()
+
+
+@pytest.mark.parametrize("withdirs", [True, False])
+def test_find_mount_with_only_subdirectories_skips_stat(mock_drive, withdirs):
+    folder = {
+        "name": "sub",
+        "id": "sub-id",
+        "mimeType": FOLDER_MIME_TYPE,
+        "parents": ["FolderID"],
+    }
+    listing = response({"files": [folder]})
+    drive, requests = mock_drive(
+        response({"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}),
+        listing,
+        listing,
+    )
+    fs = filesystem(drive, "FolderID")
+    for _ in range(2):
+        found = fs.find("FolderID", maxdepth=1, withdirs=withdirs, detail=True)
+        assert set(found) == (
+            {"FolderID", "FolderID/sub"} if withdirs else set()
+        )
+        assert all(name == item["name"] for name, item in found.items())
+    scope, *lists = requests
+    assert set(query(scope)["fields"][0].split(",")) == {"driveId", "mimeType"}
+    assert all("'FolderID' in parents" in query(r)["q"][0] for r in lists)
+
+
+@pytest.mark.parametrize("bare", [True, False])
+def test_find_file_returns_stat(mock_drive, bare):
+    obj = {"id": "Blob", "name": "note", "mimeType": "text/plain", "size": "7"}
+    if bare:
+        drive, requests = mock_drive(
+            response({"mimeType": "text/plain"}), response(obj)
+        )
+        fs, path = filesystem(drive, "Blob"), "Blob"
+    else:
+        named = response({"files": [obj]})
+        drive, requests = mock_drive(named, response(obj))
+        fs, path = filesystem(drive), "root/note"
+    assert fs.find(path, withdirs=True, detail=True) == {
+        path: {"name": path, "type": "file", "size": 7, "checksum": None}
+    }
+    if bare:
+        assert all("q" not in query(r) for r in requests)
+
+
+def test_find_empty_folder_checks_trash_when_including_start(mock_drive):
+    empty = response({"files": []})
+    drive, requests = mock_drive(
+        response({"mimeType": FOLDER_MIME_TYPE}),
+        empty,
+        empty,
+        response({"mimeType": FOLDER_MIME_TYPE, "trashed": True}),
+    )
+    fs = filesystem(drive, "FolderID")
+    assert fs.find("FolderID") == []
+    assert len(requests) == 2
+    assert fs.find("FolderID", withdirs=True) == []
