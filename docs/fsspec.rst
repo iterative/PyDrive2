@@ -129,6 +129,12 @@ Using filesystem
         for fname in fnames:
             print(f"file: {root}/{fname}")
 
+For sequential reads, pass a positive ``block_size`` to ``fs.open()`` to set
+the Drive download request size in bytes. A writer buffers data locally,
+using a temporary file for larger uploads. Calling ``flush()`` flushes the
+local buffer. Closing the writer uploads the file to Drive and reports any
+upload error.
+
 Filesystem instance offers a large number of methods for getting information
 about and manipulating files, refer to fsspec docs on
 `how to use a filesystem`_.

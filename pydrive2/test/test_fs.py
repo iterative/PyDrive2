@@ -321,7 +321,9 @@ def test_open_rw(fs, remote_dir):
     data = b"dvc.org"
 
     with fs.open(remote_dir + "/a.txt", "wb") as stream:
-        stream.write(data)
+        stream.write(data[:3])
+        stream.flush()
+        stream.write(data[3:])
 
     with fs.open(remote_dir + "/a.txt") as stream:
         assert stream.read() == data

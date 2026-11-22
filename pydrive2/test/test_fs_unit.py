@@ -1,4 +1,5 @@
 import json
+import tempfile
 from urllib.parse import urlsplit
 
 import pytest
@@ -6,6 +7,7 @@ from fsspec.callbacks import Callback
 
 from pydrive2.fs import GDriveFileSystem
 from pydrive2.fs.spec import FOLDER_MIME_TYPE
+from pydrive2.fs.utils import IterStream
 from pydrive2.test.http_mock import error_response, query, response
 
 
@@ -203,3 +205,92 @@ def test_download_progress_uses_media_responses(
     assert all(query(request)["alt"] == ["media"] for request in downloads)
     assert updates == expected
     assert dest.read_bytes() == b"xyz"
+
+
+def test_partial_reads_and_peek_across_chunks():
+    stream = IterStream(iter([b"abc", b"", b"de", b"fghi"]))
+    assert stream.read1(0) == b""
+    assert stream.readinto(bytearray()) == 0
+    assert stream.read1(1) == b"a"
+    assert stream.peek(5) == b"bcdef"
+    buf = bytearray(2)
+    assert stream.readinto1(buf) == 2
+    assert buf == b"bc"
+    assert stream.peek(2) == b"de"
+    assert stream.read() == b"defghi"
+    assert stream.read1() == b""
+    assert stream.peek(4) == b""
+
+
+def test_peek_preserves_buffer_if_next_chunk_fails():
+    def chunks():
+        yield b"abc"
+        raise OSError("download failed")
+
+    with IterStream(chunks()) as stream:
+        with pytest.raises(OSError, match="download failed"):
+            stream.peek(4)
+        assert stream.read1() == b"abc"
+    with pytest.raises(ValueError, match="closed"):
+        stream.read1()
+
+
+def test_open_uses_requested_download_block_size(mock_drive):
+    drive, requests = mock_drive(
+        ({"status": "206", "content-range": "bytes 0-1/3"}, b"xy"),
+        ({"status": "206", "content-range": "bytes 2-2/3"}, b"z"),
+    )
+    with filesystem(drive, "FileID").open("FileID", block_size=2) as stream:
+        assert stream.read() == b"xyz"
+    assert [r[3]["range"] for r in requests] == ["bytes=0-1", "bytes=2-3"]
+
+
+@pytest.mark.parametrize("mode", ["wb", "wt"])
+def test_flush_then_write_uploads_once_on_close(
+    mock_drive, monkeypatch, mocker, mode
+):
+    drive, _ = mock_drive()
+    fs = filesystem(drive)
+    monkeypatch.setattr(fs, "blocksize", 5)
+    backing_file = mocker.spy(tempfile, "TemporaryFile")
+    uploads = []
+
+    def upload(body, path):
+        uploads.append((path, body.read()))
+
+    monkeypatch.setattr(fs, "upload_fobj", upload)
+    with fs.open("root/file", mode) as writer:
+        value = b"abc" if mode == "wb" else "abc"
+        assert writer.write(value) == 3
+        writer.flush()
+        assert not writer.closed
+        assert not uploads
+        backing_file.assert_not_called()
+        assert writer.write(value) == 3
+    backing_file.assert_called_once()
+    writer.close()
+    assert uploads == [("root/file", b"abcabc")]
+
+
+def test_failed_close_releases_spool_and_propagates_error(
+    mock_drive, monkeypatch
+):
+    drive, _ = mock_drive()
+    fs = filesystem(drive)
+    monkeypatch.setattr(fs, "blocksize", 2)
+    attempts = []
+
+    def fail(body, path):
+        attempts.append(body)
+        assert body.read() == b"data"
+        raise OSError("upload failed")
+
+    monkeypatch.setattr(fs, "upload_fobj", fail)
+    writer = fs.open("root/file", "wb")
+    writer.write(b"data")
+    with pytest.raises(OSError, match="upload failed"):
+        writer.close()
+    assert writer.closed
+    writer.close()
+    (body,) = attempts
+    assert body.closed

@@ -1,56 +1,64 @@
 import io
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class IterStream(io.RawIOBase):
-    """Wraps an iterator yielding bytes as a file object"""
+    """Wraps an iterator yielding bytes as a file object."""
 
-    def __init__(self, iterator):  # pylint: disable=super-init-not-called
-        self.iterator = iterator
-        self.leftover = b""
+    def __init__(self, iterator):
+        super().__init__()
+        self.iterator: Iterator[bytes] = filter(None, iterator)
+        self.leftover: bytes | memoryview = b""
 
     def readable(self):
         return True
 
-    def writable(self) -> bool:
-        return False
+    def close(self):
+        self.leftover = b""
+        self.iterator = iter(())
+        super().close()
 
-    # Python 3 requires only .readinto() method, it still uses other ones
-    # under some circumstances and falls back if those are absent. Since
-    # iterator already constructs byte strings for us, .readinto() is not the
-    # most optimal, so we provide .read1() too.
+    def _take(self, size):
+        self._checkClosed()
+        if size == 0:
+            return b""
+        chunk = self.leftover or next(self.iterator, b"")
+        if size < 0 or size >= len(chunk):
+            self.leftover = b""
+            return chunk
+        # Keep a view of the unread bytes until the response is exhausted.
+        view = memoryview(chunk)
+        self.leftover = view[size:]
+        return view[:size]
 
     def readinto(self, b):
-        try:
-            n = len(b)  # We're supposed to return at most this much
-            chunk = self.leftover or next(self.iterator)
-            output, self.leftover = chunk[:n], chunk[n:]
-
-            n_out = len(output)
-            b[:n_out] = output
-            return n_out
-        except StopIteration:
-            return 0  # indicate EOF
+        dest = memoryview(b).cast("B")
+        if dest.readonly:
+            raise TypeError("readinto() requires a writable buffer")
+        chunk = self._take(len(dest))
+        dest[: len(chunk)] = chunk
+        return len(chunk)
 
     readinto1 = readinto
 
     def read1(self, n=-1):
-        try:
-            chunk = self.leftover or next(self.iterator)
-        except StopIteration:
-            return b""
-
-        # Return an arbitrary number or bytes
-        if n <= 0:
-            self.leftover = b""
-            return chunk
-
-        output, self.leftover = chunk[:n], chunk[n:]
-        return output
+        return bytes(self._take(n))
 
     def peek(self, n):
-        while len(self.leftover) < n:
+        self._checkClosed()
+        available = len(self.leftover)
+        if available < n:
+            chunks = [self.leftover] if available else []
             try:
-                self.leftover += next(self.iterator)
-            except StopIteration:
-                break
-        return self.leftover[:n]
+                for chunk in self.iterator:
+                    chunks.append(chunk)
+                    available += len(chunk)
+                    if available >= n:
+                        break
+            finally:
+                # Preserve fetched bytes even if a later request fails.
+                self.leftover = b"".join(chunks)
+        return bytes(self.leftover[:n])
