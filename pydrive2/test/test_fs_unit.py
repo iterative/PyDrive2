@@ -398,3 +398,84 @@ def test_makedirs_rejects_file(mock_drive, path, expected):
     with pytest.raises(expected):
         filesystem(drive).makedirs(path, exist_ok=True)
     assert [req[1] for req in requests] == ["GET"]
+
+
+def test_makedirs_validates_mount_id_once(mock_drive):
+    drive, requests = mock_drive(response({"mimeType": FOLDER_MIME_TYPE}))
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID", exist_ok=True)
+    fs.makedirs("FolderID", exist_ok=True)
+    with pytest.raises(FileExistsError):
+        fs.mkdir("FolderID")
+    assert len(requests) == 1
+
+
+@pytest.mark.parametrize(
+    "failure, error",
+    [
+        (response({"mimeType": "text/plain"}), FileExistsError),
+        (error_response(404, "notFound"), FileNotFoundError),
+    ],
+)
+def test_makedirs_rejects_invalid_mount_id(mock_drive, failure, error):
+    drive, _ = mock_drive(failure)
+    with pytest.raises(error):
+        filesystem(drive, "FolderID").makedirs("FolderID", exist_ok=True)
+
+
+def test_makedirs_starts_at_cached_mount(mock_drive):
+    def folder(name):
+        return response(
+            {
+                "files": [
+                    {"name": name, "id": name, "mimeType": FOLDER_MIME_TYPE}
+                ]
+            }
+        )
+
+    drive, requests = mock_drive(
+        response({"driveId": "shared"}),
+        folder("a"),
+        folder("b"),
+        response({"files": []}),
+        response({"id": "new"}),
+    )
+    fs = filesystem(drive, "FolderID/a/b")
+    fs.makedirs("FolderID/a/b/new")
+    fs.makedirs("FolderID/a/b/new", exist_ok=True)
+    assert [query(req)["q"][0] for req in requests if "q" in query(req)] == [
+        "('FolderID' in parents) and trashed=false and name='a'",
+        "('a' in parents) and trashed=false and name='b'",
+        "('b' in parents) and trashed=false and name='new'",
+    ]
+
+
+def test_makedirs_classifies_drive_results_without_rereading_cache(
+    mock_drive, mocker
+):
+    same_name = [
+        {"name": "sub", "id": "file", "mimeType": "text/plain"},
+        {"name": "Sub", "id": "wrong-case", "mimeType": FOLDER_MIME_TYPE},
+        {"name": "sub", "id": "folder", "mimeType": FOLDER_MIME_TYPE},
+    ]
+    drive, requests = mock_drive(
+        response({"files": same_name}),
+        response({"files": []}),
+        response({"id": "leaf"}),
+    )
+    fs = filesystem(drive)
+    # Simulate a folder discovered by this lookup going into an expired cache.
+    mocker.patch.object(fs, "_cache_path_id")
+    fs.makedirs("root/sub/leaf")
+    assert json.loads(requests[-1][2])["parents"] == ["folder"]
+
+
+def test_makedirs_rejects_file_at_nested_mount(mock_drive):
+    blob = response(
+        {"files": [{"name": "blob", "id": "F", "mimeType": "text/plain"}]}
+    )
+    drive, requests = mock_drive(blob, blob)
+    fs = filesystem(drive, "root/blob")
+    with pytest.raises(NotADirectoryError):
+        fs.makedirs("root/blob/child")
+    assert all(req[1] == "GET" for req in requests)

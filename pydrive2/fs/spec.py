@@ -8,7 +8,7 @@ import threading
 from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
-from typing import TypedDict
+from typing import NotRequired, TypedDict
 
 import appdirs
 from fsspec.spec import AbstractFileSystem
@@ -45,6 +45,7 @@ COMMON_SETTINGS = {
 class _IdsCache(TypedDict):
     dirs: defaultdict[str, list[str]]
     ids: dict[str, str]
+    root_is_directory: NotRequired[bool]
 
 
 class GDriveAuthError(Exception):
@@ -322,17 +323,36 @@ class GDriveFileSystem(AbstractFileSystem):
     def _ids_cache(self) -> _IdsCache:
         cache: _IdsCache = {"dirs": defaultdict(list), "ids": {}}
 
-        base_item_ids = self._path_to_item_ids(self.base, use_cache=False)
-        if not base_item_ids:
+        self._cache_path_id(
+            self.base, *self._mount_directory_ids(), cache=cache
+        )
+        return cache
+
+    def _mount_directory_ids(self):
+        if not self.base:
+            return [self.root]
+        parent, name = posixpath.split(self.base)
+        parent_ids = self._path_to_item_ids(parent, use_cache=False)
+        items = self._named_items(parent_ids, name)
+        if not items:
             raise FileNotFoundError(
                 errno.ENOENT,
                 os.strerror(errno.ENOENT),
                 f"Confirm {self.path} exists and you can access it",
             )
+        return [
+            item["id"]
+            for item in items
+            if item["mimeType"] == FOLDER_MIME_TYPE
+        ]
 
-        self._cache_path_id(self.base, *base_item_ids, cache=cache)
-
-        return cache
+    def _named_items(self, parent_ids, name):
+        # Drive's name query is case-insensitive.
+        return [
+            item
+            for item in self._gdrive_list_ids(parent_ids, name=name)
+            if item["name"] == name
+        ]
 
     def _cache_path_id(self, path, *item_ids, cache=None):
         cache = cache or self._ids_cache
@@ -476,14 +496,15 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @wrap_with(threading.RLock())
     def _create_dir(self, parent_id, name, remote_path, *, exist_ok=True):
-        cached = self._ids_cache["dirs"].get(remote_path)
+        cached = self._get_cached_item_ids(remote_path, use_cache=True)
         if cached:
             if not exist_ok:
                 raise FileExistsError(posixpath.join(self.root, remote_path))
             return cached[0]
 
+        cache = self._ids_cache
         item = self._gdrive_create_dir(parent_id, name)
-        self._cache_path_id(remote_path, item["id"])
+        self._cache_path_id(remote_path, item["id"], cache=cache)
 
         return item["id"]
 
@@ -496,31 +517,44 @@ class GDriveFileSystem(AbstractFileSystem):
     def _mkdir(self, path, create_parents, exist_ok):
         root, base = self._split_mounted_path(path)
         if not base:
-            if (
-                root not in {"root", "appDataFolder"}
-                and self.info(path)["type"] != "directory"
-            ):
-                raise FileExistsError(path)
+            if root not in {"root", "appDataFolder"}:
+                cache = self._ids_cache
+                if not cache.get("root_is_directory"):
+                    if self.info(path)["type"] != "directory":
+                        raise FileExistsError(path)
+                    cache["root_is_directory"] = True
             if not exist_ok:
                 raise FileExistsError(path)
             return
 
-        parent_ids = [root]
-        parent = ""
-        for name in base.split("/"):
+        cache = self._ids_cache
+        parent = base
+        missing = []
+        while not (
+            parent_ids := self._get_cached_item_ids(parent, use_cache=True)
+        ):
+            parent, name = posixpath.split(parent)
+            missing.append(name)
+        if not missing and not exist_ok:
+            raise FileExistsError(path)
+
+        for name in reversed(missing):
             child = posixpath.join(parent, name)
             leaf = child == base
-            dirs = self._get_cached_item_ids(child, use_cache=True)
-            if not dirs:
-                items = self._get_remote_item_ids(parent_ids, parent, name)
-                dirs = self._get_cached_item_ids(child, use_cache=True)
-                if items and not dirs:
-                    if leaf:
-                        raise FileExistsError(path)
-                    raise NotADirectoryError(posixpath.join(root, child))
+            matches = self._named_items(parent_ids, name)
+            dirs = [
+                item["id"]
+                for item in matches
+                if item["mimeType"] == FOLDER_MIME_TYPE
+            ]
             if dirs:
+                self._cache_path_id(child, *dirs, cache=cache)
                 if leaf and not exist_ok:
                     raise FileExistsError(path)
+            elif matches:
+                if leaf:
+                    raise FileExistsError(path)
+                raise NotADirectoryError(posixpath.join(root, child))
             else:
                 if not leaf and not create_parents:
                     raise FileNotFoundError(posixpath.join(root, child))
