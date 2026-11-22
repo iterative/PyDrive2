@@ -606,20 +606,11 @@ def test_makedirs_bare_root_is_independent_of_named_mount(mock_drive):
 
 
 def test_makedirs_starts_at_cached_mount(mock_drive):
-    def folder(name):
-        return response(
-            {
-                "files": [
-                    {"name": name, "id": name, "mimeType": FOLDER_MIME_TYPE}
-                ]
-            }
-        )
-
     drive, requests = mock_drive(
         response({"driveId": "shared"}),
-        folder("a"),
-        folder("b"),
-        response({"files": []}),
+        listing(folder("a", "a")),
+        listing(folder("b", "b")),
+        listing(),
         response({"id": "new"}),
     )
     fs = filesystem(drive, "FolderID/a/b")
@@ -632,33 +623,27 @@ def test_makedirs_starts_at_cached_mount(mock_drive):
     ]
 
 
-def test_makedirs_classifies_drive_results_without_rereading_cache(
-    mock_drive, mocker
-):
-    same_name = [
-        {"name": "sub", "id": "file", "mimeType": "text/plain"},
-        {"name": "Sub", "id": "wrong-case", "mimeType": FOLDER_MIME_TYPE},
-        {"name": "sub", "id": "folder", "mimeType": FOLDER_MIME_TYPE},
-    ]
-    drive, requests = mock_drive(
-        response({"files": same_name}),
-        response({"files": []}),
-        response({"id": "leaf"}),
-    )
-    fs = filesystem(drive)
-    cache_path = fs._cache_path_id
-
-    def cache_then_invalidate(path, *ids, **kwargs):
-        cache_path(path, *ids, **kwargs)
-        if path == "sub":
+def test_makedirs_uses_the_matching_folder_during_invalidation(mock_drive):
+    def invalidate(request):
+        if "name='sub'" in query(request).get("q", [""])[0]:
             fs.invalidate_cache("root/sub")
 
-    mocker.patch.object(
-        fs, "_cache_path_id", side_effect=cache_then_invalidate
+    drive, requests = mock_drive(
+        listing(
+            {"name": "sub", "id": "file", "mimeType": "text/plain"},
+            folder("Sub", "wrong-case"),
+            folder("sub", "folder"),
+        ),
+        listing(),
+        response({"id": "leaf"}),
+        listing(),
+        on_request=invalidate,
     )
+    fs = filesystem(drive)
     fs.makedirs("root/sub/leaf")
-    assert json.loads(requests[-1][2])["parents"] == ["folder"]
-    assert fs._ids_cache["ids"] == {"root": ""}
+    (create,) = [r for r in requests if r[1] == "POST"]
+    assert json.loads(create[2])["parents"] == ["folder"]
+    assert not fs.exists("root/sub/leaf")
 
 
 def test_makedirs_rejects_file_at_nested_mount(mock_drive):
