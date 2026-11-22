@@ -223,6 +223,35 @@ def test_invalidation_during_lookup(listing_fs, monkeypatch):
     assert fs._ids_cache["ids"] == {"root": ""}
 
 
+def test_invalidating_parent_reloads_mount_on_next_lookup(mocker):
+    fs = GDriveFileSystem(
+        "root/parent/mount", google_auth=Mock(), skip_instance_cache=True
+    )
+    parent = {
+        "id": "parent-id",
+        "name": "parent",
+        "mimeType": FOLDER_MIME_TYPE,
+    }
+    mount = {"id": "original", "name": "mount", "mimeType": FOLDER_MIME_TYPE}
+    listing = mocker.patch.object(
+        fs,
+        "_gdrive_list_ids",
+        side_effect=[
+            [parent],
+            [mount],
+            [parent],
+            [dict(mount, id="replacement")],
+        ],
+    )
+
+    fs.invalidate_cache("root/parent")
+    listing.assert_not_called()
+    assert fs._get_item_id(fs.path) == "original"
+    fs.invalidate_cache("root/parent")
+    assert listing.call_count == 2
+    assert fs._get_item_id(fs.path) == "replacement"
+
+
 def test_failed_removal_preserves_cache(listing_fs, mocker):
     listing_fs._cache_path_id("dir", "folder")
     mocker.patch.object(

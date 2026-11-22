@@ -5,7 +5,6 @@ import os
 import posixpath
 import tempfile
 import threading
-from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
 from typing import TypedDict
@@ -42,8 +41,25 @@ COMMON_SETTINGS = {
 
 
 class _IdsCache(TypedDict):
-    dirs: defaultdict[str, list[str]]
+    dirs: dict[str, list[str]]
     ids: dict[str, str]
+
+
+def _in_subtree(path: str, root: str) -> bool:
+    return not root or path == root or path.startswith(root + "/")
+
+
+def _without_subtree(cache: _IdsCache, root: str) -> _IdsCache:
+    # In-flight lookups can still append to the old lists.
+    dirs = {
+        path: ids.copy()
+        for path, ids in cache["dirs"].items()
+        if not _in_subtree(path, root)
+    }
+    paths_by_id = {
+        item_id: path for path, ids in dirs.items() for item_id in ids
+    }
+    return {"dirs": dirs, "ids": paths_by_id}
 
 
 class GDriveAuthError(Exception):
@@ -254,6 +270,7 @@ class GDriveFileSystem(AbstractFileSystem):
         """
         super().__init__(**kwargs)
         self._cache_lock = threading.RLock()
+        self._directory_ids: _IdsCache | None = None
         self.path = path
         self.root, self.base = self.split_path(self.path)
 
@@ -320,11 +337,12 @@ class GDriveFileSystem(AbstractFileSystem):
     @property
     def _ids_cache(self) -> _IdsCache:
         with self._cache_lock:
+            if self._directory_ids is None:
+                self._directory_ids = self._load_directory_ids()
             return self._directory_ids
 
-    @cached_property
-    def _directory_ids(self) -> _IdsCache:
-        cache: _IdsCache = {"dirs": defaultdict(list), "ids": {}}
+    def _load_directory_ids(self) -> _IdsCache:
+        cache: _IdsCache = {"dirs": {}, "ids": {}}
 
         base_item_ids = self._path_to_item_ids(self.base, use_cache=False)
         if not base_item_ids:
@@ -350,33 +368,22 @@ class GDriveFileSystem(AbstractFileSystem):
                     if not cache["dirs"][old_path]:
                         del cache["dirs"][old_path]
                 cache["ids"][item_id] = path
-                cache["dirs"][path].append(item_id)
+                cache["dirs"].setdefault(path, []).append(item_id)
 
     def invalidate_cache(self, path=None):
-        base = self._split_mounted_path(path)[1] if path is not None else ""
+        subtree = self._split_mounted_path(path)[1] if path is not None else ""
         super().invalidate_cache(path)
         with self._cache_lock:
-            old = self.__dict__.get("_directory_ids")
-            if old is None:
-                return
-            if (
-                not base
-                or self.base == base
-                or self.base.startswith(base + "/")
-            ):
-                del self.__dict__["_directory_ids"]
-                return
-            # Publish both indexes together. Reads already in flight can only
-            # populate the cache they started with.
-            kept: _IdsCache = {"dirs": defaultdict(list), "ids": {}}
-            for name, ids in old["dirs"].items():
-                if name != base and not name.startswith(base + "/"):
-                    self._cache_path_id(name, *ids, cache=kept)
-            self.__dict__["_directory_ids"] = kept
+            if _in_subtree(self.base, subtree):
+                self._directory_ids = None
+            elif self._directory_ids is not None:
+                self._directory_ids = _without_subtree(
+                    self._directory_ids, subtree
+                )
 
     def _is_cached_directory(self, item_id):
         with self._cache_lock:
-            cache = self.__dict__.get("_directory_ids")
+            cache = self._directory_ids
             return cache is not None and (
                 item_id == self.root or item_id in cache["ids"]
             )
