@@ -423,6 +423,13 @@ def test_makedirs_rejects_invalid_mount_id(mock_drive, failure, error):
         filesystem(drive, "FolderID").makedirs("FolderID", exist_ok=True)
 
 
+def test_makedirs_bare_root_is_independent_of_named_mount(mock_drive):
+    drive, requests = mock_drive(response({"mimeType": FOLDER_MIME_TYPE}))
+    filesystem(drive, "FolderID/missing").makedirs("FolderID", exist_ok=True)
+    (stat,) = requests
+    assert "q" not in query(stat)
+
+
 def test_makedirs_starts_at_cached_mount(mock_drive):
     def folder(name):
         return response(
@@ -464,10 +471,19 @@ def test_makedirs_classifies_drive_results_without_rereading_cache(
         response({"id": "leaf"}),
     )
     fs = filesystem(drive)
-    # Simulate a folder discovered by this lookup going into an expired cache.
-    mocker.patch.object(fs, "_cache_path_id")
+    cache_path = fs._cache_path_id
+
+    def cache_then_invalidate(path, *ids, **kwargs):
+        cache_path(path, *ids, **kwargs)
+        if path == "sub":
+            fs.invalidate_cache("root/sub")
+
+    mocker.patch.object(
+        fs, "_cache_path_id", side_effect=cache_then_invalidate
+    )
     fs.makedirs("root/sub/leaf")
     assert json.loads(requests[-1][2])["parents"] == ["folder"]
+    assert fs._ids_cache["ids"] == {"root": ""}
 
 
 def test_makedirs_rejects_file_at_nested_mount(mock_drive):

@@ -5,7 +5,6 @@ import os
 import posixpath
 import tempfile
 import threading
-from collections import defaultdict
 from contextlib import contextmanager
 from itertools import chain
 from typing import NotRequired, TypedDict
@@ -17,7 +16,6 @@ from funcy import (
     chunks,
     distinct,
     retry,
-    wrap_prop,
     wrap_with,
 )
 from tqdm.utils import CallbackIOWrapper
@@ -43,9 +41,29 @@ COMMON_SETTINGS = {
 
 
 class _IdsCache(TypedDict):
-    dirs: defaultdict[str, list[str]]
+    dirs: dict[str, list[str]]
     ids: dict[str, str]
     root_is_directory: NotRequired[bool]
+
+
+def _in_subtrees(path: str, roots: tuple[str, ...]) -> bool:
+    return any(
+        not root or path == root or path.startswith(root + "/")
+        for root in roots
+    )
+
+
+def _without_subtrees(cache: _IdsCache, roots: tuple[str, ...]) -> _IdsCache:
+    # In-flight lookups can still append to the old lists.
+    dirs = {
+        path: ids.copy()
+        for path, ids in cache["dirs"].items()
+        if not _in_subtrees(path, roots)
+    }
+    paths_by_id = {
+        item_id: path for path, ids in dirs.items() for item_id in ids
+    }
+    return {**cache, "dirs": dirs, "ids": paths_by_id}
 
 
 class GDriveAuthError(Exception):
@@ -255,6 +273,8 @@ class GDriveFileSystem(AbstractFileSystem):
         :raises: GDriveAuthError
         """
         super().__init__(**kwargs)
+        self._cache_lock = threading.RLock()
+        self._directory_ids: _IdsCache | None = None
         self.path = path
         self.root, self.base = self.split_path(self.path)
 
@@ -318,10 +338,15 @@ class GDriveFileSystem(AbstractFileSystem):
         parent, name = posixpath.split(base)
         return posixpath.join(root, parent), name
 
-    @wrap_prop(threading.RLock())
-    @cached_property
+    @property
     def _ids_cache(self) -> _IdsCache:
-        cache: _IdsCache = {"dirs": defaultdict(list), "ids": {}}
+        with self._cache_lock:
+            if self._directory_ids is None:
+                self._directory_ids = self._load_directory_ids()
+            return self._directory_ids
+
+    def _load_directory_ids(self) -> _IdsCache:
+        cache: _IdsCache = {"dirs": {}, "ids": {}}
 
         self._cache_path_id(
             self.base, *self._mount_directory_ids(), cache=cache
@@ -333,7 +358,7 @@ class GDriveFileSystem(AbstractFileSystem):
             return [self.root]
         parent, name = posixpath.split(self.base)
         parent_ids = self._path_to_item_ids(parent, use_cache=False)
-        items = self._named_items(parent_ids, name)
+        items = list(self._named_items(parent_ids, name))
         if not items:
             raise FileNotFoundError(
                 errno.ENOENT,
@@ -348,17 +373,47 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def _named_items(self, parent_ids, name):
         # Drive's name query is case-insensitive.
-        return [
-            item
-            for item in self._gdrive_list_ids(parent_ids, name=name)
-            if item["name"] == name
-        ]
+        for item in self._gdrive_list_ids(parent_ids, name=name):
+            if item["name"] == name:
+                yield item
 
     def _cache_path_id(self, path, *item_ids, cache=None):
-        cache = cache or self._ids_cache
-        for item_id in item_ids:
-            cache["ids"][item_id] = path
-            cache["dirs"][path].append(item_id)
+        with self._cache_lock:
+            cache = self._ids_cache if cache is None else cache
+            for item_id in item_ids:
+                old_path = cache["ids"].get(item_id)
+                if old_path == path:
+                    continue
+                if old_path is not None:
+                    cache["dirs"][old_path].remove(item_id)
+                    if not cache["dirs"][old_path]:
+                        del cache["dirs"][old_path]
+                cache["ids"][item_id] = path
+                cache["dirs"].setdefault(path, []).append(item_id)
+
+    def invalidate_cache(self, path=None):
+        self._invalidate_paths(path)
+
+    def _invalidate_paths(self, *paths):
+        subtrees = tuple(
+            self._split_mounted_path(p)[1] if p else "" for p in paths
+        )
+        for path in paths:
+            super().invalidate_cache(path)
+        with self._cache_lock:
+            if _in_subtrees(self.base, subtrees):
+                self._directory_ids = None
+            elif self._directory_ids is not None:
+                self._directory_ids = _without_subtrees(
+                    self._directory_ids, subtrees
+                )
+
+    def _is_cached_directory(self, item_id):
+        with self._cache_lock:
+            cache = self._directory_ids
+            return cache is not None and (
+                item_id == self.root or item_id in cache["ids"]
+            )
 
     @cached_property
     def _list_params(self):
@@ -429,47 +484,57 @@ class GDriveFileSystem(AbstractFileSystem):
                 yield item
 
     def _get_remote_item_ids(
-        self, parent_ids, parent_path, name, use_cache=True
+        self, parent_ids, parent_path, name, use_cache=True, cache=None
     ):
         if not parent_ids:
             return None
+        if use_cache and cache is None:
+            cache = self._ids_cache
         res = []
-        for item in self._gdrive_list_ids(parent_ids, name=name):
-            # GDrive list API is case insensitive, we need to compare
-            # all results and pick the ones with the right name
-            if item["name"] == name:
-                res.append(item["id"])
-
-                if item["mimeType"] == FOLDER_MIME_TYPE and use_cache:
-                    self._cache_path_id(
-                        posixpath.join(parent_path, item["name"]), item["id"]
-                    )
+        for item in self._named_items(parent_ids, name):
+            res.append(item["id"])
+            if item["mimeType"] == FOLDER_MIME_TYPE and use_cache:
+                self._cache_path_id(
+                    posixpath.join(parent_path, name), item["id"], cache=cache
+                )
 
         return res
 
-    def _get_cached_item_ids(self, path, use_cache):
+    def _get_cached_item_ids(self, path, use_cache, cache=None):
         if not path:
             return [self.root]
         if use_cache:
             # Another caller can add parents while a batched lookup is running.
-            return self._ids_cache["dirs"].get(path, []).copy()
+            with self._cache_lock:
+                cache = self._ids_cache if cache is None else cache
+                return cache["dirs"].get(path, []).copy()
         return []
 
-    def _path_to_item_ids(self, path, create=False, use_cache=True):
-        item_ids = self._get_cached_item_ids(path, use_cache)
+    def _path_to_item_ids(
+        self, path, create=False, use_cache=True, cache=None
+    ):
+        if not path:
+            return [self.root]
+        if use_cache and cache is None:
+            cache = self._ids_cache
+        item_ids = self._get_cached_item_ids(path, use_cache, cache)
         if item_ids:
             return item_ids
 
         parent_path, name = posixpath.split(path)
-        parent_ids = self._path_to_item_ids(parent_path, create, use_cache)
+        parent_ids = self._path_to_item_ids(
+            parent_path, create, use_cache, cache
+        )
         item_ids = self._get_remote_item_ids(
-            parent_ids, parent_path, name, use_cache
+            parent_ids, parent_path, name, use_cache, cache
         )
         if item_ids:
             return item_ids
 
         return (
-            [self._create_dir(min(parent_ids), name, path)] if create else []
+            [self._create_dir(min(parent_ids), name, path, cache=cache)]
+            if create
+            else []
         )
 
     def _get_item_id(self, path, create=False, use_cache=True):
@@ -495,14 +560,16 @@ class GDriveFileSystem(AbstractFileSystem):
         return item
 
     @wrap_with(threading.RLock())
-    def _create_dir(self, parent_id, name, remote_path, *, exist_ok=True):
-        cached = self._get_cached_item_ids(remote_path, use_cache=True)
+    def _create_dir(
+        self, parent_id, name, remote_path, *, cache=None, exist_ok=True
+    ):
+        cache = self._ids_cache if cache is None else cache
+        cached = self._get_cached_item_ids(remote_path, True, cache)
         if cached:
             if not exist_ok:
                 raise FileExistsError(posixpath.join(self.root, remote_path))
             return cached[0]
 
-        cache = self._ids_cache
         item = self._gdrive_create_dir(parent_id, name)
         self._cache_path_id(remote_path, item["id"], cache=cache)
 
@@ -518,11 +585,17 @@ class GDriveFileSystem(AbstractFileSystem):
         root, base = self._split_mounted_path(path)
         if not base:
             if root not in {"root", "appDataFolder"}:
-                cache = self._ids_cache
-                if not cache.get("root_is_directory"):
+                # Checking the root should not resolve a nested mount.
+                root_cache = (
+                    self._directory_ids if self.base else self._ids_cache
+                )
+                if root_cache is None or not root_cache.get(
+                    "root_is_directory"
+                ):
                     if self.info(path)["type"] != "directory":
                         raise FileExistsError(path)
-                    cache["root_is_directory"] = True
+                    if root_cache is not None:
+                        root_cache["root_is_directory"] = True
             if not exist_ok:
                 raise FileExistsError(path)
             return
@@ -531,7 +604,7 @@ class GDriveFileSystem(AbstractFileSystem):
         parent = base
         missing = []
         while not (
-            parent_ids := self._get_cached_item_ids(parent, use_cache=True)
+            parent_ids := self._get_cached_item_ids(parent, True, cache)
         ):
             parent, name = posixpath.split(parent)
             missing.append(name)
@@ -541,7 +614,7 @@ class GDriveFileSystem(AbstractFileSystem):
         for name in reversed(missing):
             child = posixpath.join(parent, name)
             leaf = child == base
-            matches = self._named_items(parent_ids, name)
+            matches = list(self._named_items(parent_ids, name))
             dirs = [
                 item["id"]
                 for item in matches
@@ -559,7 +632,11 @@ class GDriveFileSystem(AbstractFileSystem):
                 if not leaf and not create_parents:
                     raise FileNotFoundError(posixpath.join(root, child))
                 item_id = self._create_dir(
-                    min(parent_ids), name, child, exist_ok=not leaf or exist_ok
+                    min(parent_ids),
+                    name,
+                    child,
+                    cache=cache,
+                    exist_ok=not leaf or exist_ok,
                 )
                 dirs = [item_id]
             parent, parent_ids = child, dirs
@@ -619,9 +696,11 @@ class GDriveFileSystem(AbstractFileSystem):
 
         # Make sure the base path is cached and dir_ids below has some
         # dirs revelant to this call
-        self._path_to_item_ids(base)
+        cache = self._ids_cache
+        self._path_to_item_ids(base, cache=cache)
 
-        dir_ids = [self._ids_cache["ids"].copy()]
+        with self._cache_lock:
+            dir_ids = [cache["ids"].copy()]
         seen_paths: set[str] = set()
         contents = []
         while dir_ids:
@@ -654,7 +733,7 @@ class GDriveFileSystem(AbstractFileSystem):
                 item_path = posixpath.join(query_ids[parent_id], item["name"])
                 if item["mimeType"] == FOLDER_MIME_TYPE:
                     new_query_ids[item["id"]] = item_path
-                    self._cache_path_id(item_path, item["id"])
+                    self._cache_path_id(item_path, item["id"], cache=cache)
                     continue
                 contents.append(
                     _file_entry(posixpath.join(bucket, item_path), item)
@@ -708,8 +787,9 @@ class GDriveFileSystem(AbstractFileSystem):
         if maxdepth is not None:
             raise NotImplementedError("Max depth move is not supported")
 
+        path1 = posixpath.join(*self._split_mounted_path(path1)).rstrip("/")
+        path2 = posixpath.join(*self._split_mounted_path(path2)).rstrip("/")
         src_name = posixpath.basename(path1)
-
         src_parent = self._parent(path1)
 
         if self.exists(path2):
@@ -730,8 +810,9 @@ class GDriveFileSystem(AbstractFileSystem):
             file2_parent_id = self._get_item_id(dst_parent)
             file1["parents"] = [file2_parent_id]
 
-        # TODO need to invalidate the cache for the old path, see #232
         file1.Upload()
+        if file1.get("mimeType") == FOLDER_MIME_TYPE:
+            self._invalidate_paths(path1, posixpath.join(dst_parent, dst_name))
 
     def get_file(self, rpath, lpath, callback=None, block_size=None, **kwargs):
         with _translate_not_found(rpath):
@@ -789,6 +870,8 @@ class GDriveFileSystem(AbstractFileSystem):
     def rm_file(self, path):
         item_id = self._get_item_id(path)
         self._gdrive_delete_file(item_id)
+        if self._is_cached_directory(item_id):
+            self.invalidate_cache(path)
 
     @_gdrive_retry
     def _gdrive_delete_file(self, item_id):
