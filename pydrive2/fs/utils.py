@@ -22,7 +22,6 @@ class IterStream(io.RawIOBase):
         super().close()
 
     def _take(self, size):
-        self._checkClosed()
         if size == 0:
             return b""
         chunk = self.leftover or next(self.iterator, b"")
@@ -35,16 +34,18 @@ class IterStream(io.RawIOBase):
         return view[:size]
 
     def readinto(self, b):
-        dest = memoryview(b).cast("B")
-        if dest.readonly:
-            raise TypeError("readinto() requires a writable buffer")
-        chunk = self._take(len(dest))
-        dest[: len(chunk)] = chunk
-        return len(chunk)
+        self._checkClosed()
+        with memoryview(b).cast("B") as dest:
+            if dest.readonly:
+                raise TypeError("readinto() requires a writable buffer")
+            chunk = self._take(len(dest))
+            dest[: len(chunk)] = chunk
+            return len(chunk)
 
     readinto1 = readinto
 
     def read1(self, n=-1):
+        self._checkClosed()
         return bytes(self._take(n))
 
     def peek(self, n):

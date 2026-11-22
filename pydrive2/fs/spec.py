@@ -653,7 +653,7 @@ class GDriveFileSystem(AbstractFileSystem):
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
         options = {}
-        if block_size is not None and block_size > 0:
+        if block_size not in (None, "default") and block_size > 0:
             options["chunksize"] = block_size
         fd = gdrive_file.GetContentIOBuffer(
             acknowledge_abuse=self._acknowledge_abuse, **options
@@ -707,6 +707,7 @@ class GDriveBufferedWriter(io.BufferedIOBase):
         super().__init__()
         self.fs = fs
         self.path = path
+        self._memory_limit: int | None = fs.blocksize
         # The writer owns the spool until close(), including failed uploads.
         self.buffer = tempfile.SpooledTemporaryFile(  # noqa: SIM115
             max_size=fs.blocksize
@@ -716,9 +717,13 @@ class GDriveBufferedWriter(io.BufferedIOBase):
         return self.buffer.writable()
 
     def write(self, data):
-        # A single large write would otherwise fill BytesIO before rollover.
-        if memoryview(data).nbytes > self.fs.blocksize:
+        self._checkClosed()
+        # Roll before copying data into BytesIO. Once on disk, skip the size check.
+        if self._memory_limit is not None and (
+            self.buffer.tell() + memoryview(data).nbytes > self._memory_limit
+        ):
             self.buffer.rollover()
+            self._memory_limit = None
         return self.buffer.write(data)
 
     def flush(self):
