@@ -3,6 +3,7 @@ import io
 import logging
 import os
 import posixpath
+import tempfile
 import threading
 from collections import defaultdict
 from contextlib import contextmanager
@@ -684,22 +685,25 @@ class GDriveFileSystem(AbstractFileSystem):
 
         gdrive_file.GetContentFile(rpath, **extra_args)
 
-    def _open(self, path, mode, **kwargs):
+    def _open(self, path, mode, block_size=None, **kwargs):
         assert mode in {"rb", "wb"}
         if mode == "wb":
             self._split_file_path(path)
             return GDriveBufferedWriter(self, path)
         with _translate_not_found(path):
             item_id = self._get_item_id(path)
-            return self._gdrive_open_file(item_id)
+            return self._gdrive_open_file(item_id, block_size)
 
     @_gdrive_retry
-    def _gdrive_open_file(self, item_id):
+    def _gdrive_open_file(self, item_id, block_size=None):
         param = {"id": item_id}
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
+        options = {}
+        if block_size not in (None, "default") and block_size > 0:
+            options["chunksize"] = block_size
         fd = gdrive_file.GetContentIOBuffer(
-            acknowledge_abuse=self._acknowledge_abuse
+            acknowledge_abuse=self._acknowledge_abuse, **options
         )
         return IterStream(iter(fd))
 
@@ -743,43 +747,41 @@ class GDriveFileSystem(AbstractFileSystem):
             raise
 
 
-class GDriveBufferedWriter(io.IOBase):
+class GDriveBufferedWriter(io.BufferedIOBase):
+    """Stage a seekable body for Drive's resumable upload and send it on close."""
+
     def __init__(self, fs, path):
+        super().__init__()
         self.fs = fs
         self.path = path
-        self.buffer = io.BytesIO()
-        self._closed = False
-
-    def write(self, *args, **kwargs):
-        self.buffer.write(*args, **kwargs)
-
-    def readable(self):
-        return False
+        self._memory_limit: int | None = fs.blocksize
+        # The writer owns the spool until close(), including failed uploads.
+        self.buffer = tempfile.SpooledTemporaryFile(  # noqa: SIM115
+            max_size=fs.blocksize
+        )
 
     def writable(self):
-        return not self.readable()
+        return self.buffer.writable()
+
+    def write(self, data):
+        self._checkClosed()
+        # Roll before copying data into BytesIO. Once on disk, skip the size check.
+        if self._memory_limit is not None and (
+            self.buffer.tell() + memoryview(data).nbytes > self._memory_limit
+        ):
+            self.buffer.rollover()
+            self._memory_limit = None
+        return self.buffer.write(data)
 
     def flush(self):
         self.buffer.flush()
-        try:
-            self.fs.upload_fobj(self.buffer, self.path)
-        finally:
-            self._closed = True
 
     def close(self):
-        if self._closed:
+        if self.closed:
             return
-
-        self.flush()
-        self.buffer.close()
-        self._closed = True
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        self.close()
-
-    @property
-    def closed(self):
-        return self._closed
+        with self.buffer:
+            try:
+                self.buffer.seek(0)
+                self.fs.upload_fobj(self.buffer, self.path)
+            finally:
+                super().close()
