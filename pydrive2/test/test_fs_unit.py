@@ -94,6 +94,53 @@ def test_find_empty_folder_checks_trash_when_including_start(mock_drive):
     assert fs.find("FolderID", withdirs=True) == []
 
 
+@pytest.mark.parametrize("warm", [False, True])
+def test_find_at_depth_one_only_lists_the_requested_directory(
+    mock_drive, warm
+):
+    folder = {"name": "dir", "id": "D", "mimeType": FOLDER_MIME_TYPE}
+    sub = dict(folder, name="sub", id="S", parents=["D"])
+    sibling = dict(folder, name="dir2", id="other")
+    file = {
+        "name": "file",
+        "id": "F",
+        "mimeType": "text/plain",
+        "parents": ["D"],
+    }
+    warmup = (
+        [response({"files": [sub]}), response({"files": [sibling]})]
+        if warm
+        else []
+    )
+    drive, requests = mock_drive(
+        response({"files": [folder]}),
+        *warmup,
+        response({"files": [sub, file]}),
+    )
+    fs = filesystem(drive)
+    if warm:
+        assert fs.exists("root/dir/sub")
+        assert fs.exists("root/dir2")
+    found = fs.find("root/dir", 1, True, True)
+    assert set(found) == {"root/dir", "root/dir/sub", "root/dir/file"}
+    assert query(requests[-1])["q"] == ["('D' in parents) and trashed=false"]
+
+
+def test_find_legacy_positional_detail_and_invalid_depth(mock_drive):
+    item = {
+        "name": "file",
+        "id": "F",
+        "mimeType": "text/plain",
+        "parents": ["root"],
+    }
+    page = response({"files": [item]})
+    drive, _ = mock_drive(page, page)
+    fs = filesystem(drive)
+    assert fs.find("root", True) == fs.find("root", detail=True)
+    with pytest.raises(ValueError, match="maxdepth"):
+        fs.find("root", maxdepth=-1)
+
+
 def test_ls_deduplicates_a_file_shared_across_parent_batches(mock_drive):
     parents = [f"parent-{i}" for i in range(51)]
     shared = {
