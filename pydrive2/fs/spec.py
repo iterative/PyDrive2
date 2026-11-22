@@ -516,7 +516,9 @@ class GDriveFileSystem(AbstractFileSystem):
             return item_ids
 
         return (
-            [self._create_dir(min(parent_ids), name, path)] if create else []
+            [self._create_dir(min(parent_ids), name, path, cache=cache)]
+            if create
+            else []
         )
 
     def _get_item_id(self, path, create=False, use_cache=True):
@@ -542,12 +544,12 @@ class GDriveFileSystem(AbstractFileSystem):
         return item
 
     @wrap_with(threading.RLock())
-    def _create_dir(self, parent_id, name, remote_path):
-        cached = self._get_cached_item_ids(remote_path, use_cache=True)
+    def _create_dir(self, parent_id, name, remote_path, *, cache=None):
+        cache = self._ids_cache if cache is None else cache
+        cached = self._get_cached_item_ids(remote_path, True, cache)
         if cached:
             return cached[0]
 
-        cache = self._ids_cache
         item = self._gdrive_create_dir(parent_id, name)
         self._cache_path_id(remote_path, item["id"], cache=cache)
 

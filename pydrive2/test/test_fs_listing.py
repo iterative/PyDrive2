@@ -226,6 +226,23 @@ def test_invalidation_during_lookup(listing_fs, monkeypatch):
     assert fs._ids_cache["ids"] == {"root": ""}
 
 
+def test_invalidation_between_parent_lookup_and_create(listing_fs, mocker):
+    fs = listing_fs
+    fs._cache_path_id("dir", "old-parent")
+
+    def listing(*args, **kwargs):
+        fs.invalidate_cache("root/dir")
+        return []
+
+    mocker.patch.object(fs, "_gdrive_list_ids", side_effect=listing)
+    create = mocker.patch.object(
+        fs, "_gdrive_create_dir", return_value={"id": "child"}
+    )
+    assert fs._get_item_id("root/dir/child", create=True) == "child"
+    create.assert_called_once_with("old-parent", "child")
+    assert fs._ids_cache["ids"] == {"root": ""}
+
+
 def test_invalidating_parent_reloads_mount_on_next_lookup(mocker):
     fs = GDriveFileSystem(
         "root/parent/mount", google_auth=Mock(), skip_instance_cache=True
