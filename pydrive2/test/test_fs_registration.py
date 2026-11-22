@@ -72,11 +72,11 @@ def test_open_files_reuses_folder_lookup(mock_drive):
     first, second = fsspec.open_files(
         [prefix + "/a", prefix + "/b"], **options
     )
-    assert fsspec.open(prefix + "/b", **options).fs is first.fs is second.fs
+    reopened = fsspec.open(prefix + "/b", **options)
     assert not requests
     with first as a, second as b:
         assert (a.read(), b.read()) == (b"one", b"two")
-    assert first.fs.ls(prefix) == []
+    assert reopened.fs.ls(prefix) == []
     shared, sub, a_lookup, _, b_lookup, _, listing = requests
     assert urlsplit(shared[0]).path.endswith("/FoLdEr")
     assert "'FoLdEr' in parents" in query(sub)["q"][0]

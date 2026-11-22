@@ -201,47 +201,6 @@ def test_ls(fs, remote_dir):
     assert dirs == expected
 
 
-def test_basic_ops_caching(fs_factory, remote_dir, mocker):
-    # Internally we have to derefence names into IDs to call GDrive APIs
-    # we are trying hard to cache those and make sure that operations like
-    # exists, ls, find, etc. don't hit the API more than once per path
-
-    # ListFile (_gdrive_list) is the main operation that we use to retieve file
-    # metadata in all operations like find/ls/exist - etc. It should be fine as
-    # a basic benchmark to count those.
-    # Note: we can't count direct API calls since we have retries, also can't
-    # count even direct calls to the GDrive client - for the same reason
-    fs, _ = fs_factory()
-    spy = mocker.spy(fs, "_gdrive_list")
-
-    dir_path = remote_dir + "/a/b/c/"
-    file_path = dir_path + "test.txt"
-    fs.touch(file_path)
-
-    assert spy.call_count == 5
-    spy.reset_mock()
-
-    fs.exists(file_path)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.ls(remote_dir)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.ls(dir_path)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.find(dir_path)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.find(remote_dir)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-
 def test_ops_work_with_duplicate_names(fs_factory, remote_dir):
     fs, base_item = fs_factory()
 

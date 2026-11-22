@@ -74,6 +74,101 @@ def test_ls_deduplicates_a_file_shared_across_parent_batches(mock_drive):
     ] == [parents[:50], parents[50:]]
 
 
+def test_ls_finishes_listing_parents_resolved_before_a_rename(mock_drive):
+    parents = [folder("dir", f"id-{i}") for i in range(51)]
+    renamed = dict(parents[-1], name="renamed")
+    child = {"id": "child", "name": "last-file", "mimeType": "text/plain"}
+
+    def discover_rename(request):
+        if "'id-0' in parents" in query(request)["q"][0]:
+            assert fs.exists("root/renamed")
+
+    drive, requests = mock_drive(
+        listing(*parents),
+        listing(renamed),
+        listing(),
+        listing(child),
+        listing(),
+        on_request=discover_rename,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/dir")
+    assert fs.ls("root/dir") == ["root/dir/last-file"]
+    assert "'id-50' in parents" in query(requests[-1])["q"][0]
+    assert fs.ls("root/dir") == []
+    assert "'id-50' in parents" not in query(requests[-1])["q"][0]
+
+
+def test_ls_reuses_exact_case_folder_across_parent_batches(mock_drive):
+    parents = [folder("duplicate", f"id-{i}") for i in range(51)]
+    name = r"File's\name"
+    child = {"id": "child", "name": "contents", "mimeType": "text/plain"}
+    drive, requests = mock_drive(
+        listing(*parents),
+        listing(folder(name.lower(), "wrong-case")),
+        listing(folder(name, "exact")),
+        listing(child),
+    )
+    fs = filesystem(drive)
+    path = f"root/duplicate/{name}"
+    assert fs.exists(path)
+    assert fs.ls(path) == [path + "/contents"]
+
+    _, first, second, children = requests
+    for req, batch in ((first, parents[:50]), (second, parents[50:])):
+        q = query(req)["q"][0]
+        assert r"name='File\'s\\name'" in q
+        assert "trashed=false" in q
+        assert re.findall(r"'([^']+)' in parents", q) == [
+            p["id"] for p in batch
+        ]
+    assert re.findall(r"'([^']+)' in parents", query(children)["q"][0]) == [
+        "exact"
+    ]
+
+
+def test_nested_file_operations_reuse_resolved_directories(mock_drive):
+    sub = dict(folder("b", "B"), parents=["A"])
+    file = {
+        "name": "data",
+        "id": "file",
+        "mimeType": "text/plain",
+        "parents": ["B"],
+    }
+    drive, requests = mock_drive(
+        listing(folder("mount", "M")),
+        listing(),
+        response({"id": "A"}),
+        listing(),
+        response({"id": "B"}),
+        ({"status": "200", "location": "https://example.test/upload"}, ""),
+        response({"id": "file"}),
+        listing(file),
+        listing(sub),
+        listing(file),
+        listing(file),
+        listing(sub, file),
+    )
+    fs = filesystem(drive, "root/mount")
+    parent = "root/mount/a"
+    leaf = parent + "/b"
+    path = leaf + "/data"
+    fs.touch(path)
+    assert sum("q" in query(req) for req in requests) == 3
+
+    for operation, target, expected in (
+        (fs.exists, path, True),
+        (fs.ls, parent, [leaf + "/"]),
+        (fs.ls, leaf, [path]),
+        (fs.find, leaf, [path]),
+        (fs.find, parent, [path]),
+    ):
+        before = len(requests)
+        assert operation(target) == expected
+        (request,) = requests[before:]
+        assert "q" in query(request)
+
+
 def test_find_matches_legacy_parent_before_assuming_root(mock_drive):
     folder = {
         "id": "dir",
