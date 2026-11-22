@@ -590,58 +590,101 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             return [content["name"] for content in contents]
 
-    def find(self, path, detail=False, **kwargs):
-        bucket, base = self._split_mounted_path(path)
-
-        # Make sure the base path is cached and dir_ids below has some
-        # dirs revelant to this call
+    def find(
+        self, path, detail=False, *, maxdepth=None, withdirs=False, **kwargs
+    ):
+        root, base = self._split_mounted_path(path)
+        if maxdepth is not None and maxdepth < 0:
+            raise ValueError("maxdepth must be nonnegative")
+        # Older fsspec expand_path passes zero for a single-level listing.
+        if maxdepth == 0:
+            maxdepth = 1
         cache = self._ids_cache
-        self._path_to_item_ids(base, cache=cache)
+        start_ids = self._path_to_item_ids(base, cache=cache)
+        if not start_ids:
+            return {} if detail else []
+
+        # Warm directories at different depths can share a single batched
+        # query. Measure depth from the requested path, not the batch number.
+        prefix = base + "/" if base else ""
+
+        def descend(name):
+            if name == base:
+                return True
+            if not name.startswith(prefix):
+                return False
+            return (
+                maxdepth is None
+                or name[len(prefix) :].count("/") + 1 < maxdepth
+            )
 
         with self._cache_lock:
-            dir_ids = [cache["ids"].copy()]
-        seen_paths: set[str] = set()
+            known = cache["ids"].copy()
+        if not base:
+            known[root] = ""
+        pending = {
+            item_id: name for item_id, name in known.items() if descend(name)
+        }
+        start = posixpath.join(root, base).rstrip("/")
+        known_dir = (not base and root in {"root", "appDataFolder"}) or (
+            base != self.base and any(known.get(i) == base for i in start_ids)
+        )
         contents = []
-        while dir_ids:
-            query_ids = {
-                dir_id: dir_name
-                for dir_id, dir_name in dir_ids.pop().items()
-                if posixpath.commonpath([base, dir_name]) == base
-                if dir_id not in seen_paths
-            }
-            if not query_ids:
-                continue
+        if withdirs or not pending:
+            if known_dir:
+                entry = _file_entry(start, {"mimeType": FOLDER_MIME_TYPE})
+            else:
+                try:
+                    entry = self.info(path)
+                except FileNotFoundError:
+                    return {} if detail else []
+            if entry["type"] == "file":
+                return {start: entry} if detail else [start]
+            if withdirs:
+                contents.append(entry)
 
-            seen_paths |= query_ids.keys()
-
-            new_query_ids: dict[str, str] = {}
-            dir_ids.append(new_query_ids)
+        seen: set[str] = set()
+        while pending:
+            query_ids = pending
+            seen.update(query_ids)
+            pending = {}
             for item in self._gdrive_list_ids(query_ids):
-                # A root alias in the query is returned as its canonical ID.
+                # Drive returns the canonical ID when the query uses a root alias.
                 parent_id = next(
                     (p for p in item.get("parents", ()) if p in query_ids),
                     None,
                 )
                 if parent_id is None:
                     if (
-                        self.root not in {"root", "appDataFolder"}
-                        or self.root not in query_ids
+                        root not in {"root", "appDataFolder"}
+                        or root not in query_ids
                     ):
                         continue
-                    parent_id = self.root
+                    parent_id = root
                 item_path = posixpath.join(query_ids[parent_id], item["name"])
                 if item["mimeType"] == FOLDER_MIME_TYPE:
-                    new_query_ids[item["id"]] = item_path
-                    self._cache_path_id(item_path, item["id"], cache=cache)
-                    continue
+                    item_id = item["id"]
+                    self._cache_path_id(item_path, item_id, cache=cache)
+                    if item_id not in seen and descend(item_path):
+                        pending[item_id] = item_path
+                    if not withdirs:
+                        continue
                 contents.append(
-                    _file_entry(posixpath.join(bucket, item_path), item)
+                    _file_entry(posixpath.join(root, item_path), item)
                 )
 
+        # An untyped mount ID can also refer directly to a file.
+        if not contents and not known_dir and not withdirs:
+            try:
+                entry = self.info(path)
+            except FileNotFoundError:
+                return {} if detail else []
+            if entry["type"] == "file":
+                contents.append(entry)
+
         if detail:
-            return {content["name"]: content for content in contents}
-        else:
-            return [content["name"] for content in contents]
+            return {entry["name"].rstrip("/"): entry for entry in contents}
+        return [entry["name"].rstrip("/") for entry in contents]
 
     def upload_fobj(self, stream, rpath, callback=None, **kwargs):
         parent, name = self._split_file_path(rpath)
