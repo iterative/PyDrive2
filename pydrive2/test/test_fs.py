@@ -177,8 +177,7 @@ def test_rm(fs, remote_dir):
 
 
 def test_ls(fs, remote_dir):
-    _, base = fs.split_path(remote_dir + "/dir/")
-    fs._path_to_item_ids(base, create=True)
+    fs.makedirs(remote_dir + "/dir")
     assert fs.ls(remote_dir + "/dir/") == []
 
     files = set()
