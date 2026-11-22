@@ -389,11 +389,6 @@ See <a class="reference internal" href="../filemanagement/#abusive-files"><span 
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"file: </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>For sequential reads, pass a positive <code class="docutils literal notranslate"><span class="pre">block_size</span></code> to <code class="docutils literal notranslate"><span class="pre">fs.open()</span></code> to set
-the Drive download request size in bytes. A writer buffers data locally,
-using a temporary file for larger uploads. Calling <code class="docutils literal notranslate"><span class="pre">flush()</span></code> flushes the
-local buffer. Closing the writer uploads the file to Drive and reports any
-upload error.</p>
 <p>Filesystem instance offers a large number of methods for getting information
 about and manipulating files, refer to fsspec docs on
 <a class="reference external" href="https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system">how to use a filesystem</a>.</p>
