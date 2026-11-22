@@ -57,9 +57,12 @@ class IterStream(io.RawIOBase):
                 for chunk in self.iterator:
                     chunks.append(chunk)
                     available += len(chunk)
+                    del chunk
                     if available >= n:
                         break
             finally:
                 # Preserve fetched bytes even if a later request fails.
                 self.leftover = b"".join(chunks)
+                # Keep only the joined data in a retained traceback.
+                del chunks
         return bytes(self.leftover[:n])

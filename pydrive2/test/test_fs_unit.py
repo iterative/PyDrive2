@@ -224,14 +224,22 @@ def test_partial_reads_and_peek_across_chunks():
 
 
 def test_peek_preserves_buffer_if_next_chunk_fails():
+    first = bytearray(b"ab")
+    last = bytearray(b"cd")
+
     def chunks():
-        yield b"abc"
+        yield memoryview(first)
+        yield memoryview(last)
         raise OSError("download failed")
 
     with IterStream(chunks()) as stream:
-        with pytest.raises(OSError, match="download failed"):
-            stream.peek(4)
-        assert stream.read1() == b"abc"
+        with pytest.raises(OSError) as error:
+            stream.peek(5)
+        # The caller can reuse both source buffers while the traceback is alive.
+        first.clear()
+        last.clear()
+        assert str(error.value) == "download failed"
+        assert stream.read1() == b"abcd"
     with pytest.raises(ValueError, match="closed"):
         stream.read1()
     with pytest.raises(ValueError, match="closed"):
