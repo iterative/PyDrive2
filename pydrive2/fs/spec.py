@@ -17,7 +17,6 @@ from funcy import (
     chunks,
     distinct,
     retry,
-    wrap_prop,
     wrap_with,
 )
 from tqdm.utils import CallbackIOWrapper
@@ -254,6 +253,7 @@ class GDriveFileSystem(AbstractFileSystem):
         :raises: GDriveAuthError
         """
         super().__init__(**kwargs)
+        self._cache_lock = threading.RLock()
         self.path = path
         self.root, self.base = self.split_path(self.path)
 
@@ -317,9 +317,13 @@ class GDriveFileSystem(AbstractFileSystem):
         parent, name = posixpath.split(base)
         return posixpath.join(root, parent), name
 
-    @wrap_prop(threading.RLock())
-    @cached_property
+    @property
     def _ids_cache(self) -> _IdsCache:
+        with self._cache_lock:
+            return self._directory_ids
+
+    @cached_property
+    def _directory_ids(self) -> _IdsCache:
         cache: _IdsCache = {"dirs": defaultdict(list), "ids": {}}
 
         base_item_ids = self._path_to_item_ids(self.base, use_cache=False)
@@ -335,10 +339,47 @@ class GDriveFileSystem(AbstractFileSystem):
         return cache
 
     def _cache_path_id(self, path, *item_ids, cache=None):
-        cache = cache or self._ids_cache
-        for item_id in item_ids:
-            cache["ids"][item_id] = path
-            cache["dirs"][path].append(item_id)
+        with self._cache_lock:
+            cache = self._ids_cache if cache is None else cache
+            for item_id in item_ids:
+                old_path = cache["ids"].get(item_id)
+                if old_path == path:
+                    continue
+                if old_path is not None:
+                    cache["dirs"][old_path].remove(item_id)
+                    if not cache["dirs"][old_path]:
+                        del cache["dirs"][old_path]
+                cache["ids"][item_id] = path
+                cache["dirs"][path].append(item_id)
+
+    def invalidate_cache(self, path=None):
+        base = self._split_mounted_path(path)[1] if path is not None else ""
+        super().invalidate_cache(path)
+        with self._cache_lock:
+            old = self.__dict__.get("_directory_ids")
+            if old is None:
+                return
+            if (
+                not base
+                or self.base == base
+                or self.base.startswith(base + "/")
+            ):
+                del self.__dict__["_directory_ids"]
+                return
+            # Publish both indexes together. Reads already in flight can only
+            # populate the cache they started with.
+            kept: _IdsCache = {"dirs": defaultdict(list), "ids": {}}
+            for name, ids in old["dirs"].items():
+                if name != base and not name.startswith(base + "/"):
+                    self._cache_path_id(name, *ids, cache=kept)
+            self.__dict__["_directory_ids"] = kept
+
+    def _is_cached_directory(self, item_id):
+        with self._cache_lock:
+            cache = self.__dict__.get("_directory_ids")
+            return cache is not None and (
+                item_id == self.root or item_id in cache["ids"]
+            )
 
     @cached_property
     def _list_params(self):
@@ -409,10 +450,12 @@ class GDriveFileSystem(AbstractFileSystem):
                 yield item
 
     def _get_remote_item_ids(
-        self, parent_ids, parent_path, name, use_cache=True
+        self, parent_ids, parent_path, name, use_cache=True, cache=None
     ):
         if not parent_ids:
             return None
+        if use_cache and cache is None:
+            cache = self._ids_cache
         res = []
         for item in self._gdrive_list_ids(parent_ids, name=name):
             # GDrive list API is case insensitive, we need to compare
@@ -422,28 +465,40 @@ class GDriveFileSystem(AbstractFileSystem):
 
                 if item["mimeType"] == FOLDER_MIME_TYPE and use_cache:
                     self._cache_path_id(
-                        posixpath.join(parent_path, item["name"]), item["id"]
+                        posixpath.join(parent_path, item["name"]),
+                        item["id"],
+                        cache=cache,
                     )
 
         return res
 
-    def _get_cached_item_ids(self, path, use_cache):
+    def _get_cached_item_ids(self, path, use_cache, cache=None):
         if not path:
             return [self.root]
         if use_cache:
             # Another caller can add parents while a batched lookup is running.
-            return self._ids_cache["dirs"].get(path, []).copy()
+            with self._cache_lock:
+                cache = self._ids_cache if cache is None else cache
+                return cache["dirs"].get(path, []).copy()
         return []
 
-    def _path_to_item_ids(self, path, create=False, use_cache=True):
-        item_ids = self._get_cached_item_ids(path, use_cache)
+    def _path_to_item_ids(
+        self, path, create=False, use_cache=True, cache=None
+    ):
+        if not path:
+            return [self.root]
+        if use_cache and cache is None:
+            cache = self._ids_cache
+        item_ids = self._get_cached_item_ids(path, use_cache, cache)
         if item_ids:
             return item_ids
 
         parent_path, name = posixpath.split(path)
-        parent_ids = self._path_to_item_ids(parent_path, create, use_cache)
+        parent_ids = self._path_to_item_ids(
+            parent_path, create, use_cache, cache
+        )
         item_ids = self._get_remote_item_ids(
-            parent_ids, parent_path, name, use_cache
+            parent_ids, parent_path, name, use_cache, cache
         )
         if item_ids:
             return item_ids
@@ -540,9 +595,11 @@ class GDriveFileSystem(AbstractFileSystem):
 
         # Make sure the base path is cached and dir_ids below has some
         # dirs revelant to this call
-        self._path_to_item_ids(base)
+        cache = self._ids_cache
+        self._path_to_item_ids(base, cache=cache)
 
-        dir_ids = [self._ids_cache["ids"].copy()]
+        with self._cache_lock:
+            dir_ids = [cache["ids"].copy()]
         seen_paths: set[str] = set()
         contents = []
         while dir_ids:
@@ -575,7 +632,7 @@ class GDriveFileSystem(AbstractFileSystem):
                 item_path = posixpath.join(query_ids[parent_id], item["name"])
                 if item["mimeType"] == FOLDER_MIME_TYPE:
                     new_query_ids[item["id"]] = item_path
-                    self._cache_path_id(item_path, item["id"])
+                    self._cache_path_id(item_path, item["id"], cache=cache)
                     continue
                 contents.append(
                     _file_entry(posixpath.join(bucket, item_path), item)
@@ -651,8 +708,10 @@ class GDriveFileSystem(AbstractFileSystem):
             file2_parent_id = self._get_item_id(dst_parent)
             file1["parents"] = [file2_parent_id]
 
-        # TODO need to invalidate the cache for the old path, see #232
         file1.Upload()
+        if self._is_cached_directory(file1_id):
+            self.invalidate_cache(path1)
+            self.invalidate_cache(posixpath.join(dst_parent, dst_name))
 
     def get_file(self, rpath, lpath, callback=None, block_size=None, **kwargs):
         with _translate_not_found(rpath):
@@ -710,6 +769,8 @@ class GDriveFileSystem(AbstractFileSystem):
     def rm_file(self, path):
         item_id = self._get_item_id(path)
         self._gdrive_delete_file(item_id)
+        if self._is_cached_directory(item_id):
+            self.invalidate_cache(path)
 
     @_gdrive_retry
     def _gdrive_delete_file(self, item_id):

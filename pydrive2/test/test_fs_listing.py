@@ -185,3 +185,49 @@ def test_find_wide_directory(listing_fs, monkeypatch, detail):
             }
             for path, item in files.items()
         )
+
+
+@pytest.mark.parametrize("operation", ["trash", "move"])
+def test_directory_mutation_invalidates_subtree(listing_fs, mocker, operation):
+    fs = listing_fs
+    fs._cache_path_id("dir", "first", "second")
+    fs._cache_path_id("dir/nested", "nested")
+    fs._cache_path_id("directory", "unrelated")
+    mocker.patch.object(fs, "_gdrive_list_ids", return_value=[])
+    if operation == "trash":
+        delete = mocker.patch.object(fs, "_gdrive_delete_file")
+        fs.rm_file("root/dir")
+        delete.assert_called_once_with("first")
+    else:
+        source = mocker.patch.object(fs.client, "CreateFile")
+        fs.mv("root/dir", "root/renamed")
+        source.assert_called_once_with({"id": "first"})
+        source.return_value.Upload.assert_called_once_with()
+    assert not fs.exists("root/dir/nested")
+    assert not fs.exists("root/dir")
+    assert fs.exists("root/directory")
+    assert set(fs._ids_cache["ids"]) == {"root", "unrelated"}
+
+
+def test_invalidation_during_lookup(listing_fs, monkeypatch):
+    fs = listing_fs
+
+    def listing(*args, **kwargs):
+        fs.invalidate_cache("root/dir")
+        return [{"name": "dir", "id": "stale", "mimeType": FOLDER_MIME_TYPE}]
+
+    monkeypatch.setattr(fs, "_gdrive_list_ids", listing)
+    assert fs.exists("root/dir")
+    assert "stale" not in fs._ids_cache["ids"]
+    fs.invalidate_cache()
+    assert fs._ids_cache["ids"] == {"root": ""}
+
+
+def test_failed_removal_preserves_cache(listing_fs, mocker):
+    listing_fs._cache_path_id("dir", "folder")
+    mocker.patch.object(
+        listing_fs, "_gdrive_delete_file", side_effect=PermissionError
+    )
+    with pytest.raises(PermissionError):
+        listing_fs.rm_file("root/dir")
+    assert listing_fs.exists("root/dir")
