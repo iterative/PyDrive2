@@ -6,7 +6,7 @@ class IterStream(io.RawIOBase):
 
     def __init__(self, iterator):  # pylint: disable=super-init-not-called
         self.iterator = iterator
-        self.leftover = b""
+        self.leftover: bytes | memoryview = b""
 
     def readable(self):
         return True
@@ -14,43 +14,36 @@ class IterStream(io.RawIOBase):
     def writable(self) -> bool:
         return False
 
-    # Python 3 requires only .readinto() method, it still uses other ones
-    # under some circumstances and falls back if those are absent. Since
-    # iterator already constructs byte strings for us, .readinto() is not the
-    # most optimal, so we provide .read1() too.
+    def _take(self, size):
+        if size == 0:
+            return b""
+        chunk = self.leftover or next(self.iterator, b"")
+        if size < 0 or size >= len(chunk):
+            self.leftover = b""
+            return chunk
+        # A Drive response can be much larger than the caller's buffer.
+        view = memoryview(chunk)
+        self.leftover = view[size:]
+        return view[:size]
 
     def readinto(self, b):
-        try:
-            n = len(b)  # We're supposed to return at most this much
-            chunk = self.leftover or next(self.iterator)
-            output, self.leftover = chunk[:n], chunk[n:]
-
-            n_out = len(output)
-            b[:n_out] = output
-            return n_out
-        except StopIteration:
-            return 0  # indicate EOF
+        chunk = self._take(len(b))
+        b[: len(chunk)] = chunk
+        return len(chunk)
 
     readinto1 = readinto
 
     def read1(self, n=-1):
-        try:
-            chunk = self.leftover or next(self.iterator)
-        except StopIteration:
-            return b""
-
-        # Return an arbitrary number or bytes
-        if n <= 0:
-            self.leftover = b""
-            return chunk
-
-        output, self.leftover = chunk[:n], chunk[n:]
-        return output
+        return bytes(self._take(n))
 
     def peek(self, n):
-        while len(self.leftover) < n:
-            try:
-                self.leftover += next(self.iterator)
-            except StopIteration:
-                break
-        return self.leftover[:n]
+        available = len(self.leftover)
+        if available < n:
+            chunks = [self.leftover]
+            for chunk in self.iterator:
+                chunks.append(chunk)
+                available += len(chunk)
+                if available >= n:
+                    break
+            self.leftover = b"".join(chunks)
+        return bytes(self.leftover[:n])

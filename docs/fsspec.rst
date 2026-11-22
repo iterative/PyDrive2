@@ -11,29 +11,35 @@ Installation
 
   pip install 'pydrive2[fsspec]'
 
-Once installed, ``fsspec`` finds the filesystem under the ``gdrive``
-protocol, so files can be opened without importing PyDrive2 first:
+PyDrive2 registers the ``pydrive2://`` protocol with fsspec. The first
+component is a case-sensitive Drive ID or one of the aliases ``root`` and
+``appDataFolder``. Open an existing file by ID, or name a file relative to a
+folder that the account can access:
 
 .. code-block:: python
 
     import fsspec
 
-    fs = fsspec.filesystem(
-        "gdrive",
-        "root",
-        client_id="my_client_id",
-client_secret=<redacted>
-    )
+    options = {
+        "use_service_account": True,
+        "client_json_file_path": "/path/to/service-account.json",
+    }
+    with fsspec.open("pydrive2://FILE_ID", "rb", **options) as stream:
+        data = stream.read()
 
-    with fsspec.open(
-        "gdrive://root/path/to/file.txt",
-        client_id="my_client_id",
-client_secret=<redacted>
-    ) as f:
-        print(f.read())
+    with fsspec.open("pydrive2://FOLDER_ID/report.csv", "rt", **options) as stream:
+        header = stream.readline()
 
-Credentials are still required: without them the filesystem raises
-``ValueError`` telling you which credential to supply.
+    fs = fsspec.filesystem("pydrive2", path="FOLDER_ID", **options)
+    names = fs.ls("FOLDER_ID")
+
+A filesystem instance is scoped to one root. Use URLs under the same folder
+ID or root alias in a single ``fsspec.open_files`` call. Sibling URLs reuse
+the filesystem and its directory ID cache. Reads by file ID skip name
+lookups. Reads are sequential. To create a file, use a folder ID or root
+alias followed by a filename. As with the direct PyDrive2 filesystem,
+a write creates a Drive item even when a sibling has the same name. All
+reads require credentials, including files shared by link.
 
 Local webserver
 ---------------

@@ -6,6 +6,7 @@ from fsspec.callbacks import Callback
 
 from pydrive2.fs import GDriveFileSystem
 from pydrive2.fs.spec import FOLDER_MIME_TYPE
+from pydrive2.fs.utils import IterStream
 from pydrive2.test.http_mock import error_response, query, response
 
 
@@ -203,3 +204,29 @@ def test_download_progress_uses_media_responses(
     assert all(query(request)["alt"] == ["media"] for request in downloads)
     assert updates == expected
     assert dest.read_bytes() == b"xyz"
+
+
+def test_partial_reads_and_peek_across_chunks():
+    stream = IterStream(iter([b"abc", b"de", b"fghi"]))
+    assert stream.read1(0) == b""
+    assert stream.read1(1) == b"a"
+    assert stream.peek(5) == b"bcdef"
+    buf = bytearray(2)
+    assert stream.readinto(buf) == 2
+    assert buf == b"bc"
+    assert stream.peek(2) == b"de"
+    assert stream.read1() == b"defghi"
+    assert stream.read() == b""
+
+
+def test_open_respects_download_block_size(mock_drive):
+    drive, requests = mock_drive(
+        ({"status": "206", "content-range": "bytes 0-1/3"}, b"xy"),
+        ({"status": "206", "content-range": "bytes 2-2/3"}, b"z"),
+    )
+    with filesystem(drive, "FiLe").open("FiLe", block_size=2) as stream:
+        assert stream.read() == b"xyz"
+    assert [request[3]["range"] for request in requests] == [
+        "bytes=0-1",
+        "bytes=2-3",
+    ]

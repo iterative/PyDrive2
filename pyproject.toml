@@ -63,8 +63,8 @@ typing = ["mypy==2.4.1", "types-httplib2", "types-PyYAML"]
 hook-dirs = "pydrive2.__pyinstaller:get_hook_dirs"
 tests = "pydrive2.__pyinstaller:get_PyInstaller_tests"
 
-[project.entry-points.fsspec]
-gdrive = "pydrive2.fs:GDriveFileSystem"
+[project.entry-points."fsspec.specs"]
+pydrive2 = "pydrive2.fs:GDriveFileSystem"
 
 [tool.setuptools]
 packages=[

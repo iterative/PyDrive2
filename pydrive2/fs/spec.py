@@ -3,6 +3,7 @@ import io
 import logging
 import os
 import posixpath
+import tempfile
 import threading
 from collections import defaultdict
 from contextlib import contextmanager
@@ -191,7 +192,7 @@ def _service_auth(
 class GDriveFileSystem(AbstractFileSystem):
     """Access to gdrive as an fsspec filesystem"""
 
-    protocol = "gdrive"
+    protocol = "pydrive2"
 
     def __init__(
         self,
@@ -274,12 +275,24 @@ class GDriveFileSystem(AbstractFileSystem):
         self._trash_only = trash_only
         self._acknowledge_abuse = acknowledge_abuse
 
+    @classmethod
+    def _get_kwargs_from_urls(cls, path):
+        # A filesystem caches names relative to a single Drive root.
+        root, _, _ = cls._strip_protocol(path).partition("/")
+        return {} if root in {"", "root"} else {"path": root}
+
     def split_path(self, path):
-        parts = path.replace("//", "/").rstrip("/").split("/", 1)
-        if len(parts) == 2:
-            return parts
-        else:
-            return parts[0], ""
+        path = self._strip_protocol(path).replace("//", "/")
+        root, _, base = path.partition("/")
+        return root or "root", base
+
+    def _split_mounted_path(self, path):
+        root, base = self.split_path(path)
+        if root != self.root:
+            raise ValueError(
+                f"Path {path!r} is outside Drive root {self.root!r}"
+            )
+        return root, base
 
     @wrap_prop(threading.RLock())
     @cached_property
@@ -417,8 +430,7 @@ class GDriveFileSystem(AbstractFileSystem):
         )
 
     def _get_item_id(self, path, create=False, use_cache=True):
-        bucket, base = self.split_path(path)
-        assert bucket == self.root
+        _, base = self._split_mounted_path(path)
 
         item_ids = self._path_to_item_ids(base, create, use_cache)
         if item_ids:
@@ -451,8 +463,18 @@ class GDriveFileSystem(AbstractFileSystem):
         return item["id"]
 
     def exists(self, path):
+        from pydrive2.files import ApiRequestError
+
+        root, base = self._split_mounted_path(path)
         try:
-            self._get_item_id(path)
+            if not base and root not in {"root", "appDataFolder"}:
+                self.info(path)
+            else:
+                self._get_item_id(path)
+        except ApiRequestError as exc:
+            if exc.error.get("code") == 404:
+                return False
+            raise
         except FileNotFoundError:
             return False
         else:
@@ -466,12 +488,11 @@ class GDriveFileSystem(AbstractFileSystem):
         gdrive_file.FetchMetadata(fields=_INFO_FIELDS)
 
         return _file_entry(
-            posixpath.join(bucket, base.rstrip("/")), gdrive_file
+            posixpath.join(bucket, base).rstrip("/"), gdrive_file
         )
 
     def ls(self, path, detail=False):
-        bucket, base = self.split_path(path)
-        assert bucket == self.root
+        bucket, base = self._split_mounted_path(path)
 
         dir_ids = self._path_to_item_ids(base)
         if not dir_ids:
@@ -491,8 +512,7 @@ class GDriveFileSystem(AbstractFileSystem):
             return [content["name"] for content in contents]
 
     def find(self, path, detail=False, **kwargs):
-        bucket, base = self.split_path(path)
-        assert bucket == self.root
+        bucket, base = self._split_mounted_path(path)
 
         # Make sure the base path is cached and dir_ids below has some
         # dirs revelant to this call
@@ -641,21 +661,27 @@ class GDriveFileSystem(AbstractFileSystem):
 
         gdrive_file.GetContentFile(rpath, **extra_args)
 
-    def _open(self, path, mode, **kwargs):
-        assert mode in {"rb", "wb"}
+    def _open(self, path, mode, block_size=None, **kwargs):
+        if mode not in {"rb", "wb"}:
+            raise NotImplementedError(f"Unsupported Drive file mode {mode!r}")
         if mode == "wb":
+            if not self._split_mounted_path(path)[1]:
+                raise ValueError(
+                    "To create a Drive file, specify a folder ID and name"
+                )
             return GDriveBufferedWriter(self, path)
         else:
             item_id = self._get_item_id(path)
-            return self._gdrive_open_file(item_id)
+            return self._gdrive_open_file(item_id, block_size)
 
     @_gdrive_retry
-    def _gdrive_open_file(self, item_id):
+    def _gdrive_open_file(self, item_id, block_size=None):
         param = {"id": item_id}
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
+        options = {"chunksize": block_size} if block_size else {}
         fd = gdrive_file.GetContentIOBuffer(
-            acknowledge_abuse=self._acknowledge_abuse
+            acknowledge_abuse=self._acknowledge_abuse, **options
         )
         return IterStream(iter(fd))
 
@@ -699,43 +725,30 @@ class GDriveFileSystem(AbstractFileSystem):
             raise
 
 
-class GDriveBufferedWriter(io.IOBase):
+class GDriveBufferedWriter(io.BufferedIOBase):
+    """Buffer a new Drive file locally until the outermost writer closes."""
+
     def __init__(self, fs, path):
+        super().__init__()
         self.fs = fs
         self.path = path
-        self.buffer = io.BytesIO()
-        self._closed = False
+        # The writer owns this stream until close(), including upload failures.
+        self.buffer = tempfile.SpooledTemporaryFile(  # noqa: SIM115
+            max_size=fs.blocksize
+        )
 
-    def write(self, *args, **kwargs):
-        self.buffer.write(*args, **kwargs)
-
-    def readable(self):
-        return False
+    def write(self, data):
+        return self.buffer.write(data)
 
     def writable(self):
-        return not self.readable()
-
-    def flush(self):
-        self.buffer.flush()
-        try:
-            self.fs.upload_fobj(self.buffer, self.path)
-        finally:
-            self._closed = True
+        return True
 
     def close(self):
-        if self._closed:
+        if self.closed:
             return
-
-        self.flush()
-        self.buffer.close()
-        self._closed = True
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        self.close()
-
-    @property
-    def closed(self):
-        return self._closed
+        try:
+            self.buffer.seek(0)
+            self.fs.upload_fobj(self.buffer, self.path)
+        finally:
+            self.buffer.close()
+            super().close()
