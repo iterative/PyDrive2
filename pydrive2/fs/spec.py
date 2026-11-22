@@ -591,8 +591,12 @@ class GDriveFileSystem(AbstractFileSystem):
             return [content["name"] for content in contents]
 
     def find(
-        self, path, detail=False, *, maxdepth=None, withdirs=False, **kwargs
+        self, path, maxdepth=None, withdirs=False, detail=False, **kwargs
     ):
+        # PyDrive2 historically accepted a boolean detail as its second argument.
+        if isinstance(maxdepth, bool):
+            detail = detail or maxdepth
+            maxdepth = None
         root, base = self._split_mounted_path(path)
         if maxdepth is not None and maxdepth < 0:
             raise ValueError("maxdepth must be nonnegative")
