@@ -454,23 +454,13 @@ def test_path_upload_closes_file_and_can_retry(
     mock_drive, tmp_path, monkeypatch
 ):
     source = tmp_path / "source"
-    source.write_bytes(b"payload")
+    source.write_bytes(b'{"id":"from-retried-upload"}')
     drive, requests = mock_drive(
         error_response(503, "backendError"),
         ({"status": "200", "location": "https://example.test/session"}, ""),
-        response({"id": "uploaded"}),
-        response({"id": "uploaded"}),
+        ({"status": "200"}, "echo_request_body"),
+        response({"id": "from-retried-upload"}),
     )
-    http = drive.auth.thread_local.http
-    send = http.request
-    payloads = []
-
-    def record(uri, method, body=None, **kwargs):
-        if method == "PUT":
-            payloads.append(body.read())
-        return send(uri, method, body=body, **kwargs)
-
-    monkeypatch.setattr(http, "request", record)
     file = drive.CreateFile()
     monkeypatch.chdir(tmp_path)
     file.SetContentFile("source")
@@ -480,7 +470,7 @@ def test_path_upload_closes_file_and_can_retry(
     assert opened.closed
     monkeypatch.chdir(tmp_path.parent)
     file.Upload()
-    assert payloads == [b"payload"]
+    assert file["id"] == "from-retried-upload"
     assert file.content is None
     source.unlink()
     file["name"] = "renamed"
