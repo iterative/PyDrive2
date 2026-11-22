@@ -10,8 +10,8 @@ drive = GoogleDrive(gauth)
 file1 = drive.CreateFile()
 original_file_content = "Generic, non-exhaustive\n ASCII test string."
 file1.SetContentString(original_file_content)
-# {'convert': True} triggers conversion to a Google Drive document.
-file1.Upload({"convert": True})
+file1["mimeType"] = "application/vnd.google-apps.document"
+file1.Upload(media_mime_type="text/plain")
 
 
 # Download the file.

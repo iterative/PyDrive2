@@ -19,11 +19,11 @@ In this example, ``gauth`` is an authenticated
     # Create GoogleDrive instance with authenticated GoogleAuth instance.
     drive = GoogleDrive(gauth)
 
-    # Create GoogleDriveFile instance with title 'Hello.txt'.
-    file1 = drive.CreateFile({'title': 'Hello.txt'})
+    # Create GoogleDriveFile instance with name 'Hello.txt'.
+    file1 = drive.CreateFile({'name': 'Hello.txt'})
     file1.Upload() # Upload the file.
-    print('title: %s, id: %s' % (file1['title'], file1['id']))
-    # title: Hello.txt, id: {{FILE_ID}}
+    print('name: %s, id: %s' % (file1['name'], file1['id']))
+    # name: Hello.txt, id: {{FILE_ID}}
 
 :meth:`~pydrive2.drive.GoogleDrive.CreateFile` creates a local file object
 with the drive's credentials. Call
@@ -54,17 +54,17 @@ Update file metadata
 
 You can update the metadata on a :class:`~pydrive2.files.GoogleDriveFile`
 as you would update a ``dict``.
-The `Drive API v2 file resource`_ describes the metadata fields.
+The `Drive API v3 file resource`_ describes the metadata fields.
 
 Sample code continues from `Upload a new file`_:
 
 .. code-block:: python
 
-    file1['title'] = 'HelloWorld.txt' # Change title of the file.
+    file1['name'] = 'HelloWorld.txt' # Change name of the file.
     file1.Upload() # Update metadata.
-    print('title: %s' % file1['title']) # title: HelloWorld.txt.
+    print('name: %s' % file1['name']) # name: HelloWorld.txt.
 
-Now, the title of your file has changed to 'HelloWorld.txt'.
+Now, the name of your file has changed to 'HelloWorld.txt'.
 
 Download file metadata from file ID
 -----------------------------------
@@ -79,8 +79,8 @@ Sample code continues from above:
 
     # Create GoogleDriveFile instance with file id of file1.
     file2 = drive.CreateFile({'id': file1['id']})
-    print('title: %s, mimeType: %s' % (file2['title'], file2['mimeType']))
-    # title: HelloWorld.txt, mimeType: text/plain
+    print('name: %s, mimeType: %s' % (file2['name'], file2['mimeType']))
+    # name: HelloWorld.txt, mimeType: text/plain
 
 Handling special metadata
 -------------------------
@@ -104,9 +104,9 @@ PyDrive gives you access to the metadata of an object through
     # Fetches the 'permissions' metadata field.
     file1.FetchMetadata(fields='permissions')
     # You can update a list of specific fields like this:
-    file1.FetchMetadata(fields='permissions,labels,mimeType')
+    file1.FetchMetadata(fields='permissions,trashed,mimeType')
 
-See the `Drive API v2 file resource`_ for the available fields.
+See the `Drive API v3 file resource`_ for the available fields.
 
 Insert permissions
 __________________
@@ -122,15 +122,15 @@ readable to all who have a link to the file.
     # Insert the permission.
     permission = file1.InsertPermission({
                             'type': 'anyone',
-                            'value': 'anyone',
+                            'allowFileDiscovery': False,
                             'role': 'reader'})
 
-    print(file1['alternateLink'])  # Display the sharable link.
+    print(file1['webViewLink'])  # Display the sharable link.
 
 Note: ``InsertPermission()`` calls ``GetPermissions()`` after successfully
 inserting the permission.
 
-See the `permissions.insert request body`_ for the permission format.
+See the `permissions.create request body`_ for the permission format.
 This file is now shared and anyone with the link can view it. But what if you
 want to check whether a file is already shared?
 
@@ -180,11 +180,9 @@ delete one permission at a time by providing the permission's ID.
 Get files by complex queries
 ----------------------------
 
-Multiple files can have the same title. To narrow the results, combine
-``title`` with another field such as ``mimeType``. Google's
-`query string examples`_ use Drive API v3 field names. When adapting them
-for PyDrive2, use the corresponding v2 names. For example, the filename
-field in the query below is ``title``.
+Multiple files can have the same name. Combine ``name`` with another
+field such as ``mimeType`` in a Drive v3 search. See the
+`query string examples`_ for additional filters.
 
 .. code-block:: python
 
@@ -194,7 +192,7 @@ field in the query below is ``title``.
     filename = 'file_test'
     mimetype = 'text/plain'
     # Query
-    query = {'q': f"title = '{filename}' and mimeType='{mimetype}'"}
+    query = {'q': f"name = '{filename}' and mimeType='{mimetype}'"}
     # Get list of files that match against the query
     files = drive.ListFile(query).GetList()
 
@@ -215,6 +213,40 @@ Revisions can be fetched using the ``GetRevisions()`` function of a
 Not all files objects have revisions. If GetRevisions is called on a
 file object that does not have revisions, an exception will be raised.
 
+Upgrading from Drive API v2
+---------------------------
+
+PyDrive2 uses Drive API v3 for all requests. Existing file and folder IDs
+remain valid. Use v3 names in metadata dictionaries, field masks, and queries:
+
+- ``title`` becomes ``name``, ``fileSize`` becomes ``size``, and
+  ``alternateLink`` becomes ``webViewLink``.
+- File reads and listings request a subset of metadata by default. To read
+  additional fields, use ``FetchMetadata(fields="owners,capabilities")``,
+  ``FetchMetadata(fetch_all=True)``, or a list selector such as
+  ``files(id,name,shortcutDetails)``.
+- Read ``trashed`` directly and supply parent IDs as strings,
+  for example ``{"parents": [folder_id]}``. Assign the new parent list and
+  call ``Upload()`` to move an existing file.
+- Replace ``maxResults`` with ``pageSize`` and use a list field mask such
+  as ``files(id,name)``. See :doc:`filelist` for automatic pagination.
+- For user or group permissions, use ``emailAddress`` in place of
+  ``value``. For link sharing, set ``allowFileDiscovery=False``.
+  When calling ``InsertPermission(permission, param=...)``, rename the v2
+  request parameter ``sendNotificationEmails`` to ``sendNotificationEmail``.
+  For example, ``param={"sendNotificationEmail": False}`` disables the
+  notification when sharing with a user or group.
+- To import a file, replace the v2 ``convert`` flag with the target
+  Workspace MIME type and pass the original media type to ``Upload()``.
+
+.. code-block:: python
+
+    sheet = drive.CreateFile({"name": "Sales", "mimeType": "application/vnd.google-apps.spreadsheet"})
+    sheet.SetContentFile("sales.csv")
+    sheet.Upload(media_mime_type="text/csv")
+
+See Google's `Drive v2 to v3 reference`_ for the full field and method-parameter mappings.
+
 Upload and update file content
 ------------------------------
 
@@ -227,7 +259,7 @@ Sample code continues from `Download file metadata from file ID`_:
 .. code-block:: python
 
     file4 = drive.CreateFile({
-        'title': 'appdata.json',
+        'name': 'appdata.json',
         'mimeType': 'application/json',
     })
     file4.SetContentString('{"firstname": "John", "lastname": "Smith"}')
@@ -239,8 +271,8 @@ Sample code continues from `Download file metadata from file ID`_:
     # Read file and set it as a content of this instance.
     file5.SetContentFile('cat.png')
     file5.Upload() # Upload the file.
-    print('title: %s, mimeType: %s' % (file5['title'], file5['mimeType']))
-    # title: cat.png, mimeType: image/png
+    print('name: %s, mimeType: %s' % (file5['name'], file5['mimeType']))
+    # name: cat.png, mimeType: image/png
 
 :meth:`~pydrive2.files.GoogleDriveFile.SetContentString` and
 :meth:`~pydrive2.files.GoogleDriveFile.GetContentString` accept an optional
@@ -272,7 +304,7 @@ without first saving it to disk and calling
     drive = GoogleDrive(gauth)
     # Define file name and type
     metadata = {
-        'title': 'image_test',
+        'name': 'image_test',
         'mimeType': 'image/jpeg'
     }
     # Create file
@@ -295,10 +327,8 @@ Save the image from the previous example into a specific folder``:``
 .. code-block:: python
 
     metadata = {
-        'parents': [
-            {"id": id_drive_folder}
-        ],
-        'title': 'image_test',
+        'parents': [id_drive_folder],
+        'name': 'image_test',
         'mimeType': 'image/jpeg'
     }
     # Create file
@@ -310,7 +340,9 @@ Download file content
 
 Use :meth:`~pydrive2.files.GoogleDriveFile.GetContentFile` to download to
 disk or :meth:`~pydrive2.files.GoogleDriveFile.GetContentString` to read
-the content as text.
+the content as text. Disk downloads open the destination after the first
+successful read. If a later read fails, the file contains the chunks
+already written.
 
 Sample code continues from above:
 
@@ -353,12 +385,15 @@ cannot be downloaded' error, set 'acknowledge_abuse=True' parameter in
 `GetContentFile()`. By using it you indicate that you acknowledge the risks of
 downloading potential malware.
 
-.. _Drive API v2 file resource:
-   https://developers.google.com/workspace/drive/api/reference/rest/v2/files#resource:-file
-.. _permissions.insert request body:
-   https://developers.google.com/workspace/drive/api/reference/rest/v2/permissions/insert#request-body
+.. _Drive API v3 file resource:
+   https://developers.google.com/workspace/drive/api/reference/rest/v3/files#resource:-file
+.. _permissions.create request body:
+   https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create#request-body
 .. _query string examples:
    https://developers.google.com/workspace/drive/api/guides/search-files#examples
 .. _add a byte order mark to plain-text exports:
    https://github.com/googleapis/google-api-nodejs-client/issues/2404
 .. _`abusive`: https://support.google.com/docs/answer/148505
+
+.. _Drive v2 to v3 reference:
+   https://developers.google.com/workspace/drive/api/guides/v2-to-v3-reference
