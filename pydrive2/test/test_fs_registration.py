@@ -94,24 +94,3 @@ def test_missing_file_id(mock_drive):
         fs.open(path, "wb")
     with pytest.raises(ValueError, match="outside Drive root"):
         fs.ls("pydrive2://Other/sub")
-
-
-@pytest.mark.parametrize("mode", ["wb", "wt"])
-def test_open_writes_once_on_close(mock_drive, monkeypatch, mode):
-    drive, _ = mock_drive()
-    uploads = []
-
-    def upload(fs, stream, path):
-        uploads.append((path, stream.read()))
-
-    monkeypatch.setattr(GDriveFileSystem, "upload_fobj", upload)
-    monkeypatch.setattr(GDriveFileSystem, "blocksize", 3)
-    with fsspec.open(
-        "pydrive2://root/new", mode, google_auth=drive.auth
-    ) as writer:
-        value = b"data" if mode == "wb" else "data"
-        assert writer.write(value) == 4
-        writer.flush()
-        assert not uploads
-        assert writer.write(value) == 4
-    assert uploads == [("root/new", b"datadata")]

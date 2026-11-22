@@ -3,7 +3,6 @@ import io
 import logging
 import os
 import posixpath
-import tempfile
 import threading
 from collections import defaultdict
 from contextlib import contextmanager
@@ -661,9 +660,8 @@ class GDriveFileSystem(AbstractFileSystem):
 
         gdrive_file.GetContentFile(rpath, **extra_args)
 
-    def _open(self, path, mode, block_size=None, **kwargs):
-        if mode not in {"rb", "wb"}:
-            raise NotImplementedError(f"Unsupported Drive file mode {mode!r}")
+    def _open(self, path, mode, **kwargs):
+        assert mode in {"rb", "wb"}
         if mode == "wb":
             if not self._split_mounted_path(path)[1]:
                 raise ValueError(
@@ -672,16 +670,15 @@ class GDriveFileSystem(AbstractFileSystem):
             return GDriveBufferedWriter(self, path)
         else:
             item_id = self._get_item_id(path)
-            return self._gdrive_open_file(item_id, block_size)
+            return self._gdrive_open_file(item_id)
 
     @_gdrive_retry
-    def _gdrive_open_file(self, item_id, block_size=None):
+    def _gdrive_open_file(self, item_id):
         param = {"id": item_id}
         # it does not create a file on the remote
         gdrive_file = self.client.CreateFile(param)
-        options = {"chunksize": block_size} if block_size else {}
         fd = gdrive_file.GetContentIOBuffer(
-            acknowledge_abuse=self._acknowledge_abuse, **options
+            acknowledge_abuse=self._acknowledge_abuse
         )
         return IterStream(iter(fd))
 
@@ -725,30 +722,43 @@ class GDriveFileSystem(AbstractFileSystem):
             raise
 
 
-class GDriveBufferedWriter(io.BufferedIOBase):
-    """Buffer a new Drive file locally until the outermost writer closes."""
-
+class GDriveBufferedWriter(io.IOBase):
     def __init__(self, fs, path):
-        super().__init__()
         self.fs = fs
         self.path = path
-        # The writer owns this stream until close(), including upload failures.
-        self.buffer = tempfile.SpooledTemporaryFile(  # noqa: SIM115
-            max_size=fs.blocksize
-        )
+        self.buffer = io.BytesIO()
+        self._closed = False
 
-    def write(self, data):
-        return self.buffer.write(data)
+    def write(self, *args, **kwargs):
+        self.buffer.write(*args, **kwargs)
+
+    def readable(self):
+        return False
 
     def writable(self):
-        return True
+        return not self.readable()
 
-    def close(self):
-        if self.closed:
-            return
+    def flush(self):
+        self.buffer.flush()
         try:
-            self.buffer.seek(0)
             self.fs.upload_fobj(self.buffer, self.path)
         finally:
-            self.buffer.close()
-            super().close()
+            self._closed = True
+
+    def close(self):
+        if self._closed:
+            return
+
+        self.flush()
+        self.buffer.close()
+        self._closed = True
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        self.close()
+
+    @property
+    def closed(self):
+        return self._closed
