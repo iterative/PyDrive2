@@ -191,7 +191,7 @@ def _service_auth(
 class GDriveFileSystem(AbstractFileSystem):
     """Access to gdrive as an fsspec filesystem"""
 
-    protocol = "pydrive2"
+    protocol = "gdrive"
 
     def __init__(
         self,

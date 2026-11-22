@@ -11,8 +11,14 @@ Installation
 
   pip install 'pydrive2[fsspec]'
 
-PyDrive2 registers the ``pydrive2://`` protocol with fsspec. The first
-component is a case-sensitive Drive ID or one of the aliases ``root`` and
+Installing PyDrive2 registers ``gdrive://`` with fsspec. The ``[fsspec]``
+extra installs the dependencies needed to use the backend. This registration
+takes precedence over fsspec's built-in mapping to ``gdrive-fsspec``. If
+both packages are installed, ``fsspec.open("gdrive://...")`` uses PyDrive2's
+paths and credentials. To select the other backend, instantiate
+``gdrive_fsspec.GoogleDriveFileSystem`` directly.
+
+The first path component is a case-sensitive Drive ID, ``root``, or
 ``appDataFolder``. Open an existing file by ID, or name a file relative to a
 folder that the account can access:
 
@@ -24,13 +30,13 @@ folder that the account can access:
         "use_service_account": True,
         "client_json_file_path": "/path/to/service-account.json",
     }
-    with fsspec.open("pydrive2://FILE_ID", "rb", **options) as stream:
+    with fsspec.open("gdrive://FILE_ID", "rb", **options) as stream:
         data = stream.read()
 
-    with fsspec.open("pydrive2://FOLDER_ID/report.csv", "rt", **options) as stream:
+    with fsspec.open("gdrive://FOLDER_ID/report.csv", "rt", **options) as stream:
         header = stream.readline()
 
-    fs = fsspec.filesystem("pydrive2", path="FOLDER_ID", **options)
+    fs = fsspec.filesystem("gdrive", path="FOLDER_ID", **options)
     names = fs.ls("FOLDER_ID")
 
 A filesystem instance is scoped to one root. Use URLs under the same folder

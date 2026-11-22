@@ -329,11 +329,11 @@ def test_open_rw(fs, remote_dir):
 
 def test_fsspec_urls(fs, remote_dir):
     options = {"google_auth": fs.client.auth}
-    named_url = f"pydrive2://{remote_dir}/report.txt"
+    named_url = f"gdrive://{remote_dir}/report.txt"
     with fsspec.open(named_url, "wt", **options) as stream:
         stream.write("hello")
     file_id = fs._get_item_id(remote_dir + "/report.txt")
-    with fsspec.open(f"pydrive2://{file_id}", "rt", **options) as stream:
+    with fsspec.open(f"gdrive://{file_id}", "rt", **options) as stream:
         assert stream.read() == "hello"
 
 

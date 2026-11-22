@@ -19,7 +19,7 @@ def test_fsspec_discovers_backend_without_eager_import():
                 "import fsspec, sys\n"
                 "assert 'pydrive2.fs' not in sys.modules\n"
                 "assert 'googleapiclient.discovery' not in sys.modules\n"
-                "cls = fsspec.get_filesystem_class('pydrive2')\n"
+                "cls = fsspec.get_filesystem_class('gdrive')\n"
                 "from pydrive2.fs import GDriveFileSystem\n"
                 "assert cls is GDriveFileSystem"
             ),
@@ -30,9 +30,9 @@ def test_fsspec_discovers_backend_without_eager_import():
 
 def test_filesystem_factory(mock_drive):
     with pytest.raises(ValueError, match="Specify credentials"):
-        fsspec.filesystem("pydrive2")
+        fsspec.filesystem("gdrive")
     drive, requests = mock_drive()
-    fs = fsspec.filesystem("pydrive2", google_auth=drive.auth)
+    fs = fsspec.filesystem("gdrive", google_auth=drive.auth)
     assert (fs.root, fs.base) == ("root", "")
     mounted = GDriveFileSystem("FoLdEr/sub", google_auth=drive.auth)
     assert (mounted.root, mounted.base) == ("FoLdEr", "sub")
@@ -41,7 +41,7 @@ def test_filesystem_factory(mock_drive):
 
 def test_open_by_file_id(mock_drive):
     drive, requests = mock_drive(({"status": "200"}, b"contents"))
-    with fsspec.open("pydrive2://FiLe_ID", google_auth=drive.auth) as stream:
+    with fsspec.open("gdrive://FiLe_ID", google_auth=drive.auth) as stream:
         assert stream.read() == b"contents"
     (download,) = requests
     assert urlsplit(download[0]).path == "/drive/v3/files/FiLe_ID"
@@ -63,7 +63,7 @@ def test_open_files_reuses_folder_lookup(mock_drive):
         ({"status": "200"}, b"two"),
         response({"files": []}),
     )
-    prefix = "pydrive2://FoLdEr/sub"
+    prefix = "gdrive://FoLdEr/sub"
     options = {"google_auth": drive.auth}
     first, second = fsspec.open_files(
         [prefix + "/a", prefix + "/b"], **options
@@ -86,11 +86,11 @@ def test_open_files_reuses_folder_lookup(mock_drive):
 def test_missing_file_id(mock_drive):
     drive, requests = mock_drive(error_response(404, "notFound"))
     fs, path = fsspec.core.url_to_fs(
-        "pydrive2://Missing", google_auth=drive.auth
+        "gdrive://Missing", google_auth=drive.auth
     )
     assert not fs.exists(path)
     assert len(requests) == 1
     with pytest.raises(ValueError, match="folder ID and name"):
         fs.open(path, "wb")
     with pytest.raises(ValueError, match="outside Drive root"):
-        fs.ls("pydrive2://Other/sub")
+        fs.ls("gdrive://Other/sub")
