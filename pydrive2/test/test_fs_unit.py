@@ -319,15 +319,17 @@ def test_rediscovered_directory_id_leaves_its_old_path(mock_drive):
 
 
 def test_empty_root_marker_refreshes_a_folder_id_mount(mock_drive):
-    drive, _ = mock_drive(
+    drive, requests = mock_drive(
         response({"driveId": "shared"}),
         listing(folder("dir", "old")),
+        response({"driveId": "new-drive"}),
         listing(),
     )
     fs = filesystem(drive, "FolderID")
     assert fs.exists("FolderID/dir")
     fs.invalidate_cache("")
     assert not fs.exists("FolderID/dir")
+    assert query(requests[-1])["driveId"] == ["new-drive"]
 
 
 @pytest.mark.parametrize("operation", ["rename", "delete"])
@@ -670,14 +672,61 @@ def test_makedirs_rejects_file(mock_drive, path, expected):
     assert [req[1] for req in requests] == ["GET"]
 
 
-def test_makedirs_validates_mount_id_once(mock_drive):
-    drive, requests = mock_drive(response({"mimeType": FOLDER_MIME_TYPE}))
+@pytest.mark.parametrize("list_first", [False, True])
+def test_makedirs_and_ls_share_mount_metadata(mock_drive, list_first):
+    drive, requests = mock_drive(
+        response({"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}),
+        listing(),
+    )
     fs = filesystem(drive, "FolderID")
+    if list_first:
+        assert fs.ls("FolderID") == []
     fs.makedirs("FolderID", exist_ok=True)
+    fs.invalidate_cache("FolderID/sub")
+    if not list_first:
+        assert fs.ls("FolderID") == []
     fs.makedirs("FolderID", exist_ok=True)
     with pytest.raises(FileExistsError):
         fs.mkdir("FolderID")
-    assert len(requests) == 1
+    stat, children = requests
+    assert set(query(stat)["fields"][0].split(",")) == {
+        "driveId",
+        "mimeType",
+        "trashed",
+    }
+    assert query(children)["driveId"] == ["shared"]
+
+
+def test_invalidating_root_during_stat_discards_its_result(mock_drive):
+    def invalidate(request):
+        fs.invalidate_cache("FolderID")
+
+    root = {"mimeType": FOLDER_MIME_TYPE}
+    drive, _ = mock_drive(
+        response(root),
+        response(dict(root, trashed=True)),
+        on_request=invalidate,
+    )
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID", exist_ok=True)
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID", exist_ok=True)
+
+
+def test_makedirs_after_trashing_and_restoring_the_mount(mock_drive):
+    root = {"mimeType": FOLDER_MIME_TYPE}
+    drive, _ = mock_drive(
+        response(root),
+        response({"trashed": True}),
+        response(dict(root, trashed=True)),
+        response(root),
+    )
+    fs = filesystem(drive, "FolderID", trash_only=True)
+    fs.makedirs("FolderID", exist_ok=True)
+    fs.rm_file("FolderID")
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID", exist_ok=True)
+    fs.makedirs("FolderID", exist_ok=True)
 
 
 @pytest.mark.parametrize(

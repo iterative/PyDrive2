@@ -7,12 +7,11 @@ import tempfile
 import threading
 from contextlib import contextmanager
 from itertools import chain
-from typing import NotRequired, TypedDict
+from typing import TypedDict
 
 import appdirs
 from fsspec.spec import AbstractFileSystem
 from funcy import (
-    cached_property,
     chunks,
     distinct,
     retry,
@@ -43,7 +42,6 @@ COMMON_SETTINGS = {
 class _IdsCache(TypedDict):
     dirs: dict[str, list[str]]
     ids: dict[str, str]
-    root_is_directory: NotRequired[bool]
 
 
 def _in_subtrees(path: str, roots: tuple[str, ...]) -> bool:
@@ -63,7 +61,7 @@ def _without_subtrees(cache: _IdsCache, roots: tuple[str, ...]) -> _IdsCache:
     paths_by_id = {
         item_id: path for path, ids in dirs.items() for item_id in ids
     }
-    return {**cache, "dirs": dirs, "ids": paths_by_id}
+    return {"dirs": dirs, "ids": paths_by_id}
 
 
 class GDriveAuthError(Exception):
@@ -275,6 +273,7 @@ class GDriveFileSystem(AbstractFileSystem):
         super().__init__(**kwargs)
         self._cache_lock = threading.RLock()
         self._directory_ids: _IdsCache | None = None
+        self._root_metadata: dict = {}
         self.path = path
         self.root, self.base = self.split_path(self.path)
 
@@ -401,6 +400,8 @@ class GDriveFileSystem(AbstractFileSystem):
         for path in paths:
             super().invalidate_cache(path)
         with self._cache_lock:
+            if "" in subtrees:
+                self._root_metadata = {}
             if _in_subtrees(self.base, subtrees):
                 self._directory_ids = None
             elif self._directory_ids is not None:
@@ -411,43 +412,41 @@ class GDriveFileSystem(AbstractFileSystem):
     def _is_cached_directory(self, item_id):
         with self._cache_lock:
             cache = self._directory_ids
-            return cache is not None and (
-                item_id == self.root or item_id in cache["ids"]
-            )
+            return cache is not None and item_id in cache["ids"]
 
-    @cached_property
+    @property
     def _list_params(self):
         params = {"corpora": "user"}
         if self.root == "appDataFolder":
             params["spaces"] = "appDataFolder"
         elif self.root != "root":
-            drive_id = self._gdrive_shared_drive_id(self.root)
+            try:
+                drive_id = self._get_root_metadata().get("driveId")
+            except FileNotFoundError as exc:
+                raise PermissionError from exc
             if drive_id:
-                logger.debug(
-                    f"GDrive remote '{self.path}' is using shared drive id '{drive_id}'."
-                )
-                params["driveId"] = drive_id
-                params["corpora"] = "drive"
+                params.update(driveId=drive_id, corpora="drive")
         return params
 
     @_gdrive_retry
-    def _gdrive_shared_drive_id(self, item_id):
-        from pydrive2.files import ApiRequestError
-
-        param = {"id": item_id}
-        # it does not create a file on the remote
-        item = self.client.CreateFile(param)
-        # ID of the shared drive the item resides in.
-        # Only populated for items in shared drives.
-        try:
-            item.FetchMetadata("driveId")
-        except ApiRequestError as exc:
-            error_code = exc.error.get("code", 0)
-            if error_code == 404:
-                raise PermissionError from exc
-            raise
-
-        return item.get("driveId", None)
+    def _get_root_metadata(self):
+        with self._cache_lock:
+            # A root invalidation during the request replaces this dictionary.
+            metadata = self._root_metadata
+            if not metadata:
+                item = self.client.CreateFile({"id": self.root})
+                with _translate_not_found(self.root):
+                    item.FetchMetadata("driveId,mimeType,trashed")
+                if item.get("trashed"):
+                    return item.metadata
+                metadata.update(item.metadata)
+                if drive_id := metadata.get("driveId"):
+                    logger.debug(
+                        "GDrive remote %r is using shared drive id %r.",
+                        self.path,
+                        drive_id,
+                    )
+            return metadata
 
     def _gdrive_list(self, query):
         param = {
@@ -585,17 +584,13 @@ class GDriveFileSystem(AbstractFileSystem):
         root, base = self._split_mounted_path(path)
         if not base:
             if root not in {"root", "appDataFolder"}:
-                # Checking the root should not resolve a nested mount.
-                root_cache = (
-                    self._directory_ids if self.base else self._ids_cache
-                )
-                if root_cache is None or not root_cache.get(
-                    "root_is_directory"
-                ):
-                    if self.info(path)["type"] != "directory":
-                        raise FileExistsError(path)
-                    if root_cache is not None:
-                        root_cache["root_is_directory"] = True
+                metadata = self._get_root_metadata()
+                if metadata.get("trashed"):
+                    raise FileNotFoundError(
+                        errno.ENOENT, os.strerror(errno.ENOENT), path
+                    )
+                if metadata.get("mimeType") != FOLDER_MIME_TYPE:
+                    raise FileExistsError(path)
             if not exist_ok:
                 raise FileExistsError(path)
             return
@@ -870,7 +865,7 @@ class GDriveFileSystem(AbstractFileSystem):
     def rm_file(self, path):
         item_id = self._get_item_id(path)
         self._gdrive_delete_file(item_id)
-        if self._is_cached_directory(item_id):
+        if item_id == self.root or self._is_cached_directory(item_id):
             self.invalidate_cache(path)
 
     @_gdrive_retry
