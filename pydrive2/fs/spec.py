@@ -98,6 +98,20 @@ def _gdrive_retry(func):
 
 
 @contextmanager
+def _translate_not_found(path):
+    from pydrive2.files import ApiRequestError
+
+    try:
+        yield
+    except ApiRequestError as exc:
+        if exc.error.get("code") != 404:
+            raise
+        raise FileNotFoundError(
+            errno.ENOENT, os.strerror(errno.ENOENT), path
+        ) from exc
+
+
+@contextmanager
 def _wrap_errors():
     try:
         yield
@@ -293,6 +307,15 @@ class GDriveFileSystem(AbstractFileSystem):
             )
         return root, base
 
+    def _split_file_path(self, path):
+        root, base = self._split_mounted_path(path)
+        if not base:
+            raise ValueError(
+                "To create a Drive file, specify a folder ID and name"
+            )
+        parent, name = posixpath.split(base)
+        return posixpath.join(root, parent), name
+
     @wrap_prop(threading.RLock())
     @cached_property
     def _ids_cache(self) -> _IdsCache:
@@ -462,18 +485,13 @@ class GDriveFileSystem(AbstractFileSystem):
         return item["id"]
 
     def exists(self, path):
-        from pydrive2.files import ApiRequestError
-
         root, base = self._split_mounted_path(path)
         try:
             if not base and root not in {"root", "appDataFolder"}:
                 self.info(path)
             else:
-                self._get_item_id(path)
-        except ApiRequestError as exc:
-            if exc.error.get("code") == 404:
-                return False
-            raise
+                with _translate_not_found(path):
+                    self._get_item_id(path)
         except FileNotFoundError:
             return False
         else:
@@ -482,9 +500,15 @@ class GDriveFileSystem(AbstractFileSystem):
     @_gdrive_retry
     def info(self, path):
         bucket, base = self.split_path(path)
-        item_id = self._get_item_id(path)
-        gdrive_file = self.client.CreateFile({"id": item_id})
-        gdrive_file.FetchMetadata(fields=_INFO_FIELDS)
+        with _translate_not_found(path):
+            item_id = self._get_item_id(path)
+            gdrive_file = self.client.CreateFile({"id": item_id})
+            fields = _INFO_FIELDS if base else f"{_INFO_FIELDS},trashed"
+            gdrive_file.FetchMetadata(fields=fields)
+        if not base and gdrive_file.get("trashed"):
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), path
+            )
 
         return _file_entry(
             posixpath.join(bucket, base).rstrip("/"), gdrive_file
@@ -562,14 +586,13 @@ class GDriveFileSystem(AbstractFileSystem):
             return [content["name"] for content in contents]
 
     def upload_fobj(self, stream, rpath, callback=None, **kwargs):
-        parent_id = self._get_item_id(self._parent(rpath), create=True)
+        parent, name = self._split_file_path(rpath)
+        parent_id = self._get_item_id(parent, create=True)
         if callback:
             stream = CallbackIOWrapper(
                 callback.relative_update, stream, "read"
             )
-        return self._gdrive_upload_fobj(
-            posixpath.basename(rpath.rstrip("/")), parent_id, stream
-        )
+        return self._gdrive_upload_fobj(name, parent_id, stream)
 
     def put_file(self, lpath, rpath, callback=None, **kwargs):
         if callback:
@@ -586,9 +609,9 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def cp_file(self, lpath, rpath, **kwargs):
         """Ask Drive to copy the file directly into the destination folder."""
+        parent, name = self._split_file_path(rpath)
         source_id = self._get_item_id(lpath)
-        parent_id = self._get_item_id(self._parent(rpath), create=True)
-        name = posixpath.basename(rpath.rstrip("/"))
+        parent_id = self._get_item_id(parent, create=True)
         self._gdrive_copy_file(source_id, parent_id, name)
 
     @_gdrive_retry
@@ -631,10 +654,11 @@ class GDriveFileSystem(AbstractFileSystem):
         file1.Upload()
 
     def get_file(self, rpath, lpath, callback=None, block_size=None, **kwargs):
-        item_id = self._get_item_id(rpath)
-        return self._gdrive_get_file(
-            item_id, lpath, callback=callback, block_size=block_size
-        )
+        with _translate_not_found(rpath):
+            item_id = self._get_item_id(rpath)
+            return self._gdrive_get_file(
+                item_id, lpath, callback=callback, block_size=block_size
+            )
 
     @_gdrive_retry
     def _gdrive_get_file(self, item_id, rpath, callback=None, block_size=None):
@@ -663,12 +687,9 @@ class GDriveFileSystem(AbstractFileSystem):
     def _open(self, path, mode, **kwargs):
         assert mode in {"rb", "wb"}
         if mode == "wb":
-            if not self._split_mounted_path(path)[1]:
-                raise ValueError(
-                    "To create a Drive file, specify a folder ID and name"
-                )
+            self._split_file_path(path)
             return GDriveBufferedWriter(self, path)
-        else:
+        with _translate_not_found(path):
             item_id = self._get_item_id(path)
             return self._gdrive_open_file(item_id)
 

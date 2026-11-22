@@ -11,8 +11,8 @@ Installation
 
   pip install 'pydrive2[fsspec]'
 
-Installing PyDrive2 registers ``gdrive://`` with fsspec. The ``[fsspec]``
-extra installs the dependencies needed to use the backend. This registration
+The ``[fsspec]`` extra installs fsspec. If fsspec is already installed,
+installing plain PyDrive2 also registers ``gdrive://``. This registration
 takes precedence over fsspec's built-in mapping to ``gdrive-fsspec``. If
 both packages are installed, ``fsspec.open("gdrive://...")`` uses PyDrive2's
 paths and credentials. To select the other backend, instantiate
@@ -46,6 +46,12 @@ lookups. Reads are sequential. To create a file, use a folder ID or root
 alias followed by a filename. As with the direct PyDrive2 filesystem,
 a write creates a Drive item even when a sibling has the same name. All
 reads require credentials, including files shared by link.
+
+Drive queries for directory entries exclude trashed items. For a bare file
+ID, ``exists()`` returns false and ``info()`` raises ``FileNotFoundError``
+when the item is in the trash. Opening or downloading by ID requests the
+content directly. Drive can still serve a trashed file this way if the
+account has access.
 
 Local webserver
 ---------------
