@@ -475,15 +475,60 @@ class GDriveFileSystem(AbstractFileSystem):
         return item
 
     @wrap_with(threading.RLock())
-    def _create_dir(self, parent_id, name, remote_path):
+    def _create_dir(self, parent_id, name, remote_path, *, exist_ok=True):
         cached = self._ids_cache["dirs"].get(remote_path)
         if cached:
+            if not exist_ok:
+                raise FileExistsError(posixpath.join(self.root, remote_path))
             return cached[0]
 
         item = self._gdrive_create_dir(parent_id, name)
         self._cache_path_id(remote_path, item["id"])
 
         return item["id"]
+
+    def mkdir(self, path, create_parents=True, **kwargs):
+        self._mkdir(path, create_parents, exist_ok=False)
+
+    def makedirs(self, path, exist_ok=False):
+        self._mkdir(path, create_parents=True, exist_ok=exist_ok)
+
+    def _mkdir(self, path, create_parents, exist_ok):
+        root, base = self._split_mounted_path(path)
+        if not base:
+            if (
+                root not in {"root", "appDataFolder"}
+                and self.info(path)["type"] != "directory"
+            ):
+                raise FileExistsError(path)
+            if not exist_ok:
+                raise FileExistsError(path)
+            return
+
+        parent_ids = [root]
+        parent = ""
+        for name in base.split("/"):
+            child = posixpath.join(parent, name)
+            leaf = child == base
+            dirs = self._get_cached_item_ids(child, use_cache=True)
+            if not dirs:
+                items = self._get_remote_item_ids(parent_ids, parent, name)
+                dirs = self._get_cached_item_ids(child, use_cache=True)
+                if items and not dirs:
+                    if leaf:
+                        raise FileExistsError(path)
+                    raise NotADirectoryError(posixpath.join(root, child))
+            if dirs:
+                if leaf and not exist_ok:
+                    raise FileExistsError(path)
+            else:
+                if not leaf and not create_parents:
+                    raise FileNotFoundError(posixpath.join(root, child))
+                item_id = self._create_dir(
+                    min(parent_ids), name, child, exist_ok=not leaf or exist_ok
+                )
+                dirs = [item_id]
+            parent, parent_ids = child, dirs
 
     def exists(self, path):
         root, base = self._split_mounted_path(path)

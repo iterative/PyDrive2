@@ -131,6 +131,14 @@ def test_move(fs, remote_dir):
     assert initial_info == secondary_info
 
 
+def test_create_empty_directory(fs, fs_factory, remote_dir):
+    path = remote_dir + "/empty/sub"
+    fs.makedirs(path)
+    other, _ = fs_factory()
+    assert other.info(path)["type"] == "directory"
+    assert other.ls(path) == []
+
+
 def test_copy_file_to_new_directory(fs, remote_dir):
     source = remote_dir + "/source"
     target = remote_dir + "/nested/copy"
@@ -285,7 +293,7 @@ def test_find(fs, fs_factory, remote_dir):
     dirnames = {posixpath.dirname(file) for file in files}
 
     for dirname in dirnames:
-        fs.mkdir(dirname)
+        fs.makedirs(dirname, exist_ok=True)
 
     for file in files:
         fs.touch(file)

@@ -352,3 +352,49 @@ def test_large_write_after_close_does_not_open_a_tempfile(mock_drive, mocker):
     with pytest.raises(ValueError, match="closed"):
         writer.write(b"too large")
     backing_file.assert_not_called()
+
+
+def test_makedirs_creates_empty_drive_folders(mock_drive):
+    drive, requests = mock_drive(
+        response({"driveId": "shared"}),
+        response({"files": []}),
+        response({"id": "A"}),
+        response({"files": []}),
+        response({"id": "B"}),
+    )
+    fs = filesystem(drive, "shared")
+    fs.makedirs("gdrive://shared/parent/leaf")
+    assert fs.exists("shared/parent/leaf")
+    fs.makedirs("shared/parent/leaf", exist_ok=True)
+    with pytest.raises(FileExistsError):
+        fs.makedirs("shared/parent/leaf")
+    assert [json.loads(req[2]) for req in requests if req[1] == "POST"] == [
+        {
+            "name": "parent",
+            "parents": ["shared"],
+            "mimeType": FOLDER_MIME_TYPE,
+        },
+        {"name": "leaf", "parents": ["A"], "mimeType": FOLDER_MIME_TYPE},
+    ]
+
+
+def test_mkdir_without_missing_parents(mock_drive):
+    drive, requests = mock_drive(response({"files": []}))
+    with pytest.raises(FileNotFoundError):
+        filesystem(drive).mkdir("root/missing/leaf", create_parents=False)
+    assert [req[1] for req in requests] == ["GET"]
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [("root/blob", FileExistsError), ("root/blob/sub", NotADirectoryError)],
+)
+def test_makedirs_rejects_file(mock_drive, path, expected):
+    drive, requests = mock_drive(
+        response(
+            {"files": [{"name": "blob", "id": "F", "mimeType": "text/plain"}]}
+        )
+    )
+    with pytest.raises(expected):
+        filesystem(drive).makedirs(path, exist_ok=True)
+    assert [req[1] for req in requests] == ["GET"]
