@@ -64,9 +64,11 @@ def test_list_ids_lazy(listing_fs, monkeypatch):
     assert list_query.call_count == 2
 
 
-def test_ls_repeated_cached_parent_across_batches(listing_fs, monkeypatch):
+def test_ls_repeated_parent_across_batches(listing_fs, monkeypatch):
     parents = [f"id-{i}" for i in range(51)]
-    listing_fs._cache_path_id("duplicate", *parents, parents[0])
+    monkeypatch.setattr(
+        listing_fs, "_path_to_item_ids", lambda path: [*parents, parents[0]]
+    )
     batches = []
 
     def list_file(params):
@@ -200,6 +202,7 @@ def test_directory_mutation_invalidates_subtree(listing_fs, mocker, operation):
         delete.assert_called_once_with("first")
     else:
         source = mocker.patch.object(fs.client, "CreateFile")
+        source.return_value.get.return_value = FOLDER_MIME_TYPE
         fs.mv("root/dir", "root/renamed")
         source.assert_called_once_with({"id": "first"})
         source.return_value.Upload.assert_called_once_with()
@@ -250,6 +253,71 @@ def test_invalidating_parent_reloads_mount_on_next_lookup(mocker):
     fs.invalidate_cache("root/parent")
     assert listing.call_count == 2
     assert fs._get_item_id(fs.path) == "replacement"
+
+
+def test_cache_deduplicates_directory_ids(listing_fs):
+    listing_fs._cache_path_id("dir", "a", "b", "a")
+    listing_fs._cache_path_id("dir", "a")
+    assert listing_fs._get_cached_item_ids("dir", True) == ["a", "b"]
+
+
+def test_empty_path_invalidates_folder_mount(mocker):
+    fs = GDriveFileSystem(
+        "FolderID", google_auth=Mock(), skip_instance_cache=True
+    )
+    fs._cache_path_id("dir", "stale")
+    fs.invalidate_cache(fs._parent("FolderID"))
+    assert not fs._get_cached_item_ids("dir", True)
+
+
+@pytest.mark.parametrize(
+    "src,dst",
+    [
+        ("root/dir", "gdrive:///renamed"),
+        ("root/sub/dir", "gdrive://"),
+    ],
+)
+def test_move_directory_to_implicit_root(listing_fs, mocker, src, dst):
+    fs = listing_fs
+    _, base = fs.split_path(src)
+    fs._cache_path_id(base, "moved-id")
+    mocker.patch.object(fs, "_gdrive_list_ids", return_value=[])
+    source = mocker.patch.object(fs.client, "CreateFile").return_value
+    source.get.return_value = FOLDER_MIME_TYPE
+    fs.mv(src, dst)
+    source.Upload.assert_called_once_with()
+    assert not fs._get_cached_item_ids(base, True)
+
+
+def test_move_invalidates_cached_destination_even_after_source_eviction(
+    listing_fs, mocker
+):
+    fs = listing_fs
+    fs._cache_path_id("dir", "moving")
+    fs._cache_path_id("dst", "destination")
+    fs._cache_path_id("dst/dir", "sibling")
+    fs._cache_path_id("dst/dir/child", "nested")
+    source = mocker.patch.object(fs.client, "CreateFile").return_value
+    source.Upload.side_effect = lambda: fs.invalidate_cache("root/dir")
+    source.get.return_value = FOLDER_MIME_TYPE
+    fs.mv("root/dir", "root/dst")
+    assert fs._ids_cache["ids"] == {"root": "", "destination": "dst"}
+
+
+@pytest.mark.parametrize("op", ["move", "remove"])
+def test_file_mutations_preserve_directory_cache(listing_fs, mocker, op):
+    fs = listing_fs
+    cached = fs._ids_cache
+    file = {"id": "blob", "name": "file", "mimeType": "text/plain"}
+    mocker.patch.object(fs, "_gdrive_list_ids", return_value=[file])
+    if op == "move":
+        source = mocker.patch.object(fs.client, "CreateFile").return_value
+        source.get.return_value = file["mimeType"]
+        fs.mv("root/file", "root/renamed")
+    else:
+        mocker.patch.object(fs, "_gdrive_delete_file")
+        fs.rm_file("root/file")
+    assert fs._ids_cache is cached
 
 
 def test_failed_removal_preserves_cache(listing_fs, mocker):
