@@ -4,7 +4,6 @@ from unittest.mock import Mock
 import pytest
 
 from pydrive2.fs import GDriveFileSystem
-from pydrive2.fs.spec import FOLDER_MIME_TYPE
 
 
 @pytest.fixture
@@ -62,49 +61,3 @@ def test_list_ids_lazy(listing_fs, monkeypatch):
     assert list(result) == [{"id": "last"}]
     assert len(consumed) == 51
     assert list_query.call_count == 2
-
-
-@pytest.mark.parametrize("detail", [False, True])
-def test_find_wide_directory(listing_fs, monkeypatch, detail):
-    folders = [f"folder-{index}" for index in range(251)]
-
-    def list_query(query):
-        parents = re.findall(r"'([^']+)' in parents", query)
-        assert 0 < len(parents) <= 50
-        if parents == ["root"]:
-            return iter(
-                {
-                    "id": folder,
-                    "name": folder,
-                    "mimeType": FOLDER_MIME_TYPE,
-                    "parents": ["root"],
-                }
-                for folder in folders
-            )
-        return iter(
-            {
-                "id": f"data-{parent}",
-                "name": "data",
-                "mimeType": "application/octet-stream",
-                "parents": [parent],
-                "size": "7",
-                "md5Checksum": "checksum",
-            }
-            for parent in parents
-        )
-
-    monkeypatch.setattr(listing_fs, "_gdrive_list", list_query)
-    files = listing_fs.find("root", detail=detail)
-    expected = [f"root/{folder}/data" for folder in folders]
-    assert list(files) == expected
-    if detail:
-        assert all(
-            item
-            == {
-                "name": path,
-                "type": "file",
-                "size": 7,
-                "checksum": "checksum",
-            }
-            for path, item in files.items()
-        )

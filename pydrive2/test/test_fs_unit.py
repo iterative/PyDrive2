@@ -215,6 +215,60 @@ def test_fsspec_traversal_lists_one_level(mock_drive, operation):
         ) == ["D"]
 
 
+@pytest.mark.parametrize("detail", [False, True])
+def test_find_wide_directory(mock_drive, detail):
+    ids = [f"folder-{index}" for index in range(251)]
+    folders = [dict(folder(i, i), parents=["root"]) for i in ids]
+    files = [
+        {
+            "id": f"data-{parent}",
+            "name": "data",
+            "mimeType": "application/octet-stream",
+            "parents": [parent],
+            "size": "7",
+            "md5Checksum": "checksum",
+        }
+        for parent in ids
+    ]
+    # Cold, the root must be listed before its 251 children are known.
+    # Warm, the root and the first 49 parents fit in the same query.
+    cold_pages = [listing(*folders)] + [
+        listing(*files[i : i + 50]) for i in range(0, len(files), 50)
+    ]
+    warm_pages = [listing(*folders, *files[:49])] + [
+        listing(*files[i : i + 50]) for i in range(49, len(files), 50)
+    ]
+    drive, requests = mock_drive(*cold_pages, *warm_pages)
+    fs = filesystem(drive)
+    expected = [f"root/{parent}/data" for parent in ids]
+    for expected_calls in (7, 6):
+        before = len(requests)
+        found = fs.find("root", detail=detail)
+        assert list(found) == expected
+        if detail:
+            assert all(
+                item
+                == {
+                    "name": path,
+                    "type": "file",
+                    "size": 7,
+                    "checksum": "checksum",
+                }
+                for path, item in found.items()
+            )
+        calls = requests[before:]
+        assert len(calls) == expected_calls
+        batches = [
+            re.findall(r"'([^']+)' in parents", query(req)["q"][0])
+            for req in calls
+        ]
+        assert all(0 < len(batch) <= 50 for batch in batches)
+        assert [parent for batch in batches for parent in batch] == [
+            "root",
+            *ids,
+        ]
+
+
 def test_find_legacy_positional_detail_and_invalid_depth(mock_drive):
     item = {
         "name": "file",
