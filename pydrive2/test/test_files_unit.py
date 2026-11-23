@@ -471,14 +471,20 @@ def test_path_upload_uses_one_session(mock_drive, tmp_path, existing):
     assert body[:2] == ("https://example.test/session", "PUT")
 
 
+@pytest.mark.parametrize("fail_on_put", [False, True], ids=["session", "body"])
 def test_path_upload_closes_file_and_can_retry(
-    mock_drive, tmp_path, monkeypatch
+    mock_drive, tmp_path, monkeypatch, fail_on_put
 ):
     source = tmp_path / "source"
     source.write_bytes(b'{"id":"from-retried-upload"}')
+    session = (
+        {"status": "200", "location": "https://example.test/session"},
+        "",
+    )
     drive, requests = mock_drive(
+        *([session] if fail_on_put else []),
         error_response(503, "backendError"),
-        ({"status": "200", "location": "https://example.test/session"}, ""),
+        session,
         ({"status": "200"}, "echo_request_body"),
         response({"id": "from-retried-upload"}),
     )
@@ -490,19 +496,22 @@ def test_path_upload_closes_file_and_can_retry(
     with pytest.raises(ApiRequestError):
         file.Upload()
     assert opened.closed
-    (failed_create,) = requests
-    assert failed_create[1] == "POST"
+    assert [r[1] for r in requests] == (
+        ["POST", "PUT"] if fail_on_put else ["POST"]
+    )
     monkeypatch.chdir(tmp_path.parent)
+    before = len(requests)
     file.Upload()
     assert file["id"] == "from-retried-upload"
     assert file.content is None
-    retry, upload = requests[1:]
-    assert retry[:2] == failed_create[:2]
+    retry, upload = requests[before:]
+    assert retry[:2] == requests[0][:2]
     assert upload[:2] == ("https://example.test/session", "PUT")
     source.unlink()
     file["name"] = "renamed"
+    before = len(requests)
     file.Upload()
-    (update,) = requests[3:]
+    (update,) = requests[before:]
     assert update[1] == "PATCH"
     assert urlsplit(update[0]).path == "/drive/v3/files/from-retried-upload"
     assert json.loads(update[2]) == {"name": "renamed"}
