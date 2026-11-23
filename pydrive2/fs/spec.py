@@ -339,36 +339,36 @@ class GDriveFileSystem(AbstractFileSystem):
 
     @property
     def _ids_cache(self) -> _IdsCache:
+        return self._directory_cache_and_mount_items()[0]
+
+    def _directory_cache_and_mount_items(self):
+        """Return the cache and any mount listing fetched by this call."""
         with self._cache_lock:
-            if self._directory_ids is None:
-                self._directory_ids = self._load_directory_ids()
-            return self._directory_ids
+            if self._directory_ids is not None:
+                return self._directory_ids, None
 
-    def _load_directory_ids(self) -> _IdsCache:
-        cache: _IdsCache = {"dirs": {}, "ids": {}}
-
-        self._cache_path_id(
-            self.base, *self._mount_directory_ids(), cache=cache
-        )
-        return cache
-
-    def _mount_directory_ids(self):
-        if not self.base:
-            return [self.root]
-        parent, name = posixpath.split(self.base)
-        parent_ids = self._path_to_item_ids(parent, use_cache=False)
-        items = list(self._named_items(parent_ids, name))
-        if not items:
-            raise FileNotFoundError(
-                errno.ENOENT,
-                os.strerror(errno.ENOENT),
-                f"Confirm {self.path} exists and you can access it",
-            )
-        return [
-            item["id"]
-            for item in items
-            if item["mimeType"] == FOLDER_MIME_TYPE
-        ]
+            cache: _IdsCache = {"dirs": {}, "ids": {}}
+            items = None
+            if self.base:
+                parent, name = posixpath.split(self.base)
+                parents = self._path_to_item_ids(parent, cache=cache)
+                items = list(self._named_items(parents, name))
+                if not items:
+                    raise FileNotFoundError(
+                        errno.ENOENT,
+                        os.strerror(errno.ENOENT),
+                        f"Confirm {self.path} exists and you can access it",
+                    )
+                directories = [
+                    item["id"]
+                    for item in items
+                    if item["mimeType"] == FOLDER_MIME_TYPE
+                ]
+            else:
+                directories = [self.root]
+            self._cache_path_id(self.base, *directories, cache=cache)
+            self._directory_ids = cache
+            return cache, items
 
     def _named_items(self, parent_ids, name):
         # Drive's name query is case-insensitive.
@@ -514,11 +514,14 @@ class GDriveFileSystem(AbstractFileSystem):
     ):
         if not path:
             return [self.root]
+        mount_items = None
         if use_cache and cache is None:
-            cache = self._ids_cache
+            cache, mount_items = self._directory_cache_and_mount_items()
         item_ids = self._get_cached_item_ids(path, use_cache, cache)
         if item_ids:
             return item_ids
+        if path == self.base and mount_items is not None:
+            return [item["id"] for item in mount_items]
 
         parent_path, name = posixpath.split(path)
         parent_ids = self._path_to_item_ids(
@@ -595,7 +598,7 @@ class GDriveFileSystem(AbstractFileSystem):
                 raise FileExistsError(path)
             return
 
-        cache = self._ids_cache
+        cache, mount_items = self._directory_cache_and_mount_items()
         parent = base
         missing = []
         while not (
@@ -609,7 +612,11 @@ class GDriveFileSystem(AbstractFileSystem):
         for name in reversed(missing):
             child = posixpath.join(parent, name)
             leaf = child == base
-            matches = list(self._named_items(parent_ids, name))
+            matches = (
+                mount_items
+                if child == self.base and mount_items is not None
+                else list(self._named_items(parent_ids, name))
+            )
             dirs = [
                 item["id"]
                 for item in matches

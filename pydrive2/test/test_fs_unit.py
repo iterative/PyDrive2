@@ -661,10 +661,15 @@ def test_makedirs_creates_empty_drive_folders(mock_drive):
     )
     fs = filesystem(drive, "shared")
     fs.makedirs("gdrive://shared/parent/leaf")
+    assert [r[1] for r in requests] == ["GET", "GET", "POST", "GET", "POST"]
+    cold_requests = len(requests)
     assert fs.exists("shared/parent/leaf")
     fs.makedirs("shared/parent/leaf", exist_ok=True)
     with pytest.raises(FileExistsError):
         fs.makedirs("shared/parent/leaf")
+    with pytest.raises(FileExistsError):
+        fs.mkdir("shared/parent/leaf")
+    assert len(requests) == cold_requests
     assert [json.loads(req[2]) for req in requests if req[1] == "POST"] == [
         {
             "name": "parent",
@@ -680,6 +685,22 @@ def test_mkdir_without_missing_parents(mock_drive):
     with pytest.raises(FileNotFoundError):
         filesystem(drive).mkdir("root/missing/leaf", create_parents=False)
     assert [req[1] for req in requests] == ["GET"]
+
+
+def test_mkdir_in_existing_parent(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("parent", "P")), listing(), response({"id": "leaf"})
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/parent")
+    before = len(requests)
+    fs.mkdir("root/parent/leaf", create_parents=False)
+    lookup, create = requests[before:]
+    assert "'P' in parents" in query(lookup)["q"][0]
+    assert create[1] == "POST" and json.loads(create[2])["parents"] == ["P"]
+    before = len(requests)
+    fs.makedirs("root/parent/leaf", exist_ok=True)
+    assert len(requests) == before
 
 
 @pytest.mark.parametrize(
@@ -819,8 +840,9 @@ def test_makedirs_rejects_file_at_nested_mount(mock_drive):
     blob = response(
         {"files": [{"name": "blob", "id": "F", "mimeType": "text/plain"}]}
     )
-    drive, requests = mock_drive(blob, blob)
+    drive, requests = mock_drive(blob)
     fs = filesystem(drive, "root/blob")
     with pytest.raises(NotADirectoryError):
         fs.makedirs("root/blob/child")
-    assert all(req[1] == "GET" for req in requests)
+    (lookup,) = requests
+    assert "name='blob'" in query(lookup)["q"][0]
