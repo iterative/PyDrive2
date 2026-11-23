@@ -450,6 +450,27 @@ def test_disk_download_releases_each_chunk_before_requesting_the_next(
     assert dest.read_bytes() == b"abcd"
 
 
+@pytest.mark.parametrize("existing", [False, True], ids=["create", "update"])
+def test_path_upload_uses_one_session(mock_drive, tmp_path, existing):
+    source = tmp_path / "source"
+    source.write_bytes(b"payload")
+    drive, requests = mock_drive(
+        ({"status": "200", "location": "https://example.test/session"}, ""),
+        response({"id": "file"}),
+    )
+    file = drive.CreateFile({"id": "file"} if existing else {})
+    file.SetContentFile(source)
+    opened = file.content
+    assert not requests
+    file.Upload()
+    assert opened.closed
+    start, body = requests
+    assert start[1] == ("PATCH" if existing else "POST")
+    path = "/upload/drive/v3/files" + ("/file" if existing else "")
+    assert urlsplit(start[0]).path == path
+    assert body[:2] == ("https://example.test/session", "PUT")
+
+
 def test_path_upload_closes_file_and_can_retry(
     mock_drive, tmp_path, monkeypatch
 ):
@@ -465,23 +486,32 @@ def test_path_upload_closes_file_and_can_retry(
     monkeypatch.chdir(tmp_path)
     file.SetContentFile("source")
     opened = file.content
+    assert not requests
     with pytest.raises(ApiRequestError):
         file.Upload()
     assert opened.closed
+    (failed_create,) = requests
+    assert failed_create[1] == "POST"
     monkeypatch.chdir(tmp_path.parent)
     file.Upload()
     assert file["id"] == "from-retried-upload"
     assert file.content is None
+    retry, upload = requests[1:]
+    assert retry[:2] == failed_create[:2]
+    assert upload[:2] == ("https://example.test/session", "PUT")
     source.unlink()
     file["name"] = "renamed"
     file.Upload()
-    assert requests[-1][1] == "PATCH"
+    (update,) = requests[3:]
+    assert update[1] == "PATCH"
+    assert urlsplit(update[0]).path == "/drive/v3/files/from-retried-upload"
+    assert json.loads(update[2]) == {"name": "renamed"}
 
 
 def test_replacing_upload_content_respects_ownership(mock_drive, tmp_path):
     source = tmp_path / "source"
     source.write_bytes(b"payload")
-    drive, _ = mock_drive(
+    drive, requests = mock_drive(
         ({"status": "200", "location": "https://example.test/session"}, ""),
         response({"id": "uploaded"}),
     )
@@ -491,6 +521,8 @@ def test_replacing_upload_content_respects_ownership(mock_drive, tmp_path):
     external = io.BytesIO(b"external")
     file.content = external
     assert owned.closed
+    assert not requests
     file.Upload()
     file.SetContentString("replacement")
     assert external.getvalue() == b"external"
+    assert [r[1] for r in requests] == ["POST", "PUT"]
