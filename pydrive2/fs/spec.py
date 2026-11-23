@@ -433,16 +433,24 @@ class GDriveFileSystem(AbstractFileSystem):
         return params
 
     @_gdrive_retry
-    def _get_root_metadata(self):
+    def _get_root_metadata(self, *, file_details=False):
         with self._cache_lock:
             # A root invalidation during the request replaces this dictionary.
             metadata = self._root_metadata
-            if not metadata:
-                item = self.client.CreateFile({"id": self.root})
-                with _translate_not_found(self.root):
-                    item.FetchMetadata("driveId,mimeType,trashed")
-                if item.get("trashed"):
-                    return item.metadata
+            if metadata and (
+                not file_details
+                or metadata.get("mimeType") == FOLDER_MIME_TYPE
+            ):
+                return metadata
+            item = self.client.CreateFile({"id": self.root})
+            fields = (
+                f"driveId,trashed,{_INFO_FIELDS}"
+                if file_details
+                else "driveId,mimeType,trashed"
+            )
+            with _translate_not_found(self.root):
+                item.FetchMetadata(fields)
+            if not item.get("trashed") and not metadata:
                 metadata.update(item.metadata)
                 if drive_id := metadata.get("driveId"):
                     logger.debug(
@@ -450,7 +458,7 @@ class GDriveFileSystem(AbstractFileSystem):
                         self.path,
                         drive_id,
                     )
-            return metadata
+            return item.metadata
 
     def _gdrive_list(self, query):
         param = {
@@ -486,22 +494,19 @@ class GDriveFileSystem(AbstractFileSystem):
                     seen_ids.add(file_id)
                 yield item
 
-    def _get_remote_item_ids(
+    def _get_remote_items(
         self, parent_ids, parent_path, name, use_cache=True, cache=None
     ):
         if not parent_ids:
-            return None
+            return
         if use_cache and cache is None:
             cache = self._ids_cache
-        res = []
         for item in self._named_items(parent_ids, name):
-            res.append(item["id"])
             if item["mimeType"] == FOLDER_MIME_TYPE and use_cache:
                 self._cache_path_id(
                     posixpath.join(parent_path, name), item["id"], cache=cache
                 )
-
-        return res
+            yield item
 
     def _get_cached_item_ids(self, path, use_cache, cache=None):
         if not path:
@@ -531,9 +536,10 @@ class GDriveFileSystem(AbstractFileSystem):
         parent_ids = self._path_to_item_ids(
             parent_path, create, use_cache, cache
         )
-        item_ids = self._get_remote_item_ids(
+        items = self._get_remote_items(
             parent_ids, parent_path, name, use_cache, cache
         )
+        item_ids = [item["id"] for item in items]
         if item_ids:
             return item_ids
 
@@ -660,15 +666,11 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             return True
 
-    def info(self, path):
-        with _translate_not_found(path):
-            item_id = self._get_item_id(path)
-        return self._info_by_id(path, item_id)
-
     @_gdrive_retry
-    def _info_by_id(self, path, item_id):
+    def info(self, path):
         bucket, base = self.split_path(path)
         with _translate_not_found(path):
+            item_id = self._get_item_id(path)
             gdrive_file = self.client.CreateFile({"id": item_id})
             fields = _INFO_FIELDS if base else f"{_INFO_FIELDS},trashed"
             gdrive_file.FetchMetadata(fields=fields)
@@ -701,6 +703,28 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             return [content["name"] for content in contents]
 
+    def _find_start(self, base, cache, mount_items):
+        """Return matching folder IDs or a file from the same Drive listing."""
+        dirs = self._get_cached_item_ids(base, True, cache)
+        if dirs:
+            return dirs, None
+        if base == self.base and mount_items is not None:
+            items = mount_items
+        else:
+            parent, name = posixpath.split(base)
+            parents = self._path_to_item_ids(parent, cache=cache)
+            items = list(
+                self._get_remote_items(parents, parent, name, cache=cache)
+            )
+        dirs = [
+            item["id"]
+            for item in items
+            if item["mimeType"] == FOLDER_MIME_TYPE
+        ]
+        if dirs:
+            return dirs, None
+        return [], min(items, key=lambda item: item["id"], default=None)
+
     def find(
         self, path, maxdepth=None, withdirs=False, detail=False, **kwargs
     ):
@@ -714,8 +738,25 @@ class GDriveFileSystem(AbstractFileSystem):
         # Older fsspec expand_path passes zero for a single-level listing.
         if maxdepth == 0:
             maxdepth = 1
-        cache = self._ids_cache
-        start_ids = self._path_to_item_ids(base, cache=cache)
+        cache, mount_items = self._directory_cache_and_mount_items()
+        start_ids, file = self._find_start(base, cache, mount_items)
+        start = posixpath.join(root, base).rstrip("/")
+        check_empty_root = False
+        if not base and root not in {"root", "appDataFolder"}:
+            # A cold stat verifies trash status for this call. A cached folder
+            # still needs a fresh check if only the root itself would be returned.
+            with self._cache_lock:
+                check_empty_root = withdirs and bool(self._root_metadata)
+            try:
+                metadata = self._get_root_metadata(file_details=True)
+            except FileNotFoundError:
+                return {} if detail else []
+            if metadata.get("trashed"):
+                return {} if detail else []
+            if metadata["mimeType"] != FOLDER_MIME_TYPE:
+                file = metadata
+        if file is not None:
+            return {start: _file_entry(start, file)} if detail else [start]
         if not start_ids:
             return {} if detail else []
 
@@ -735,28 +776,10 @@ class GDriveFileSystem(AbstractFileSystem):
 
         with self._cache_lock:
             known = cache["ids"].copy()
-        if not base:
-            known[root] = ""
+        known.update(dict.fromkeys(start_ids, base))
         pending = {
             item_id: name for item_id, name in known.items() if descend(name)
         }
-        start = posixpath.join(root, base).rstrip("/")
-        known_dir = (
-            any(known.get(item_id) == base for item_id in start_ids)
-            if base
-            else root in {"root", "appDataFolder"}
-        )
-        root_type = None
-        if not base and not known_dir:
-            try:
-                metadata = self._get_root_metadata()
-            except FileNotFoundError:
-                return {} if detail else []
-            if metadata.get("trashed"):
-                return {} if detail else []
-            root_type = metadata.get("mimeType")
-            if root_type != FOLDER_MIME_TYPE:
-                pending = {}
 
         contents = []
         seen: set[str] = set()
@@ -777,7 +800,7 @@ class GDriveFileSystem(AbstractFileSystem):
                     ):
                         continue
                     parent_id = root
-                known_dir = True
+                check_empty_root = False
                 item_path = posixpath.join(query_ids[parent_id], item["name"])
                 name = posixpath.join(root, item_path)
                 if item["mimeType"] == FOLDER_MIME_TYPE:
@@ -790,15 +813,11 @@ class GDriveFileSystem(AbstractFileSystem):
                 else:
                     contents.append(_file_entry(name, item))
 
-        if not known_dir and (withdirs or root_type != FOLDER_MIME_TYPE):
-            # Without children, an untyped starting path can be a file or
-            # an empty directory. Check current metadata (including trash).
+        if check_empty_root:
             try:
-                entry = self._info_by_id(path, min(start_ids))
+                self.info(path)
             except FileNotFoundError:
                 return {} if detail else []
-            if entry["type"] == "file":
-                return {start: entry} if detail else [start]
 
         if withdirs:
             contents.insert(0, _directory_entry(start))

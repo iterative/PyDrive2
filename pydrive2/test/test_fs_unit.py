@@ -103,23 +103,42 @@ def test_find_trashed_root_id_skips_listing(mock_drive):
 
 @pytest.mark.parametrize("mount", ["Blob", "root", "root/note"])
 def test_find_file_returns_stat(mock_drive, mount):
-    obj = {"id": "Blob", "name": "note", "mimeType": "text/plain", "size": "7"}
-    if mount == "Blob":
-        drive, requests = mock_drive(
-            response({"mimeType": "text/plain"}), response(obj)
-        )
-        path = mount
-    else:
-        path = "root/note"
-        named = response({"files": [obj]})
-        mount_lookup = [named] if mount == path else []
-        drive, requests = mock_drive(*mount_lookup, named, response(obj))
-    fs = filesystem(drive, mount)
-    assert fs.find(path, withdirs=True, detail=True) == {
-        path: {"name": path, "type": "file", "size": 7, "checksum": None}
+    first = {
+        "id": "Blob",
+        "name": "note",
+        "mimeType": "text/plain",
+        "size": "7",
+        "md5Checksum": "original",
     }
-    if mount == "Blob":
-        assert all("q" not in query(r) for r in requests)
+    updated = dict(first, size="9", md5Checksum="updated")
+    bare = mount == "Blob"
+    path = mount if bare else "root/note"
+    drive, requests = mock_drive(
+        *(
+            response(item) if bare else listing(item)
+            for item in (first, updated)
+        )
+    )
+    fs = filesystem(drive, mount)
+    for item in (first, updated):
+        before = len(requests)
+        assert fs.find(path, withdirs=True, detail=True) == {
+            path: {
+                "name": path,
+                "type": "file",
+                "size": int(item["size"]),
+                "checksum": item["md5Checksum"],
+            }
+        }
+        (get,) = requests[before:]
+        assert get[1] == "GET"
+        if bare:
+            assert urlsplit(get[0]).path.endswith("/files/Blob")
+            assert {"trashed", "size", "md5Checksum"} <= set(
+                query(get)["fields"][0].split(",")
+            )
+        else:
+            assert "name='note'" in query(get)["q"][0]
 
 
 def test_find_empty_folder_checks_trash_when_including_start(mock_drive):
@@ -131,7 +150,7 @@ def test_find_empty_folder_checks_trash_when_including_start(mock_drive):
         response({"mimeType": FOLDER_MIME_TYPE, "trashed": True}),
     )
     fs = filesystem(drive, "FolderID")
-    assert fs.find("FolderID") == []
+    assert fs.find("FolderID", withdirs=True) == ["FolderID"]
     assert len(requests) == 2
     assert fs.find("FolderID", withdirs=True) == []
 
@@ -162,6 +181,40 @@ def test_find_at_depth_one_only_lists_the_requested_directory(
     ) == ["D"]
 
 
+@pytest.mark.parametrize("operation", ["glob", "expand_path"])
+def test_fsspec_traversal_lists_one_level(mock_drive, operation):
+    sub = dict(folder("sub", "S"), parents=["D"])
+    file = {
+        "name": "file",
+        "id": "F",
+        "mimeType": "text/plain",
+        "parents": ["D"],
+    }
+    drive, requests = mock_drive(
+        listing(folder("dir", "D")), listing(sub, file), listing(sub, file)
+    )
+    fs = filesystem(drive)
+    path = "root/dir"
+    children = {path + "/sub", path + "/file"}
+    for cold in (True, False):
+        before = len(requests)
+        if operation == "glob":
+            assert set(fs.glob(path + "/*")) == children
+        else:
+            assert set(
+                fs.expand_path(path, recursive=True, maxdepth=1)
+            ) == children | {path}
+        calls = requests[before:]
+        if cold:
+            lookup, children_request = calls
+            assert "name='dir'" in query(lookup)["q"][0]
+        else:
+            (children_request,) = calls
+        assert re.findall(
+            r"'([^']+)' in parents", query(children_request)["q"][0]
+        ) == ["D"]
+
+
 def test_find_legacy_positional_detail_and_invalid_depth(mock_drive):
     item = {
         "name": "file",
@@ -175,6 +228,44 @@ def test_find_legacy_positional_detail_and_invalid_depth(mock_drive):
     assert fs.find("root", True) == fs.find("root", detail=True)
     with pytest.raises(ValueError, match="maxdepth"):
         fs.find("root", maxdepth=-1)
+
+
+@pytest.mark.parametrize("bare", [True, False])
+def test_find_missing_path_uses_one_lookup(mock_drive, bare):
+    drive, requests = mock_drive(
+        error_response(404, "notFound") if bare else listing()
+    )
+    mount, path = ("missing", "missing") if bare else ("root", "root/missing")
+    assert filesystem(drive, mount).find(path, withdirs=True) == []
+    (lookup,) = requests
+    assert lookup[1] == "GET"
+    assert ("q" in query(lookup)) == (not bare)
+
+
+def test_recursive_remove_does_not_relist_each_directory(mock_drive):
+    sub = dict(folder("sub", "S"), parents=["D"])
+    file = {
+        "name": "file",
+        "id": "F",
+        "mimeType": "text/plain",
+        "parents": ["S"],
+    }
+    drive, requests = mock_drive(
+        listing(folder("dir", "D")),
+        listing(sub),
+        listing(file),
+        listing(file),
+        response({}),
+        response({}),
+        response({}),
+    )
+    fs = filesystem(drive, trash_only=False)
+    fs.rm("root/dir", recursive=True)
+    assert [req[1] for req in requests] == ["GET"] * 4 + ["DELETE"] * 3
+    assert [
+        urlsplit(req[0]).path.rsplit("/", 1)[-1] for req in requests[-3:]
+    ] == ["F", "S", "D"]
+    assert all("q" in query(req) for req in requests[:4])
 
 
 def test_ls_deduplicates_a_file_shared_across_parent_batches(mock_drive):
