@@ -193,6 +193,27 @@ def test_ls(fs, remote_dir):
     assert dirs == expected
 
 
+def test_basic_ops_caching(fs, remote_dir, mocker):
+    # Count logical Drive listings. Transport retries and pages belong to
+    # the same ListFile call. The offline test counts individual requests.
+    lists = mocker.spy(fs.client, "ListFile")
+    leaf = remote_dir + "/a/b/c"
+    path = leaf + "/test.txt"
+    fs.touch(path)
+    assert lists.call_count == 5
+
+    for operation, target, expected in (
+        (fs.exists, path, True),
+        (fs.ls, remote_dir, [remote_dir + "/a/"]),
+        (fs.ls, leaf, [path]),
+        (fs.find, leaf, [path]),
+        (fs.find, remote_dir, [path]),
+    ):
+        before = lists.call_count
+        assert operation(target) == expected
+        assert lists.call_count - before == 1, (operation.__name__, target)
+
+
 def test_ops_work_with_duplicate_names(fs_factory, remote_dir):
     fs, base_item = fs_factory()
 

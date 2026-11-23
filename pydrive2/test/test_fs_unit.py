@@ -128,37 +128,51 @@ def test_ls_reuses_exact_case_folder_across_parent_batches(mock_drive):
 
 
 def test_nested_file_operations_reuse_resolved_directories(mock_drive):
-    sub = dict(folder("b", "B"), parents=["A"])
+    a = dict(folder("a", "A"), parents=["run"])
+    b = dict(folder("b", "B"), parents=["A"])
+    c = dict(folder("c", "C"), parents=["B"])
     file = {
-        "name": "data",
+        "name": "test.txt",
         "id": "file",
         "mimeType": "text/plain",
-        "parents": ["B"],
+        "parents": ["C"],
     }
     drive, requests = mock_drive(
         listing(folder("mount", "M")),
         listing(),
-        response({"id": "A"}),
+        response({"id": "run"}),
         listing(),
-        response({"id": "B"}),
+        response(a),
+        listing(),
+        response(b),
+        listing(),
+        response(c),
         ({"status": "200", "location": "https://example.test/upload"}, ""),
         response({"id": "file"}),
         listing(file),
-        listing(sub),
+        listing(a),
         listing(file),
         listing(file),
-        listing(sub, file),
+        listing(a, b, c, file),
     )
     fs = filesystem(drive, "root/mount")
-    parent = "root/mount/a"
-    leaf = parent + "/b"
-    path = leaf + "/data"
+    parent = "root/mount/run"
+    leaf = parent + "/a/b/c"
+    path = leaf + "/test.txt"
     fs.touch(path)
-    assert sum("q" in query(req) for req in requests) == 3
+    assert [r[1] for r in requests] == [
+        "GET",
+        *(["GET", "POST"] * 4),
+        "POST",
+        "PUT",
+    ]
+    assert [
+        query(r)["q"][0].split("name=")[-1] for r in requests if r[1] == "GET"
+    ] == ["'mount'", "'run'", "'a'", "'b'", "'c'"]
 
     for operation, target, expected in (
         (fs.exists, path, True),
-        (fs.ls, parent, [leaf + "/"]),
+        (fs.ls, parent, [parent + "/a/"]),
         (fs.ls, leaf, [path]),
         (fs.find, leaf, [path]),
         (fs.find, parent, [path]),
@@ -166,7 +180,7 @@ def test_nested_file_operations_reuse_resolved_directories(mock_drive):
         before = len(requests)
         assert operation(target) == expected
         (request,) = requests[before:]
-        assert "q" in query(request)
+        assert request[1] == "GET" and "q" in query(request)
 
 
 def test_find_matches_legacy_parent_before_assuming_root(mock_drive):
@@ -208,14 +222,20 @@ def test_directory_mutation_evicts_descendants_only(mock_drive, operation):
     fs = filesystem(drive, trash_only=True)
     assert fs.exists("root/dir/child")
     assert fs.exists("root/directory")
+    before = len(requests)
     if operation == "rename":
         fs.mv("root/dir", "gdrive:///renamed")
+        assert [r[1] for r in requests[before:]] == ["GET", "PATCH"]
+        assert "name='renamed'" in query(requests[before])["q"][0]
     else:
         fs.rm_file("root/dir")
+        assert [r[1] for r in requests[before:]] == ["PATCH"]
 
     assert not fs.exists("root/dir/child")
     assert "name='dir'" in query(requests[-1])["q"][0]
+    before = len(requests)
     assert fs.exists("root/directory")
+    assert len(requests) == before
 
 
 def test_move_directory_to_implicit_root(mock_drive):
@@ -330,7 +350,7 @@ def test_empty_root_marker_refreshes_a_folder_id_mount(mock_drive):
     assert not fs.exists("FolderID/dir")
 
 
-@pytest.mark.parametrize("operation", ["rename", "delete"])
+@pytest.mark.parametrize("operation", ["rename", "trash", "delete"])
 def test_file_mutation_reuses_cached_parent(mock_drive, operation):
     file = {"name": "file", "id": "blob", "mimeType": "text/plain"}
     mutation = (
@@ -339,12 +359,17 @@ def test_file_mutation_reuses_cached_parent(mock_drive, operation):
         else [listing(file), response({})]
     )
     drive, requests = mock_drive(listing(folder("dir", "parent")), *mutation)
-    fs = filesystem(drive)
+    fs = filesystem(drive, trash_only=operation == "trash")
     assert fs.exists("root/dir")
+    before = len(requests)
     if operation == "rename":
         fs.mv("root/dir/file", "root/dir/renamed")
+        assert [r[1] for r in requests[before:]] == ["GET", "GET", "PATCH"]
     else:
         fs.rm_file("root/dir/file")
+        method = "PATCH" if operation == "trash" else "DELETE"
+        assert [r[1] for r in requests[before:]] == ["GET", method]
+    assert all("q" in query(r) for r in requests[before:-1])
     before = len(requests)
     assert fs.exists("root/dir")
     assert len(requests) == before
