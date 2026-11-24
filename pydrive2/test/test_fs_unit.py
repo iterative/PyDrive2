@@ -240,7 +240,7 @@ def test_find_wide_directory(mock_drive, detail):
     ]
     drive, requests = mock_drive(*cold_pages, *warm_pages)
     fs = filesystem(drive)
-    expected = [f"root/{parent}/data" for parent in ids]
+    expected = sorted(f"root/{parent}/data" for parent in ids)
     for expected_calls in (7, 6):
         before = len(requests)
         found = fs.find("root", detail=detail)
@@ -269,6 +269,40 @@ def test_find_wide_directory(mock_drive, detail):
         ]
 
 
+@pytest.mark.parametrize("operation", ["find", "expand_path"])
+@pytest.mark.parametrize("maxdepth", [1, 2, 3])
+def test_bounded_traversal_from_root(mock_drive, operation, maxdepth):
+    folders = [
+        dict(folder("a", "A"), parents=["root"]),
+        dict(folder("b", "B"), parents=["A"]),
+        dict(folder("c", "C"), parents=["B"]),
+    ]
+    drive, requests = mock_drive(
+        *(listing(item) for item in folders[:maxdepth])
+    )
+    fs = filesystem(drive)
+    expected = ["root", "root/a", "root/a/b", "root/a/b/c"][: maxdepth + 1]
+    if operation == "find":
+        assert fs.find("root", withdirs=True, maxdepth=maxdepth) == expected
+    else:
+        assert (
+            fs.expand_path("root", recursive=True, maxdepth=maxdepth)
+            == expected
+        )
+    assert len(requests) == maxdepth
+
+
+@pytest.mark.parametrize("pattern", ["root/*", "root/**"])
+def test_expanding_a_bounded_glob_does_not_list_children(mock_drive, pattern):
+    drive, requests = mock_drive(
+        listing(dict(folder("a", "A"), parents=["root"]))
+    )
+    found = filesystem(drive).expand_path(pattern, recursive=True, maxdepth=1)
+    assert "root/a" in found
+    (lookup,) = requests
+    assert "'root' in parents" in query(lookup)["q"][0]
+
+
 def test_find_legacy_positional_detail_and_invalid_depth(mock_drive):
     item = {
         "name": "file",
@@ -280,8 +314,9 @@ def test_find_legacy_positional_detail_and_invalid_depth(mock_drive):
     drive, _ = mock_drive(page, page)
     fs = filesystem(drive)
     assert fs.find("root", True) == fs.find("root", detail=True)
-    with pytest.raises(ValueError, match="maxdepth"):
-        fs.find("root", maxdepth=-1)
+    for depth in (0, -1):
+        with pytest.raises(ValueError, match="maxdepth"):
+            fs.find("root", maxdepth=depth)
 
 
 @pytest.mark.parametrize("bare", [True, False])
@@ -475,7 +510,7 @@ def test_find_matches_legacy_parent_before_assuming_root(mock_drive):
         "parents": ["elsewhere", "dir"],
     }
     drive, _ = mock_drive(
-        response({"files": [folder]}), response({"files": [file]})
+        response({"files": [folder]}), response({"files": [file, folder]})
     )
     fs = filesystem(drive)
     assert fs.exists("root/sub")
@@ -614,6 +649,81 @@ def test_rediscovered_directory_id_leaves_its_old_path(mock_drive):
     assert fs.exists("root/old")
     assert fs.exists("root/new")
     assert not fs.exists("root/old")
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_rediscovered_directory_evicts_old_descendants(mock_drive, duplicate):
+    old = [folder("old", "moved")]
+    if duplicate:
+        old.append(folder("old", "stays"))
+    child = folder("child", "C")
+    drive, requests = mock_drive(
+        listing(*old),
+        listing(child),
+        listing(folder("sibling", "S")),
+        listing(folder("new", "moved")),
+        listing(),
+        listing(child),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert fs.exists("root/sibling")
+    assert fs.exists("root/new")
+    before = len(requests)
+    assert not fs.exists("root/old/child")
+    (lookup,) = requests[before:]
+    expected = "'stays' in parents" if duplicate else "name='old'"
+    assert expected in query(lookup)["q"][0]
+    assert fs.exists("root/new/child")
+    before = len(requests)
+    assert fs.exists("root/sibling")
+    assert len(requests) == before
+
+
+def test_old_child_lookup_cannot_repopulate_a_rediscovered_directory(
+    mock_drive,
+):
+    def rediscover(request):
+        if "name='child'" in query(request)["q"][0]:
+            assert fs.exists("root/new")
+
+    drive, _ = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("new", "D")),
+        listing(folder("child", "C")),
+        listing(),
+        on_request=rediscover,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert not fs.exists("root/old/child")
+
+
+@pytest.mark.parametrize("children_first", [False, True])
+def test_find_uses_current_parent_links_after_a_rename(
+    mock_drive, children_first
+):
+    old = dict(folder("old", "D"), parents=["root"])
+    child = dict(folder("child", "C"), parents=["D"])
+    file = {
+        "id": "F",
+        "name": "note",
+        "mimeType": "text/plain",
+        "parents": ["C"],
+    }
+    rows = [dict(old, name="new"), child, file]
+    drive, requests = mock_drive(
+        listing(old),
+        listing(child),
+        listing(*(reversed(rows) if children_first else rows)),
+        listing(),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    before = len(requests)
+    assert fs.find("root") == ["root/new/child/note"]
+    assert len(requests) == before + 1
+    assert not fs.exists("root/old/child")
 
 
 def test_empty_root_marker_refreshes_a_folder_id_mount(mock_drive):
