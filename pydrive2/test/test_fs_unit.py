@@ -365,6 +365,25 @@ def test_unrelated_folder_creates_can_overlap(mock_drive, other_instance):
 
 
 @pytest.mark.parametrize("trash_only", [True, False])
+def test_rmdir_after_external_rename_forgets_the_old_path(
+    mock_drive, trash_only
+):
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("child", "C")),
+        listing(folder("new", "D")),
+        listing(),
+        response({}),
+        listing(),
+    )
+    fs = filesystem(drive, trash_only=trash_only)
+    assert fs.exists("root/old/child")
+    fs.rmdir("root/new")
+    assert not fs.exists("root/old/child")
+    assert "name='old'" in query(requests[-1])["q"][0]
+
+
+@pytest.mark.parametrize("trash_only", [True, False])
 def test_rmdir_removes_only_a_freshly_resolved_empty_folder(
     mock_drive, trash_only
 ):

@@ -907,7 +907,7 @@ class GDriveFileSystem(AbstractFileSystem):
         if base:
             # Name duplicates and external renames must be checked before
             # deleting. A cached folder ID alone cannot establish uniqueness.
-            match = self._resolve_path(base, _DirectoryCache())
+            match, _ = self._resolve_path(base, _DirectoryCache())
             if not match.ids:
                 raise FileNotFoundError(
                     errno.ENOENT, os.strerror(errno.ENOENT), path
@@ -945,7 +945,7 @@ class GDriveFileSystem(AbstractFileSystem):
 
         with _translate_not_found(path):
             self._gdrive_delete_file(item_id, empty_directory=path)
-        self.invalidate_cache(path)
+        self._invalidate_folder(item_id, path, known_folder=True)
 
     def _check_empty_folder(self, item_id, path):
         query = f"{_quote_query_value(item_id)} in parents"
