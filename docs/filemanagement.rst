@@ -254,6 +254,11 @@ Set the content with :meth:`~pydrive2.files.GoogleDriveFile.SetContentFile`
 or :meth:`~pydrive2.files.GoogleDriveFile.SetContentString`, then call
 :meth:`~pydrive2.files.GoogleDriveFile.Upload`.
 
+``SetContentFile()`` opens the local file. If ``Upload()`` fails, you can call
+``Upload()`` again to retry with the same open file. PyDrive2 closes the file
+when the upload succeeds or when you replace its content. If you abandon the
+upload after an error, call ``file.content.close()`` to release it immediately.
+
 Sample code continues from `Download file metadata from file ID`_:
 
 .. code-block:: python
