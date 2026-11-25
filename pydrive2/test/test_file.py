@@ -851,8 +851,7 @@ class GoogleDriveFileTest(unittest.TestCase):
             {"mimeType": "application/vnd.google-apps.document"}
         )
         file.SetContentFile(source)
-        with file.content:
-            pydrive_retry(file.Upload, media_mime_type="text/plain")
+        pydrive_retry(file.Upload, media_mime_type="text/plain")
         self.addCleanup(pydrive_retry, file.Delete)
         return file, test_util.StripNewlines(content)
 
