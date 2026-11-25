@@ -439,6 +439,62 @@ def test_rediscovered_directory_id_leaves_its_old_path(mock_drive):
     assert not fs.exists("root/old")
 
 
+@pytest.mark.parametrize("operation", ["move", "trash", "delete"])
+def test_folder_mutation_forgets_a_name_discovered_during_the_request(
+    mock_drive, operation
+):
+    def rediscover(request):
+        if request[1] in {"PATCH", "DELETE"}:
+            assert fs.exists("root/other/child")
+
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        *([listing()] if operation == "move" else []),
+        listing(folder("other", "D")),
+        listing(folder("child", "C")),
+        response(folder("new", "D")),
+        listing(),
+        on_request=rediscover,
+    )
+    fs = filesystem(drive, trash_only=operation != "delete")
+    assert fs.exists("root/old")
+    if operation == "move":
+        fs.mv("root/old", "root/new")
+    else:
+        fs.rm_file("root/old")
+    assert not fs.exists("root/other/child")
+    assert "name='other'" in query(requests[-1])["q"][0]
+
+
+def test_find_warms_descendants_when_it_rediscovers_a_renamed_folder(
+    mock_drive,
+):
+    child = dict(folder("child", "C"), parents=["D"])
+    note = {
+        "id": "F",
+        "name": "note",
+        "mimeType": "text/plain",
+        "parents": ["C"],
+    }
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("new", "D")),
+        listing(child),
+        listing(note),
+        listing(child, note),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old")
+    assert fs.find("root/new") == ["root/new/child/note"]
+    before = len(requests)
+    assert fs.find("root/new") == ["root/new/child/note"]
+    (warm,) = requests[before:]
+    assert set(re.findall(r"'([^']+)' in parents", query(warm)["q"][0])) == {
+        "D",
+        "C",
+    }
+
+
 @pytest.mark.parametrize("duplicate", [False, True])
 def test_rediscovered_directory_evicts_old_descendants(mock_drive, duplicate):
     old = [folder("old", "moved")]
