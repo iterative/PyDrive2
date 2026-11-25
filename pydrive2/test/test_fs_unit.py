@@ -458,6 +458,64 @@ def test_rmdir_checks_emptiness_again_after_transient_failure(mock_drive):
     assert [r[1] for r in requests] == ["GET", "GET", "DELETE", "GET"]
 
 
+def test_concurrent_copies_share_a_folder_after_unrelated_invalidation(
+    mock_drive,
+):
+    creating, release = Event(), Event()
+    second_started, second_lookup = Event(), Event()
+    source = {"id": "src", "name": "src", "mimeType": "text/plain"}
+
+    def pause_create(request):
+        if request[1] == "POST" and json.loads(request[2]).get("mimeType"):
+            creating.set()
+            assert release.wait(5)
+
+    def observe_lookup(request):
+        q = query(request).get("q", [""])[0]
+        if "name='src'" in q:
+            second_started.set()
+        if "name='ab'" in q:
+            second_lookup.set()
+
+    first, first_requests = mock_drive(
+        listing(source),
+        listing(),
+        response({"id": "AB"}),
+        response({"id": "first-copy"}),
+        on_request=pause_create,
+    )
+    second, second_requests = mock_drive(
+        listing(source),
+        listing(folder("ab", "AB")),
+        response({"id": "second-copy"}),
+        on_request=observe_lookup,
+    )
+    fs = filesystem(first)
+
+    def copy(http, name):
+        fs.client.auth.thread_local.http = http
+        fs.cp_file("root/src", f"root/ab/{name}")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        one = pool.submit(copy, first.auth.thread_local.http, "one")
+        try:
+            assert creating.wait(5)
+            fs.invalidate_cache("root/ef")
+            two = pool.submit(copy, second.auth.thread_local.http, "two")
+            assert second_started.wait(5)
+            # Drive cannot return the new folder until the first create finishes.
+            assert not second_lookup.wait(0.1)
+        finally:
+            release.set()
+        one.result(timeout=5)
+        two.result(timeout=5)
+
+    for requests in (first_requests, second_requests):
+        assert json.loads(requests[-1][2])["parents"] == ["AB"]
+    assert [r[1] for r in first_requests] == ["GET", "GET", "POST", "POST"]
+    assert [r[1] for r in second_requests] == ["GET", "GET", "POST"]
+
+
 def test_invalidating_an_unopened_mount_needs_no_drive_request(mock_drive):
     drive, requests = mock_drive()
     filesystem(drive, "root/parent/mount").invalidate_cache("root/parent")
