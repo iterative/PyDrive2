@@ -4,6 +4,7 @@ import json
 import mimetypes
 import os
 from functools import wraps
+from pathlib import Path
 
 from googleapiclient import errors
 from googleapiclient.http import (
@@ -314,7 +315,12 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :param filename: name of the file to be uploaded.
         :type filename: str.
         """
-        self.content = open(os.path.abspath(filename), "rb")  # noqa: SIM115
+        source = os.fsdecode(filename)
+        path = Path(source)
+        if source and not path.is_absolute():
+            # Anchor retries to the original working directory, preserving "..".
+            source = os.path.join(os.path.abspath(path.drive), source)
+        self.content = open(source, "rb")  # noqa: SIM115
         self._owns_content = True
         if self.get("id") is None:
             if self.get("name") is None:

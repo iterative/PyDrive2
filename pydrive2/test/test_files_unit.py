@@ -519,6 +519,37 @@ def test_path_upload_closes_file_and_can_retry(
     assert json.loads(update[2]) == {"name": "renamed"}
 
 
+def test_upload_and_retry_follow_the_same_directory_symlink(
+    mock_drive, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    child = tmp_path / "target" / "child"
+    child.mkdir(parents=True)
+    alias = tmp_path / "alias"
+    try:
+        alias.symlink_to(child, target_is_directory=True)
+    except OSError:
+        pytest.skip("Directory symlinks unavailable")
+    (child.parent / "source").write_bytes(b'{"id":"through-symlink"}')
+    (tmp_path / "source").write_bytes(b'{"id":"beside-symlink"}')
+    source = alias.relative_to(tmp_path) / ".." / "source"
+    expected = source.read_bytes()
+    drive, _ = mock_drive(
+        error_response(503, "backendError"),
+        ({"status": "200", "location": "https://example.test/session"}, ""),
+        ({"status": "200"}, "echo_request_body"),
+    )
+    file = drive.CreateFile()
+    file.SetContentFile(source)
+    assert file.content.read() == expected
+    file.content.seek(0)
+    with pytest.raises(ApiRequestError):
+        file.Upload()
+    monkeypatch.chdir(tmp_path.parent)
+    file.Upload()
+    assert file["id"] == json.loads(expected)["id"]
+
+
 def test_replacing_upload_content_respects_ownership(mock_drive, tmp_path):
     source = tmp_path / "source"
     source.write_bytes(b"payload")
