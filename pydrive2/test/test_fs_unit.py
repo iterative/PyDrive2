@@ -1,6 +1,8 @@
 import json
 import re
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from urllib.parse import urlsplit
 
 import pytest
@@ -313,7 +315,9 @@ def test_find_legacy_positional_detail_and_invalid_depth(mock_drive):
     page = response({"files": [item]})
     drive, _ = mock_drive(page, page)
     fs = filesystem(drive)
-    assert fs.find("root", True) == fs.find("root", detail=True)
+    with pytest.warns(DeprecationWarning, match="detail"):
+        legacy = fs.find("root", True)
+    assert legacy == fs.find("root", detail=True)
     for depth in (0, -1):
         with pytest.raises(ValueError, match="maxdepth"):
             fs.find("root", maxdepth=depth)
@@ -631,6 +635,47 @@ def test_move_refreshes_cached_destination_after_source_eviction(mock_drive):
     parents = query(requests[-1])["q"][0]
     assert "'old-child' in parents" in parents
     assert "'new-child' in parents" in parents
+
+
+@pytest.mark.parametrize("other_instance", [True, False])
+def test_unrelated_folder_creates_can_overlap(mock_drive, other_instance):
+    first_create, release = Event(), Event()
+    source = {"id": "src", "name": "src", "mimeType": "text/plain"}
+
+    def hold_first(request):
+        if request[1] == "POST" and not request[0].split("?")[0].endswith(
+            "/copy"
+        ):
+            first_create.set()
+            assert release.wait(10)
+
+    def setup(name, hook=None):
+        drive, _ = mock_drive(
+            listing(source),
+            listing(),
+            response({"id": name}),
+            response({"id": "copied"}),
+            on_request=hook,
+        )
+        return filesystem(drive), drive.auth.thread_local.http
+
+    first, first_http = setup("one", hold_first)
+    other, other_http = setup("two")
+
+    def copy(fs, http, name):
+        fs.client.auth.thread_local.http = http
+        fs.cp_file("root/src", f"root/{name}/copy")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        pending = pool.submit(copy, first, first_http, "one")
+        try:
+            assert first_create.wait(5)
+            pool.submit(
+                copy, other if other_instance else first, other_http, "two"
+            ).result(timeout=5)
+        finally:
+            release.set()
+        pending.result(timeout=5)
 
 
 def test_invalidating_an_unopened_mount_needs_no_drive_request(mock_drive):
@@ -1106,29 +1151,35 @@ def test_makedirs_rejects_file(mock_drive, path, expected):
     assert [req[1] for req in requests] == ["GET"]
 
 
-@pytest.mark.parametrize("list_first", [False, True])
-def test_makedirs_and_ls_share_mount_metadata(mock_drive, list_first):
+def test_explicit_bare_folder_check_refreshes_trash_status(mock_drive):
+    root = {"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}
     drive, requests = mock_drive(
-        response({"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}),
-        listing(),
+        response(root), listing(), response(dict(root, trashed=True))
     )
     fs = filesystem(drive, "FolderID")
-    if list_first:
-        assert fs.ls("FolderID") == []
     fs.makedirs("FolderID", exist_ok=True)
-    fs.invalidate_cache("FolderID/sub")
-    if not list_first:
-        assert fs.ls("FolderID") == []
-    fs.makedirs("FolderID", exist_ok=True)
-    with pytest.raises(FileExistsError):
-        fs.mkdir("FolderID")
-    stat, children = requests
-    assert set(query(stat)["fields"][0].split(",")) == {
-        "driveId",
-        "mimeType",
-        "trashed",
-    }
+    assert fs.ls("FolderID") == []
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID", exist_ok=True)
+    first, children, fresh = requests
+    assert first[:2] == fresh[:2]
     assert query(children)["driveId"] == ["shared"]
+
+
+@pytest.mark.parametrize("operation", ["upload", "copy"])
+def test_file_blocking_write_parent_is_not_a_directory(mock_drive, operation):
+    from io import BytesIO
+
+    file = {"id": "F", "name": "block", "mimeType": "text/plain"}
+    source = [listing(dict(file, name="src"))] if operation == "copy" else []
+    drive, requests = mock_drive(*source, listing(file))
+    fs = filesystem(drive)
+    with pytest.raises(NotADirectoryError, match="block"):
+        if operation == "copy":
+            fs.cp_file("root/src", "root/block/out")
+        else:
+            fs.upload_fobj(BytesIO(b"data"), "root/block/out")
+    assert [r[1] for r in requests] == ["GET"] * (1 + len(source))
 
 
 def test_invalidating_root_during_stat_discards_its_result(mock_drive):
