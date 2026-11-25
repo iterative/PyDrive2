@@ -103,6 +103,28 @@ def test_find_trashed_root_id_skips_listing(mock_drive):
     assert "trashed" in query(stat)["fields"][0].split(",")
 
 
+@pytest.mark.parametrize("survivors", [[], [folder("empty", "B")]])
+def test_find_after_external_removal_of_a_cached_named_folder(
+    mock_drive, survivors
+):
+    path = "root/empty"
+    drive, requests = mock_drive(
+        listing(folder("empty", "A"), folder("empty", "B")),
+        listing(),
+        listing(*survivors),
+        *([listing()] if survivors else []),
+    )
+    fs = filesystem(drive)
+    assert fs.find(path, withdirs=True) == [path]
+    fs.invalidate_cache(path)
+    assert fs.find(path, withdirs=True) == ([path] if survivors else [])
+    assert "name='empty'" in query(requests[2])["q"][0]
+    if survivors:
+        assert query(requests[3])["q"] == [
+            "('B' in parents) and trashed=false"
+        ]
+
+
 @pytest.mark.parametrize("mount", ["Blob", "root", "root/note"])
 def test_find_file_returns_stat(mock_drive, mount):
     first = {
