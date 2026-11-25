@@ -494,8 +494,7 @@ class GDriveFileSystem(AbstractFileSystem):
                 match.files.append(item)
         return match, self._cache_path_id(cache, path, *match.folders)
 
-    def _resolve_prefix(self, path, cache, mount=None):
-        """Return the deepest existing component, its matches and lookup cache."""
+    def _cached_prefix(self, path, cache):
         parent = path
         remaining = []
         with self._cache_lock:
@@ -503,8 +502,13 @@ class GDriveFileSystem(AbstractFileSystem):
                 parent, name = posixpath.split(parent)
                 remaining.append(name)
             folders = cache.by_path[parent].copy() if parent else [self.root]
+        return parent, folders, reversed(remaining)
+
+    def _resolve_prefix(self, path, cache, mount=None):
+        """Return the deepest existing component, its matches and lookup cache."""
+        parent, folders, remaining = self._cached_prefix(path, cache)
         match = _PathMatch(folders)
-        for name in reversed(remaining):
+        for name in remaining:
             child = posixpath.join(parent, name)
             found, cache = self._match_child(
                 cache, match.folders, child, name, mount
@@ -520,36 +524,26 @@ class GDriveFileSystem(AbstractFileSystem):
         prefix, match, _ = self._resolve_prefix(path, cache, mount)
         return match if prefix == path else _PathMatch([])
 
-    def _create_missing_dirs(self, path, parent, folders, cache):
-        # The prefix lookup already established that the first child is missing.
-        names = path[len(parent) :].lstrip("/").split("/")
-        for index, name in enumerate(names):
+    def _ensure_dirs(self, path, cache, mount=None):
+        parent, folders, remaining = self._cached_prefix(path, cache)
+        for name in remaining:
             parent = posixpath.join(parent, name)
-            if index:
-                match, cache = self._match_child(cache, folders, parent, name)
-                if match.folders:
-                    folders = match.folders
-                    continue
-                if match.files:
-                    raise NotADirectoryError(posixpath.join(self.root, parent))
-            folders = [self._create_dir(cache, min(folders), name, parent)]
-        return folders
+            match, cache = self._get_or_create_child(
+                cache, folders, parent, name, mount
+            )
+            if not match.folders:
+                raise NotADirectoryError(posixpath.join(self.root, parent))
+            folders = match.folders
+        return folders, cache
 
     def _path_to_item_ids(self, path, create=False):
         if not path:
             return [self.root]
-        prefix, match, cache = self._resolve_prefix(
-            path, *self._directory_cache()
-        )
+        cache, mount = self._directory_cache()
         if create:
-            if not match.folders:
-                raise NotADirectoryError(posixpath.join(self.root, prefix))
-            if prefix != path:
-                return self._create_missing_dirs(
-                    path, prefix, match.folders, cache
-                )
-            return match.folders
-        return match.ids if prefix == path else []
+            folders, _ = self._ensure_dirs(path, cache, mount)
+            return folders
+        return self._resolve_path(path, cache, mount).ids
 
     def _get_item_id(self, path, create=False):
         _, base = self._split_mounted_path(path)
@@ -570,8 +564,8 @@ class GDriveFileSystem(AbstractFileSystem):
         item.Upload()
         return item
 
-    def _create_dir(self, cache, parent_id, name, remote_path):
-        # Wait only for creates of the same name in the same Drive parent.
+    def _get_or_create_child(self, cache, parents, path, name, mount=None):
+        parent_id = min(parents)
         key = (parent_id, name)
         with self._cache_lock:
             lock = self._creation_locks.get(key)
@@ -579,11 +573,17 @@ class GDriveFileSystem(AbstractFileSystem):
                 lock = self._creation_locks[key] = threading.RLock()
         with lock:
             with self._cache_lock:
-                if cached := cache.by_path.get(remote_path):
-                    return cached[0]
+                if cached := cache.by_path.get(path):
+                    return _PathMatch(cached.copy()), cache
+            # An invalidation can give two writers different caches. Check
+            # Drive under the same name lock as the create.
+            match, cache = self._match_child(cache, parents, path, name, mount)
+            if match.folders or match.files:
+                return match, cache
             item = self._gdrive_create_dir(parent_id, name)
-            self._cache_path_id(cache, remote_path, item["id"])
-            return item["id"]
+            return _PathMatch([item["id"]]), self._cache_path_id(
+                cache, path, item["id"]
+            )
 
     def exists(self, path):
         root, base = self._split_mounted_path(path)
