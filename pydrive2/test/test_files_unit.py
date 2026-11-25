@@ -3,6 +3,7 @@ import io
 import json
 import weakref
 from codecs import BOM_UTF8
+from copy import copy
 from urllib.parse import urlsplit
 
 import pytest
@@ -474,7 +475,7 @@ def test_uploading_a_local_file_takes_two_requests(
 
 
 @pytest.mark.parametrize("fail_on_put", [False, True], ids=["session", "body"])
-def test_path_upload_closes_file_and_can_retry(
+def test_failed_upload_keeps_the_file_open_until_retry_succeeds(
     mock_drive, tmp_path, monkeypatch, fail_on_put
 ):
     source = tmp_path / "source"
@@ -497,13 +498,14 @@ def test_path_upload_closes_file_and_can_retry(
     assert not requests
     with pytest.raises(ApiRequestError):
         file.Upload()
-    assert opened.closed
+    assert not opened.closed
     assert [r[1] for r in requests] == (
         ["POST", "PUT"] if fail_on_put else ["POST"]
     )
     monkeypatch.chdir(tmp_path.parent)
     before = len(requests)
     file.Upload()
+    assert opened.closed
     assert file["id"] == "from-retried-upload"
     assert file.content is None
     retry, upload = requests[before:]
@@ -519,7 +521,7 @@ def test_path_upload_closes_file_and_can_retry(
     assert json.loads(update[2]) == {"name": "renamed"}
 
 
-def test_upload_and_retry_follow_the_same_directory_symlink(
+def test_set_content_file_follows_directory_symlinks(
     mock_drive, tmp_path, monkeypatch
 ):
     monkeypatch.chdir(tmp_path)
@@ -530,41 +532,35 @@ def test_upload_and_retry_follow_the_same_directory_symlink(
         alias.symlink_to(child, target_is_directory=True)
     except OSError:
         pytest.skip("Directory symlinks unavailable")
-    (child.parent / "source").write_bytes(b'{"id":"through-symlink"}')
-    (tmp_path / "source").write_bytes(b'{"id":"beside-symlink"}')
+    (child.parent / "source").write_bytes(b"through symlink")
+    (tmp_path / "source").write_bytes(b"beside symlink")
     source = alias.relative_to(tmp_path) / ".." / "source"
-    expected = source.read_bytes()
-    drive, _ = mock_drive(
-        error_response(503, "backendError"),
-        ({"status": "200", "location": "https://example.test/session"}, ""),
-        ({"status": "200"}, "echo_request_body"),
-    )
+    drive, _ = mock_drive()
     file = drive.CreateFile()
     file.SetContentFile(source)
-    assert file.content.read() == expected
-    file.content.seek(0)
-    with pytest.raises(ApiRequestError):
-        file.Upload()
-    monkeypatch.chdir(tmp_path.parent)
-    file.Upload()
-    assert file["id"] == json.loads(expected)["id"]
+    with file.content:
+        assert file.content.read() == source.read_bytes()
 
 
-def test_replacing_upload_content_respects_ownership(mock_drive, tmp_path):
+def test_replacing_content_on_a_copy_closes_only_the_owned_file(
+    mock_drive, tmp_path
+):
     source = tmp_path / "source"
     source.write_bytes(b"payload")
     drive, requests = mock_drive(
+        error_response(503, "backendError"),
         ({"status": "200", "location": "https://example.test/session"}, ""),
         response({"id": "uploaded"}),
     )
     file = drive.CreateFile()
     file.SetContentFile(source)
     owned = file.content
+    with pytest.raises(ApiRequestError):
+        file.Upload()
     external = io.BytesIO(b"external")
-    file.content = external
+    copy(file).content = external
     assert owned.closed
-    assert not requests
     file.Upload()
     file.SetContentString("replacement")
     assert external.getvalue() == b"external"
-    assert [r[1] for r in requests] == ["POST", "PUT"]
+    assert [r[1] for r in requests] == ["POST", "POST", "PUT"]

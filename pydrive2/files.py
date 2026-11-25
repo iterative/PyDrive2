@@ -4,7 +4,6 @@ import json
 import mimetypes
 import os
 from functools import wraps
-from pathlib import Path
 
 from googleapiclient import errors
 from googleapiclient.http import (
@@ -228,6 +227,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     """
 
     _content = ApiAttribute("content")
+    _owns_content = ApiAttribute("owns_content")
     uploaded = ApiAttribute("uploaded")
     metadata = ApiAttribute("metadata")
 
@@ -245,7 +245,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         ApiResource.__init__(self)
         self.metadata = {}
         self.dirty = {"content": False}
-        self._owns_content = False
         self.auth = auth
         self.uploaded = uploaded
         if uploaded:
@@ -315,15 +314,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :param filename: name of the file to be uploaded.
         :type filename: str.
         """
-        source = os.fsdecode(filename)
-        path = Path(source)
-        if source and not path.is_absolute():
-            # Include the current directory so a retry can reopen the file
-            # even if the caller changes directories. Keep ".." in the path
-            # so the OS follows symlinks first. For example, if "link" points
-            # to "/data/photos", "link/../image.jpg" opens "/data/image.jpg".
-            source = os.path.join(os.path.abspath(path.drive), source)
-        self.content = open(source, "rb")  # noqa: SIM115
+        self.content = open(filename, "rb")  # noqa: SIM115 - retained for upload
         self._owns_content = True
         if self.get("id") is None:
             if self.get("name") is None:
@@ -515,22 +506,13 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         self.has_bom = not remove_bom
         self._export_mimetype = mimetype
 
+    @LoadAuth
     def Upload(self, param=None, *, media_mime_type=None):
         """Create or update a file, optionally importing uploaded media.
 
         For a Workspace import, set the destination MIME type in the file
         metadata and pass the source MIME type as media_mime_type.
         """
-        if self._owns_content:
-            if self.content.closed:
-                # A previous attempt failed. Reopen the source for this retry.
-                self._content = open(self.content.name, "rb")  # noqa: SIM115
-            with self.content:
-                return self._Upload(param, media_mime_type)
-        return self._Upload(param, media_mime_type)
-
-    @LoadAuth
-    def _Upload(self, param, media_mime_type):
         params = dict(param or {}, supportsAllDrives=True)
         params["fields"] = params.get("fields") or DEFAULT_FILE_FIELDS
         body = self.GetChanges()
