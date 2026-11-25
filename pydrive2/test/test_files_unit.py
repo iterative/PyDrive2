@@ -1,7 +1,9 @@
 import gc
+import io
 import json
 import weakref
 from codecs import BOM_UTF8
+from copy import copy
 from urllib.parse import urlsplit
 
 import pytest
@@ -447,3 +449,118 @@ def test_disk_download_releases_each_chunk_before_requesting_the_next(
     dest = tmp_path / "download"
     drive.CreateFile({"id": "file"}).GetContentFile(dest, chunksize=2)
     assert dest.read_bytes() == b"abcd"
+
+
+@pytest.mark.parametrize("existing", [False, True], ids=["create", "update"])
+def test_uploading_a_local_file_takes_two_requests(
+    mock_drive, tmp_path, existing
+):
+    source = tmp_path / "source"
+    source.write_bytes(b"payload")
+    drive, requests = mock_drive(
+        ({"status": "200", "location": "https://example.test/session"}, ""),
+        response({"id": "file"}),
+    )
+    file = drive.CreateFile({"id": "file"} if existing else {})
+    file.SetContentFile(source)
+    opened = file.content
+    assert not requests
+    file.Upload()
+    assert opened.closed
+    start, body = requests
+    assert start[1] == ("PATCH" if existing else "POST")
+    path = "/upload/drive/v3/files" + ("/file" if existing else "")
+    assert urlsplit(start[0]).path == path
+    assert body[:2] == ("https://example.test/session", "PUT")
+
+
+@pytest.mark.parametrize("fail_on_put", [False, True], ids=["session", "body"])
+def test_failed_upload_keeps_the_file_open_until_retry_succeeds(
+    mock_drive, tmp_path, monkeypatch, fail_on_put
+):
+    source = tmp_path / "source"
+    source.write_bytes(b'{"id":"from-retried-upload"}')
+    session = (
+        {"status": "200", "location": "https://example.test/session"},
+        "",
+    )
+    drive, requests = mock_drive(
+        *([session] if fail_on_put else []),
+        error_response(503, "backendError"),
+        session,
+        ({"status": "200"}, "echo_request_body"),
+        response({"id": "from-retried-upload"}),
+    )
+    file = drive.CreateFile()
+    monkeypatch.chdir(tmp_path)
+    file.SetContentFile("source")
+    opened = file.content
+    assert not requests
+    with pytest.raises(ApiRequestError):
+        file.Upload()
+    assert not opened.closed
+    assert [r[1] for r in requests] == (
+        ["POST", "PUT"] if fail_on_put else ["POST"]
+    )
+    monkeypatch.chdir(tmp_path.parent)
+    before = len(requests)
+    file.Upload()
+    assert opened.closed
+    assert file["id"] == "from-retried-upload"
+    assert file.content is None
+    retry, upload = requests[before:]
+    assert retry[:2] == requests[0][:2]
+    assert upload[:2] == ("https://example.test/session", "PUT")
+    source.unlink()
+    file["name"] = "renamed"
+    before = len(requests)
+    file.Upload()
+    (update,) = requests[before:]
+    assert update[1] == "PATCH"
+    assert urlsplit(update[0]).path == "/drive/v3/files/from-retried-upload"
+    assert json.loads(update[2]) == {"name": "renamed"}
+
+
+def test_set_content_file_follows_directory_symlinks(
+    mock_drive, tmp_path, monkeypatch
+):
+    monkeypatch.chdir(tmp_path)
+    child = tmp_path / "target" / "child"
+    child.mkdir(parents=True)
+    alias = tmp_path / "alias"
+    try:
+        alias.symlink_to(child, target_is_directory=True)
+    except OSError:
+        pytest.skip("Directory symlinks unavailable")
+    (child.parent / "source").write_bytes(b"through symlink")
+    (tmp_path / "source").write_bytes(b"beside symlink")
+    source = alias.relative_to(tmp_path) / ".." / "source"
+    drive, _ = mock_drive()
+    file = drive.CreateFile()
+    file.SetContentFile(source)
+    with file.content:
+        assert file.content.read() == source.read_bytes()
+
+
+def test_replacing_content_on_a_copy_closes_only_the_owned_file(
+    mock_drive, tmp_path
+):
+    source = tmp_path / "source"
+    source.write_bytes(b"payload")
+    drive, requests = mock_drive(
+        error_response(503, "backendError"),
+        ({"status": "200", "location": "https://example.test/session"}, ""),
+        response({"id": "uploaded"}),
+    )
+    file = drive.CreateFile()
+    file.SetContentFile(source)
+    owned = file.content
+    with pytest.raises(ApiRequestError):
+        file.Upload()
+    external = io.BytesIO(b"external")
+    copy(file).content = external
+    assert owned.closed
+    file.Upload()
+    file.SetContentString("replacement")
+    assert external.getvalue() == b"external"
+    assert [r[1] for r in requests] == ["POST", "POST", "PUT"]

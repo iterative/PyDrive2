@@ -226,7 +226,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
     Can access and modify metadata like dictionary.
     """
 
-    content = ApiAttribute("content")
+    _content = ApiAttribute("content")
+    _owns_content = ApiAttribute("owns_content")
     uploaded = ApiAttribute("uploaded")
     metadata = ApiAttribute("metadata")
 
@@ -275,6 +276,17 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             else:
                 raise FileNotUploadedError()
 
+    @property
+    def content(self):
+        return self._content
+
+    @content.setter
+    def content(self, stream):
+        if self._owns_content and self._content is not stream:
+            self._content.close()
+            self._owns_content = False
+        self._content = stream
+
     def SetContentString(self, content, encoding="utf-8"):
         """Set content of this file to be a string.
 
@@ -294,10 +306,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self["mimeType"] = "text/plain"
 
     def SetContentFile(self, filename):
-        """Set content of this file from a file.
+        """Open a local file for upload.
 
-        Opens the file specified by this method.
-        Will be read, uploaded, and closed by Upload() method.
         Sets metadata 'name' and 'mimeType' automatically if not specified and
         the file is uploaded for the first time (id is not set).
 
@@ -305,6 +315,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :type filename: str.
         """
         self.content = open(filename, "rb")  # noqa: SIM115 - retained for upload
+        self._owns_content = True
         if self.get("id") is None:
             if self.get("name") is None:
                 self["name"] = os.path.basename(filename)
@@ -537,8 +548,9 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         destination_type = (
             metadata.get("mimeType") or self.get("mimeType") or ""
         )
-        if self.dirty["content"] and destination_type.startswith(
-            "application/vnd.google-apps."
+        if self._owns_content or (
+            self.dirty["content"]
+            and destination_type.startswith("application/vnd.google-apps.")
         ):
             self.content = None
         self.uploaded = True
