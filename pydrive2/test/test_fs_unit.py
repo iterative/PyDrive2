@@ -829,7 +829,7 @@ def test_large_write_after_close_does_not_open_a_tempfile(mock_drive, mocker):
 
 def test_makedirs_creates_empty_drive_folders(mock_drive):
     drive, requests = mock_drive(
-        response({"driveId": "shared"}),
+        response({"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}),
         response({"files": []}),
         response({"id": "A"}),
         response({"files": []}),
@@ -970,6 +970,36 @@ def test_makedirs_rejects_invalid_mount_id(mock_drive, failure, error):
         filesystem(drive, "FolderID").makedirs("FolderID", exist_ok=True)
 
 
+@pytest.mark.parametrize(
+    "metadata,error",
+    [
+        ({"mimeType": "text/plain"}, NotADirectoryError),
+        ({"mimeType": FOLDER_MIME_TYPE, "trashed": True}, FileNotFoundError),
+    ],
+)
+def test_makedirs_rejects_invalid_parent_id_before_creation(
+    mock_drive, metadata, error
+):
+    drive, requests = mock_drive(
+        response(metadata), listing(), response({"id": "sub"})
+    )
+    with pytest.raises(error):
+        filesystem(drive, "DriveID").makedirs("DriveID/sub")
+    assert [request[1] for request in requests] == ["GET"]
+
+
+def test_makedirs_checks_a_previously_valid_mount_before_creating(mock_drive):
+    root = {"mimeType": FOLDER_MIME_TYPE}
+    drive, requests = mock_drive(
+        response(root), response(dict(root, trashed=True))
+    )
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID", exist_ok=True)
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID/sub")
+    assert [request[1] for request in requests] == ["GET", "GET"]
+
+
 def test_makedirs_bare_root_is_independent_of_named_mount(mock_drive):
     drive, requests = mock_drive(response({"mimeType": FOLDER_MIME_TYPE}))
     filesystem(drive, "FolderID/missing").makedirs("FolderID", exist_ok=True)
@@ -979,7 +1009,7 @@ def test_makedirs_bare_root_is_independent_of_named_mount(mock_drive):
 
 def test_makedirs_starts_at_cached_mount(mock_drive):
     drive, requests = mock_drive(
-        response({"driveId": "shared"}),
+        response({"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}),
         listing(folder("a", "a")),
         listing(folder("b", "b")),
         listing(),

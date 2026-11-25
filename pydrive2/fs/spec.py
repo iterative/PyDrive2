@@ -615,25 +615,27 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def _mkdir(self, path, create_parents, exist_ok):
         root, base = self._split_mounted_path(path)
-        if not base:
-            if root not in {"root", "appDataFolder"}:
-                metadata = self._get_root_metadata(fresh=True)
-                if metadata.get("trashed"):
-                    raise FileNotFoundError(
-                        errno.ENOENT, os.strerror(errno.ENOENT), path
+        with self._cache_lock:
+            cache = self._directory_ids
+            cached = cache.mount_checked and base in cache.by_path
+        if not cached and root not in {"root", "appDataFolder"}:
+            metadata = self._get_root_metadata(fresh=True)
+            if metadata.get("trashed"):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), root
+                )
+            if metadata.get("mimeType") != FOLDER_MIME_TYPE:
+                if base:
+                    raise NotADirectoryError(
+                        errno.ENOTDIR, os.strerror(errno.ENOTDIR), root
                     )
-                if metadata.get("mimeType") != FOLDER_MIME_TYPE:
-                    raise FileExistsError(path)
+                raise FileExistsError(path)
+        if not base or cached:
             if not exist_ok:
                 raise FileExistsError(path)
             return
 
         cache, mount = self._directory_cache()
-        with self._cache_lock:
-            if base in cache.by_path:
-                if not exist_ok:
-                    raise FileExistsError(path)
-                return
         parent, name = posixpath.split(base)
         if create_parents:
             folders, cache = self._ensure_dirs(parent, cache, mount)
