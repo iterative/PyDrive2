@@ -39,14 +39,6 @@ folder that the account can access:
     fs = fsspec.filesystem("gdrive", path="FOLDER_ID", **options)
     names = fs.ls("FOLDER_ID")
 
-A filesystem instance is scoped to one root. Use URLs under the same folder
-ID or root alias in a single ``fsspec.open_files`` call. Sibling URLs reuse
-the filesystem and its directory ID cache. Reads by file ID skip name
-lookups. Reads are sequential. To create a file, use a folder ID or root
-alias followed by a filename. As with the direct PyDrive2 filesystem,
-a write creates a Drive item even when a sibling has the same name. All
-reads require credentials, including files shared by link.
-
 Use ``fs.rmdir("root/empty")`` to remove an empty folder. A nonempty
 folder raises ``OSError`` with ``errno.ENOTEMPTY``. If the name is
 ambiguous, open a filesystem at the intended folder ID and remove it by
@@ -54,6 +46,14 @@ ID. In trash mode, already trashed children are ignored. Permanent removal
 also checks for trashed children. Drive checks emptiness and performs the
 removal in separate requests, so coordinate concurrent writers when using
 this operation.
+
+A filesystem instance is scoped to one root. Use URLs under the same folder
+ID or root alias in a single ``fsspec.open_files`` call. Sibling URLs reuse
+the filesystem and its directory ID cache. Reads by file ID skip name
+lookups. Reads are sequential. To create a file, use a folder ID or root
+alias followed by a filename. As with the direct PyDrive2 filesystem,
+a write creates a Drive item even when a sibling has the same name. All
+reads require credentials, including files shared by link.
 
 Drive queries for directory entries exclude trashed items. For a bare file
 ID, ``exists()`` returns false and ``info()`` raises ``FileNotFoundError``
