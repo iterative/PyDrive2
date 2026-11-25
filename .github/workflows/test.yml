@@ -3,8 +3,11 @@ on:
     branches:
       - main
   pull_request:
-    types: [opened, reopened, synchronize, edited]
   workflow_dispatch:
+  workflow_call:
+    secrets:
+      GDRIVE_USER_CREDENTIALS_DATA:
+        required: false
 
 name: Tests
 
@@ -15,7 +18,6 @@ jobs:
   pending:
     if: >-
       github.event_name == 'pull_request' && github.base_ref == 'main' &&
-      (github.event.action != 'edited' || github.event.changes.base.ref.from) &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
@@ -30,7 +32,6 @@ jobs:
   test:
     name: test (${{ matrix.os }}, ${{ matrix.pyv }})
     runs-on: ${{ matrix.os }}
-    if: github.event.action != 'edited' || github.event.changes.base.ref.from
     outputs:
       live: ${{ steps.live.outcome }}
 
