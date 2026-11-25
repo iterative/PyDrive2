@@ -47,6 +47,14 @@ alias followed by a filename. As with the direct PyDrive2 filesystem,
 a write creates a Drive item even when a sibling has the same name. All
 reads require credentials, including files shared by link.
 
+Use ``fs.rmdir("root/empty")`` to remove an empty folder. A nonempty
+folder raises ``OSError`` with ``errno.ENOTEMPTY``. If the name is
+ambiguous, open a filesystem at the intended folder ID and remove it by
+ID. In trash mode, already trashed children are ignored. Permanent removal
+also checks for trashed children. Drive checks emptiness and performs the
+removal in separate requests, so coordinate concurrent writers when using
+this operation.
+
 Drive queries for directory entries exclude trashed items. For a bare file
 ID, ``exists()`` returns false and ``info()`` raises ``FileNotFoundError``
 when the item is in the trash. Opening or downloading by ID requests the

@@ -1,3 +1,4 @@
+import errno
 import json
 import re
 import tempfile
@@ -361,6 +362,100 @@ def test_unrelated_folder_creates_can_overlap(mock_drive, other_instance):
         finally:
             release.set()
         pending.result(timeout=5)
+
+
+@pytest.mark.parametrize("trash_only", [True, False])
+def test_rmdir_removes_only_a_freshly_resolved_empty_folder(
+    mock_drive, trash_only
+):
+    drive, requests = mock_drive(
+        listing(folder("dir", "old")),
+        listing(folder("dir", "current")),
+        listing(),
+        response({}),
+        listing(),
+    )
+    fs = filesystem(drive, trash_only=trash_only)
+    assert fs.exists("root/dir")
+    fs.rmdir("root/dir")
+    assert not fs.exists("root/dir")
+    _, resolve, children, remove, _ = requests
+    assert "name='dir'" in query(resolve)["q"][0]
+    assert query(children)["pageSize"] == ["1"]
+    q = query(children)["q"][0]
+    assert "'current' in parents" in q and ("trashed=false" in q) == trash_only
+    assert urlsplit(remove[0]).path.endswith("/files/current")
+    assert remove[1] == ("PATCH" if trash_only else "DELETE")
+
+
+@pytest.mark.parametrize(
+    "items,error",
+    [
+        ([], FileNotFoundError),
+        (
+            [{"name": "dir", "id": "F", "mimeType": "text/plain"}],
+            NotADirectoryError,
+        ),
+        ([folder("dir", "A"), folder("dir", "B")], FileExistsError),
+        (
+            [
+                folder("dir", "A"),
+                {"name": "dir", "id": "F", "mimeType": "text/plain"},
+            ],
+            FileExistsError,
+        ),
+    ],
+)
+def test_rmdir_refuses_missing_files_and_ambiguous_names(
+    mock_drive, items, error
+):
+    drive, requests = mock_drive(listing(*items))
+    with pytest.raises(error):
+        filesystem(drive).rmdir("root/dir")
+    assert [req[1] for req in requests] == ["GET"]
+
+
+@pytest.mark.parametrize("root", ["root", "appDataFolder"])
+def test_rmdir_protects_root_aliases(mock_drive, root):
+    drive, requests = mock_drive()
+    with pytest.raises(PermissionError):
+        filesystem(drive, root).rmdir(root)
+    assert not requests
+
+
+@pytest.mark.parametrize(
+    "page,code",
+    [
+        (listing({"id": "child"}), errno.ENOTEMPTY),
+        (response({"files": [], "incompleteSearch": True}), errno.EIO),
+    ],
+)
+def test_rmdir_checks_later_pages_before_removing_by_id(
+    mock_drive, page, code
+):
+    drive, requests = mock_drive(
+        response({"mimeType": FOLDER_MIME_TYPE}),
+        response({"files": [], "nextPageToken": "next"}),
+        page,
+    )
+    with pytest.raises(OSError) as error:
+        filesystem(drive, "FolderID").rmdir("FolderID")
+    assert error.value.errno == code
+    assert [r[1] for r in requests] == ["GET"] * 3
+    assert query(requests[-1])["pageToken"] == ["next"]
+
+
+def test_rmdir_checks_emptiness_again_after_transient_failure(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("dir", "D")),
+        listing(),
+        error_response(503, "backendError"),
+        listing({"id": "new-child"}),
+    )
+    with pytest.raises(OSError) as error:
+        filesystem(drive, trash_only=False).rmdir("root/dir")
+    assert error.value.errno == errno.ENOTEMPTY
+    assert [r[1] for r in requests] == ["GET", "GET", "DELETE", "GET"]
 
 
 def test_invalidating_an_unopened_mount_needs_no_drive_request(mock_drive):

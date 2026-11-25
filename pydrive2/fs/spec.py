@@ -883,6 +883,72 @@ class GDriveFileSystem(AbstractFileSystem):
         )
         return IterStream(iter(fd))
 
+    def rmdir(self, path):
+        """Remove one empty Drive folder, honoring the trash_only setting."""
+        root, base = self._split_mounted_path(path)
+        if base:
+            # Name duplicates and external renames must be checked before
+            # deleting. A cached folder ID alone cannot establish uniqueness.
+            match = self._resolve_path(base, _DirectoryCache())
+            if not match.ids:
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), path
+                )
+            if not match.folders:
+                raise NotADirectoryError(
+                    errno.ENOTDIR, os.strerror(errno.ENOTDIR), path
+                )
+            if len(match.ids) != 1:
+                raise FileExistsError(
+                    errno.EEXIST,
+                    "Ambiguous Drive path; use the folder ID",
+                    path,
+                )
+            item_id = match.folders[0]
+        else:
+            if root in {"root", "appDataFolder"}:
+                raise PermissionError(
+                    errno.EPERM, "Cannot remove a Drive root", path
+                )
+            item = self._get_root_metadata(fresh=True)
+            if item.get("trashed"):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), path
+                )
+            if item.get("mimeType") != FOLDER_MIME_TYPE:
+                raise NotADirectoryError(
+                    errno.ENOTDIR, os.strerror(errno.ENOTDIR), path
+                )
+            if item.get("driveId") == root:
+                raise PermissionError(
+                    errno.EPERM, "Cannot remove a Drive root", path
+                )
+            item_id = root
+
+        with _translate_not_found(path):
+            self._gdrive_delete_file(item_id, empty_directory=path)
+        self.invalidate_cache(path)
+
+    def _check_empty_folder(self, item_id, path):
+        query = f"{_quote_query_value(item_id)} in parents"
+        if self._trash_only:
+            query += " and trashed=false"
+        pages = self.client.ListFile(
+            dict(
+                self._list_params,
+                q=query,
+                pageSize=1,
+                fields="nextPageToken,incompleteSearch,files(id)",
+            )
+        )
+        for page in pages:
+            if page:
+                raise OSError(
+                    errno.ENOTEMPTY, os.strerror(errno.ENOTEMPTY), path
+                )
+            if pages.metadata.get("incompleteSearch"):
+                raise OSError(errno.EIO, "Incomplete Drive listing", path)
+
     def rm_file(self, path):
         item_id = self._get_item_id(path)
         self._gdrive_delete_file(item_id)
@@ -890,7 +956,7 @@ class GDriveFileSystem(AbstractFileSystem):
             self.invalidate_cache(path)
 
     @_gdrive_retry
-    def _gdrive_delete_file(self, item_id):
+    def _gdrive_delete_file(self, item_id, *, empty_directory=None):
         from pydrive2.files import ApiRequestError
 
         param = {"id": item_id}
@@ -898,6 +964,8 @@ class GDriveFileSystem(AbstractFileSystem):
         item = self.client.CreateFile(param)
 
         try:
+            if empty_directory is not None:
+                self._check_empty_folder(item_id, empty_directory)
             item.Trash() if self._trash_only else item.Delete()
         except ApiRequestError as exc:
             http_error_code = exc.error.get("code", 0)
