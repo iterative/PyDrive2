@@ -1,6 +1,8 @@
 import json
 import re
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from urllib.parse import urlsplit
 
 import pytest
@@ -318,6 +320,47 @@ def test_move_refreshes_cached_destination_after_source_eviction(mock_drive):
     parents = query(requests[-1])["q"][0]
     assert "'old-child' in parents" in parents
     assert "'new-child' in parents" in parents
+
+
+@pytest.mark.parametrize("other_instance", [True, False])
+def test_unrelated_folder_creates_can_overlap(mock_drive, other_instance):
+    first_create, release = Event(), Event()
+    source = {"id": "src", "name": "src", "mimeType": "text/plain"}
+
+    def hold_first(request):
+        if request[1] == "POST" and not request[0].split("?")[0].endswith(
+            "/copy"
+        ):
+            first_create.set()
+            assert release.wait(10)
+
+    def setup(name, hook=None):
+        drive, _ = mock_drive(
+            listing(source),
+            listing(),
+            response({"id": name}),
+            response({"id": "copied"}),
+            on_request=hook,
+        )
+        return filesystem(drive), drive.auth.thread_local.http
+
+    first, first_http = setup("one", hold_first)
+    other, other_http = setup("two")
+
+    def copy(fs, http, name):
+        fs.client.auth.thread_local.http = http
+        fs.cp_file("root/src", f"root/{name}/copy")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        pending = pool.submit(copy, first, first_http, "one")
+        try:
+            assert first_create.wait(5)
+            pool.submit(
+                copy, other if other_instance else first, other_http, "two"
+            ).result(timeout=5)
+        finally:
+            release.set()
+        pending.result(timeout=5)
 
 
 def test_invalidating_an_unopened_mount_needs_no_drive_request(mock_drive):

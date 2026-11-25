@@ -8,6 +8,7 @@ import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
+from weakref import WeakValueDictionary
 
 import appdirs
 from fsspec.spec import AbstractFileSystem
@@ -16,7 +17,6 @@ from funcy import (
     chunks,
     distinct,
     retry,
-    wrap_with,
 )
 from tqdm.utils import CallbackIOWrapper
 
@@ -281,6 +281,8 @@ class GDriveFileSystem(AbstractFileSystem):
         super().__init__(**kwargs)
         self._cache_lock = threading.RLock()
         self._directory_ids = _DirectoryCache()
+        self._mount_lock = threading.RLock()
+        self._creation_locks: WeakValueDictionary = WeakValueDictionary()
         self.path = path
         self.root, self.base = self.split_path(self.path)
 
@@ -349,6 +351,11 @@ class GDriveFileSystem(AbstractFileSystem):
             cache = self._directory_ids
             if cache.mount_checked:
                 return cache, None
+        with self._mount_lock:
+            with self._cache_lock:
+                cache = self._directory_ids
+                if cache.mount_checked:
+                    return cache, None
             mount = self._resolve_path(self.base, cache)
             if not mount.ids:
                 raise FileNotFoundError(
@@ -356,7 +363,8 @@ class GDriveFileSystem(AbstractFileSystem):
                     os.strerror(errno.ENOENT),
                     f"Confirm {self.path} exists and you can access it",
                 )
-            cache.mount_checked = True
+            with self._cache_lock:
+                cache.mount_checked = True
             return cache, mount
 
     def _cache_path_id(self, cache, path, *item_ids):
@@ -473,10 +481,21 @@ class GDriveFileSystem(AbstractFileSystem):
                     seen_ids.add(file_id)
                 yield item
 
-    def _resolve_path(
-        self, path, cache, mount=None, *, create=False
-    ) -> _PathMatch:
-        # Start at the deepest cached folder and only fetch unknown components.
+    def _match_child(self, cache, parent_ids, path, name, mount=None):
+        if path == self.base and mount is not None:
+            return mount, cache
+        match = _PathMatch([])
+        for item in self._gdrive_list_ids(parent_ids, name=name):
+            if item["name"] != name:  # Drive matches case-insensitively.
+                continue
+            if item["mimeType"] == FOLDER_MIME_TYPE:
+                match.folders.append(item["id"])
+            else:
+                match.files.append(item)
+        return match, self._cache_path_id(cache, path, *match.folders)
+
+    def _resolve_prefix(self, path, cache, mount=None):
+        """Return the deepest existing component, its matches and lookup cache."""
         parent = path
         remaining = []
         with self._cache_lock:
@@ -486,37 +505,51 @@ class GDriveFileSystem(AbstractFileSystem):
             folders = cache.by_path[parent].copy() if parent else [self.root]
         match = _PathMatch(folders)
         for name in reversed(remaining):
+            child = posixpath.join(parent, name)
+            found, cache = self._match_child(
+                cache, match.folders, child, name, mount
+            )
+            if not found.folders and not found.files:
+                break
+            parent, match = child, found
+            if not match.folders:
+                break
+        return parent, match, cache
+
+    def _resolve_path(self, path, cache, mount=None) -> _PathMatch:
+        prefix, match, _ = self._resolve_prefix(path, cache, mount)
+        return match if prefix == path else _PathMatch([])
+
+    def _create_missing_dirs(self, path, parent, folders, cache):
+        # The prefix lookup already established that the first child is missing.
+        names = path[len(parent) :].lstrip("/").split("/")
+        for index, name in enumerate(names):
             parent = posixpath.join(parent, name)
-            if parent == self.base and mount is not None:
-                match = mount
-            else:
-                match = _PathMatch([])
-                for item in self._gdrive_list_ids(folders, name=name):
-                    # Drive matches case-insensitively.
-                    if item["name"] != name:
-                        continue
-                    if item["mimeType"] == FOLDER_MIME_TYPE:
-                        match.folders.append(item["id"])
-                    else:
-                        match.files.append(item)
-                cache = self._cache_path_id(cache, parent, *match.folders)
-            if create and not match.folders:
+            if index:
+                match, cache = self._match_child(cache, folders, parent, name)
+                if match.folders:
+                    folders = match.folders
+                    continue
                 if match.files:
                     raise NotADirectoryError(posixpath.join(self.root, parent))
-                match = _PathMatch(
-                    [self._create_dir(cache, min(folders), name, parent)]
-                )
-            if not match.folders and parent != path:
-                return _PathMatch([])
-            folders = match.folders
-        return match
+            folders = [self._create_dir(cache, min(folders), name, parent)]
+        return folders
 
     def _path_to_item_ids(self, path, create=False):
         if not path:
             return [self.root]
-        return self._resolve_path(
-            path, *self._directory_cache(), create=create
-        ).ids
+        prefix, match, cache = self._resolve_prefix(
+            path, *self._directory_cache()
+        )
+        if create:
+            if not match.folders:
+                raise NotADirectoryError(posixpath.join(self.root, prefix))
+            if prefix != path:
+                return self._create_missing_dirs(
+                    path, prefix, match.folders, cache
+                )
+            return match.folders
+        return match.ids if prefix == path else []
 
     def _get_item_id(self, path, create=False):
         _, base = self._split_mounted_path(path)
@@ -537,15 +570,20 @@ class GDriveFileSystem(AbstractFileSystem):
         item.Upload()
         return item
 
-    @wrap_with(threading.RLock())
     def _create_dir(self, cache, parent_id, name, remote_path):
+        # Wait only for creates of the same name in the same Drive parent.
+        key = (parent_id, name)
         with self._cache_lock:
-            if cached := cache.by_path.get(remote_path):
-                return cached[0]
-        item = self._gdrive_create_dir(parent_id, name)
-        self._cache_path_id(cache, remote_path, item["id"])
-
-        return item["id"]
+            lock = self._creation_locks.get(key)
+            if lock is None:
+                lock = self._creation_locks[key] = threading.RLock()
+        with lock:
+            with self._cache_lock:
+                if cached := cache.by_path.get(remote_path):
+                    return cached[0]
+            item = self._gdrive_create_dir(parent_id, name)
+            self._cache_path_id(cache, remote_path, item["id"])
+            return item["id"]
 
     def exists(self, path):
         root, base = self._split_mounted_path(path)
