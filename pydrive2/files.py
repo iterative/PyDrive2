@@ -318,7 +318,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         source = os.fsdecode(filename)
         path = Path(source)
         if source and not path.is_absolute():
-            # Anchor retries to the original working directory, preserving "..".
+            # Include the current directory so a retry can reopen the file
+            # even if the caller changes directories. Keep ".." in the path
+            # so the OS follows symlinks first. For example, if "link" points
+            # to "/data/photos", "link/../image.jpg" opens "/data/image.jpg".
             source = os.path.join(os.path.abspath(path.drive), source)
         self.content = open(source, "rb")  # noqa: SIM115
         self._owns_content = True
