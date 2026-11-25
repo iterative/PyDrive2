@@ -306,12 +306,8 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
             self["mimeType"] = "text/plain"
 
     def SetContentFile(self, filename):
-        """Set content of this file from a file.
+        """Open a local file for upload.
 
-        Opens the file specified by this method.
-        Upload() closes the file after each attempt. If an upload fails,
-        retrying it reopens the same path. Assigning another content source
-        also closes the file opened here.
         Sets metadata 'name' and 'mimeType' automatically if not specified and
         the file is uploaded for the first time (id is not set).
 

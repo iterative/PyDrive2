@@ -451,7 +451,9 @@ def test_disk_download_releases_each_chunk_before_requesting_the_next(
 
 
 @pytest.mark.parametrize("existing", [False, True], ids=["create", "update"])
-def test_path_upload_uses_one_session(mock_drive, tmp_path, existing):
+def test_uploading_a_local_file_takes_two_requests(
+    mock_drive, tmp_path, existing
+):
     source = tmp_path / "source"
     source.write_bytes(b"payload")
     drive, requests = mock_drive(
