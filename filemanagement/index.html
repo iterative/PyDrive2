@@ -455,6 +455,10 @@ Workspace MIME type and pass the original media type to <code class="docutils li
 <p>Set the content with <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile" title="pydrive2.files.GoogleDriveFile.SetContentFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SetContentFile()</span></code></a>
 or <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.SetContentString" title="pydrive2.files.GoogleDriveFile.SetContentString"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SetContentString()</span></code></a>, then call
 <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.Upload" title="pydrive2.files.GoogleDriveFile.Upload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Upload()</span></code></a>.</p>
+<p><code class="docutils literal notranslate"><span class="pre">SetContentFile()</span></code> opens the local file. If <code class="docutils literal notranslate"><span class="pre">Upload()</span></code> fails, you can call
+<code class="docutils literal notranslate"><span class="pre">Upload()</span></code> again to retry with the same open file. PyDrive2 closes the file
+when the upload succeeds or when you replace its content. If you abandon the
+upload after an error, call <code class="docutils literal notranslate"><span class="pre">file.content.close()</span></code> to release it immediately.</p>
 <p>Sample code continues from <a class="reference internal" href="#download-file-metadata-from-file-id">Download file metadata from file ID</a>:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file4</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span>
     <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'appdata.json'</span><span class="p">,</span>

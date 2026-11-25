@@ -934,10 +934,8 @@ for details.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.SetContentFile">
 <span class="sig-name descname"><span class="pre">SetContentFile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filename</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.SetContentFile" title="Link to this definition">¶</a></dt>
-<dd><p>Set content of this file from a file.</p>
-<p>Opens the file specified by this method.
-Will be read, uploaded, and closed by Upload() method.
-Sets metadata ‘name’ and ‘mimeType’ automatically if not specified and
+<dd><p>Open a local file for upload.</p>
+<p>Sets metadata ‘name’ and ‘mimeType’ automatically if not specified and
 the file is uploaded for the first time (id is not set).</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
@@ -991,11 +989,10 @@ set (means that we are uploading this file for the first time).</p>
 metadata and pass the source MIME type as media_mime_type.</p>
 </dd></dl>
 
-<dl class="py attribute">
+<dl class="py property">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.content">
-<span class="sig-name descname"><span class="pre">content</span></span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.content" title="Link to this definition">¶</a></dt>
-<dd><p>A data descriptor that sets and returns values.</p>
-</dd></dl>
+<span class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">content</span></span><a class="headerlink" href="#pydrive2.files.GoogleDriveFile.content" title="Link to this definition">¶</a></dt>
+<dd></dd></dl>
 
 <dl class="py attribute">
 <dt class="sig sig-object py" id="pydrive2.files.GoogleDriveFile.metadata">
