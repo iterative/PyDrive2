@@ -415,6 +415,29 @@ def test_rmdir_refuses_missing_files_and_ambiguous_names(
     assert [req[1] for req in requests] == ["GET"]
 
 
+@pytest.mark.parametrize(
+    "pages",
+    [
+        [response({"files": [folder("dir", "D")], "incompleteSearch": True})],
+        [
+            response({"files": [folder("dir", "D")], "nextPageToken": "next"}),
+            response({"files": [], "incompleteSearch": True}),
+        ],
+    ],
+    ids=["first-page", "later-page"],
+)
+def test_rmdir_leaves_folder_alone_when_name_search_is_incomplete(
+    mock_drive, pages
+):
+    drive, requests = mock_drive(*pages, listing(), response({}))
+    with pytest.raises(OSError) as error:
+        filesystem(drive, trash_only=False).rmdir("root/dir")
+    assert error.value.errno == errno.EIO
+    assert [req[1] for req in requests] == ["GET"] * len(pages)
+    for req in requests:
+        assert "incompleteSearch" in query(req)["fields"][0].split(",")
+
+
 @pytest.mark.parametrize("root", ["root", "appDataFolder"])
 def test_rmdir_protects_root_aliases(mock_drive, root):
     drive, requests = mock_drive()
@@ -732,7 +755,7 @@ def test_info_and_listing_request_only_required_fields(mock_drive):
     }
     lookup, get = requests
     assert query(lookup)["fields"] == [
-        "nextPageToken,files(id,name,parents,mimeType,size,md5Checksum)"
+        "nextPageToken,incompleteSearch,files(id,name,parents,mimeType,size,md5Checksum)"
     ]
     assert query(get)["fields"] == ["mimeType,size,md5Checksum"]
 

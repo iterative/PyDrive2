@@ -7,7 +7,6 @@ import tempfile
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from itertools import chain
 from weakref import WeakValueDictionary
 
 import appdirs
@@ -27,7 +26,9 @@ logger = logging.getLogger(__name__)
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
 _INFO_FIELDS = "mimeType,size,md5Checksum"
-_LIST_FIELDS = f"nextPageToken,files(id,name,parents,{_INFO_FIELDS})"
+_LIST_FIELDS = (
+    f"nextPageToken,incompleteSearch,files(id,name,parents,{_INFO_FIELDS})"
+)
 _PARENT_QUERY_BATCH_SIZE = 50
 
 COMMON_SETTINGS = {
@@ -470,11 +471,11 @@ class GDriveFileSystem(AbstractFileSystem):
         param.update(self._list_params)
         file_list = self.client.ListFile(param)
 
-        # Isolate and decorate fetching of remote drive items in pages.
         get_list = _gdrive_retry(lambda: next(file_list, None))
-
-        # Fetch pages until None is received, lazily flatten the thing.
-        return chain.from_iterable(iter(get_list, None))
+        for page in iter(get_list, None):
+            if file_list.metadata.get("incompleteSearch"):
+                raise OSError(errno.EIO, "Incomplete Drive listing")
+            yield from page
 
     def _gdrive_list_ids(self, query_ids, *, name=None):
         filters = "trashed=false"
