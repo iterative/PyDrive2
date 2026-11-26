@@ -1226,6 +1226,39 @@ def test_invalidating_root_during_stat_discards_its_result(mock_drive):
         fs.makedirs("FolderID", exist_ok=True)
 
 
+@pytest.mark.parametrize("operation", ["makedirs", "exists"])
+@pytest.mark.parametrize(
+    "missing",
+    [
+        response({"mimeType": FOLDER_MIME_TYPE, "trashed": True}),
+        error_response(404, "notFound"),
+    ],
+    ids=["trashed", "deleted"],
+)
+def test_missing_mount_discards_cached_children(
+    mock_drive, operation, missing
+):
+    drive, requests = mock_drive(
+        response({"mimeType": FOLDER_MIME_TYPE}),
+        listing(folder("sub", "S")),
+        missing,
+        missing,
+    )
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID/sub", exist_ok=True)
+    fs.makedirs("FolderID/sub", exist_ok=True)
+    assert len(requests) == 2
+    if operation == "exists":
+        assert not fs.exists("FolderID")
+    else:
+        with pytest.raises(FileNotFoundError):
+            fs.makedirs("FolderID", exist_ok=True)
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID/sub", exist_ok=True)
+    assert len(requests) == 4
+    assert all("q" not in query(req) for req in requests[2:])
+
+
 def test_makedirs_after_trashing_and_restoring_the_mount(mock_drive):
     root = {"mimeType": FOLDER_MIME_TYPE}
     drive, _ = mock_drive(
