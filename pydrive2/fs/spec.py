@@ -3,6 +3,7 @@ import io
 import logging
 import os
 import posixpath
+import re
 import tempfile
 import threading
 from contextlib import contextmanager
@@ -70,6 +71,12 @@ def _in_subtrees(path: str, roots: tuple[str, ...]) -> bool:
         not root or path == root or path.startswith(root + "/")
         for root in roots
     )
+
+
+def _select_item_id(path, ids):
+    if ids:
+        return min(ids)
+    raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
 
 
 class GDriveAuthError(Exception):
@@ -325,7 +332,9 @@ class GDriveFileSystem(AbstractFileSystem):
         return {} if root in {"", "root"} else {"path": root}
 
     def split_path(self, path):
-        path = self._strip_protocol(path).replace("//", "/")
+        path = self._strip_protocol(path)
+        if "//" in path:
+            path = re.sub(r"/{2,}", "/", path)
         root, _, base = path.partition("/")
         return root or "root", base
 
@@ -543,22 +552,25 @@ class GDriveFileSystem(AbstractFileSystem):
             folders = match.folders
         return folders, cache
 
-    def _path_to_item_ids(self, path, create=False):
+    def _lookup_path(self, path):
         if not path:
-            return [self.root]
+            with self._cache_lock:
+                return _PathMatch([self.root]), self._directory_ids
         cache, mount = self._directory_cache()
-        if create:
+        return self._resolve_path(path, cache, mount)
+
+    def _path_to_item_ids(self, path, create=False):
+        if create and path:
+            cache, mount = self._directory_cache()
             folders, _ = self._ensure_dirs(path, cache, mount)
             return folders
-        match, _ = self._resolve_path(path, cache, mount)
+        match, _ = self._lookup_path(path)
         return match.ids
 
     def _get_item_id(self, path, create=False):
         _, base = self._split_mounted_path(path)
         ids = self._path_to_item_ids(base, create=create)
-        if ids:
-            return min(ids)
-        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+        return _select_item_id(path, ids)
 
     @_gdrive_retry
     def _gdrive_create_dir(self, parent_id, name):
@@ -626,7 +638,8 @@ class GDriveFileSystem(AbstractFileSystem):
     def ls(self, path, detail=False):
         bucket, base = self._split_mounted_path(path)
 
-        dir_ids = self._path_to_item_ids(base)
+        match, cache = self._lookup_path(base)
+        dir_ids = match.ids
         if not dir_ids:
             raise FileNotFoundError(
                 errno.ENOENT, os.strerror(errno.ENOENT), path
@@ -634,14 +647,35 @@ class GDriveFileSystem(AbstractFileSystem):
 
         root_path = posixpath.join(bucket, base)
         contents = []
+        folders = []
         for item in self._gdrive_list_ids(dir_ids):
             item_path = posixpath.join(root_path, item["name"])
             contents.append(_file_entry(item_path, item))
+            if item["mimeType"] == FOLDER_MIME_TYPE:
+                folders.append(
+                    (item["id"], posixpath.join(base, item["name"]))
+                )
+
+        if folders:
+            self._invalidate_listed_renames(cache, folders)
 
         if detail:
             return contents
         else:
             return [content["name"] for content in contents]
+
+    def _invalidate_listed_renames(self, cache, folders):
+        with self._cache_lock:
+            if cache is not self._directory_ids:
+                return
+            changed: set[str] = set()
+            for item_id, path in folders:
+                old_path = cache.by_id.get(item_id)
+                if old_path is not None and old_path != path:
+                    changed.update((old_path, path))
+            if changed:
+                # Re-resolve both names so same-name siblings remain visible.
+                self._invalidate_paths(*(f"{self.root}/{p}" for p in changed))
 
     def _walk_folders(self, base, start_ids, cache):
         # Cache entries are hints about which parents can share a request.
@@ -834,9 +868,12 @@ class GDriveFileSystem(AbstractFileSystem):
         return IterStream(iter(fd))
 
     def rm_file(self, path):
-        item_id = self._get_item_id(path)
+        _, base = self._split_mounted_path(path)
+        match, _ = self._lookup_path(base)
+        item_id = _select_item_id(path, match.ids)
+        known_folder = item_id in match.folders
         self._gdrive_delete_file(item_id)
-        self._invalidate_folder(item_id, path)
+        self._invalidate_folder(item_id, path, known_folder=known_folder)
 
     @_gdrive_retry
     def _gdrive_delete_file(self, item_id):
