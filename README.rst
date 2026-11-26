@@ -12,24 +12,17 @@ and list files, or open them by URL with ``fsspec.open()``. PyDrive2 wraps
 Installation
 ------------
 
-Install the published release from PyPI. Include the optional filesystem
-dependencies if you use fsspec.
+PyDrive2 2.0 requires Python 3.11 or newer.
 
 .. code:: sh
 
     python -m pip install PyDrive2
-    # With fsspec support:
-    python -m pip install 'PyDrive2[fsspec]'
 
-The examples below use the development version on ``main``, which requires
-Python 3.11 or newer and registers the ``gdrive://`` protocol with fsspec.
-To run them, install this branch with its filesystem dependencies.
+To open ``gdrive://`` URLs with fsspec, install the filesystem extra.
 
 .. code:: sh
 
-    python -m pip install 'PyDrive2[fsspec] @ git+https://github.com/iterative/PyDrive2.git@main'
-
-If you use PyDrive2 1.x, follow the `1.x examples`_ for Drive API v2.
+    python -m pip install 'PyDrive2[fsspec]'
 
 Authentication
 --------------
@@ -163,6 +156,5 @@ Thanks to all our contributors!
 .. _google-api-python-client: https://github.com/google/google-api-python-client
 .. _PyDrive: https://pypi.org/project/PyDrive/
 .. _DataChain: https://datachain.ai/
-.. _1.x examples: https://pypi.org/project/PyDrive2/1.21.3/
 .. _authentication guide: https://docs.iterative.ai/PyDrive2/oauth/
 .. _GDriveFileSystem: https://docs.iterative.ai/PyDrive2/fsspec/
