@@ -316,6 +316,41 @@ def test_bounded_traversal_from_root(mock_drive, operation, maxdepth):
     assert len(requests) == maxdepth
 
 
+@pytest.mark.parametrize("maxdepth", [2, 3])
+def test_warm_find_only_lists_parents_within_depth(mock_drive, maxdepth):
+    folders = [
+        dict(folder(name, name.upper()), parents=[parent])
+        for name, parent in [
+            ("dir", "root"),
+            ("a", "DIR"),
+            ("b", "A"),
+            ("c", "B"),
+            ("d", "C"),
+        ]
+    ]
+    drive, requests = mock_drive(
+        *(listing(item) for item in folders),
+        listing(*folders[1 : maxdepth + 1]),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/dir/a/b/c/d")
+    before = len(requests)
+    assert (
+        fs.find("root/dir", maxdepth=maxdepth, withdirs=True)
+        == [
+            "root/dir",
+            "root/dir/a",
+            "root/dir/a/b",
+            "root/dir/a/b/c",
+        ][: maxdepth + 1]
+    )
+    (lookup,) = requests[before:]
+    assert (
+        re.findall(r"'([^']+)' in parents", query(lookup)["q"][0])
+        == ["DIR", "A", "B"][:maxdepth]
+    )
+
+
 @pytest.mark.parametrize("pattern", ["root/*", "root/**"])
 def test_expanding_a_bounded_glob_does_not_list_children(mock_drive, pattern):
     drive, requests = mock_drive(
