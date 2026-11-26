@@ -466,6 +466,60 @@ def test_ls_reuses_exact_case_folder_across_parent_batches(mock_drive):
     ]
 
 
+def test_repeated_separators_use_the_same_directory_cache(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("reports", "R")), listing(folder("daily", "D"))
+    )
+    fs = filesystem(drive)
+    path = "gdrive://root///reports/////daily"
+    assert fs.split_path(path) == ("root", "reports/daily")
+    assert fs.exists(path)
+    assert fs.exists("root/reports/daily")
+    assert len(requests) == 2
+
+
+def test_ls_evicts_the_old_path_after_a_folder_rename(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("child", "C")),
+        listing(folder("new", "D"), folder("new", "other")),
+        listing(),
+        listing(folder("new", "D"), folder("new", "other")),
+        listing({"id": "note", "name": "note", "mimeType": "text/plain"}),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert fs.ls("root") == ["root/new/", "root/new/"]
+    assert not fs.exists("root/old/child")
+    assert fs.ls("root/new") == ["root/new/note"]
+    assert set(
+        re.findall(r"'([^']+)' in parents", query(requests[-1])["q"][0])
+    ) == {"D", "other"}
+
+
+def test_ls_started_before_invalidation_cannot_evict_a_new_lookup(mock_drive):
+    def refresh_during_listing(request):
+        if query(request)["q"] == ["('root' in parents) and trashed=false"]:
+            fs.invalidate_cache()
+            assert fs.exists("root/old/child")
+
+    old, child = listing(folder("old", "D")), listing(folder("child", "C"))
+    drive, requests = mock_drive(
+        old,
+        child,
+        old,
+        child,
+        listing(folder("new", "D")),
+        on_request=refresh_during_listing,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert fs.ls("root") == ["root/new/"]
+    before = len(requests)
+    assert fs.exists("root/old/child")
+    assert len(requests) == before
+
+
 def test_nested_file_operations_reuse_resolved_directories(mock_drive):
     a = dict(folder("a", "A"), parents=["run"])
     b = dict(folder("b", "B"), parents=["A"])
@@ -605,6 +659,44 @@ def test_invalidated_lookup_does_not_recache_its_response(mock_drive):
     fs = filesystem(drive)
     assert fs.exists("root/dir")
     assert not fs.exists("root/dir")
+
+
+@pytest.mark.parametrize("trash_only", [True, False], ids=["trash", "delete"])
+def test_delayed_lookup_cannot_restore_a_removed_folder(
+    mock_drive, trash_only
+):
+    removing, lookup_started = Event(), Event()
+    path = "root/dir"
+
+    def pause_removal(request):
+        removing.set()
+        assert lookup_started.wait(5)
+
+    def delay_listing(request):
+        if removing.is_set():
+            lookup_started.set()
+            removal.result(timeout=5)
+
+    found = listing(folder("dir", "D"))
+    drive, lookups = mock_drive(
+        found, found, listing(), on_request=delay_listing
+    )
+    writer, mutations = mock_drive(response({}), on_request=pause_removal)
+    fs = filesystem(drive, trash_only=trash_only)
+    assert fs.exists(path)
+
+    def remove(http):
+        drive.auth.thread_local.http = http
+        fs.rm_file(path)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        removal = pool.submit(remove, writer.auth.thread_local.http)
+        assert removing.wait(5)
+        fs.invalidate_cache(path)
+        assert fs.exists(path)  # The in-flight listing still sees the folder.
+    assert not fs.exists(path)
+    assert [r[1] for r in lookups] == ["GET"] * 3
+    assert [r[1] for r in mutations] == ["PATCH" if trash_only else "DELETE"]
 
 
 def test_copy_into_parent_invalidated_during_lookup(mock_drive):
