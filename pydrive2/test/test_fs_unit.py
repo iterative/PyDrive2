@@ -663,15 +663,17 @@ def test_find_uses_current_parent_links_after_a_rename(
 
 
 def test_empty_root_marker_refreshes_a_folder_id_mount(mock_drive):
-    drive, _ = mock_drive(
+    drive, requests = mock_drive(
         response({"driveId": "shared"}),
         listing(folder("dir", "old")),
+        response({"driveId": "new-drive"}),
         listing(),
     )
     fs = filesystem(drive, "FolderID")
     assert fs.exists("FolderID/dir")
     fs.invalidate_cache("")
     assert not fs.exists("FolderID/dir")
+    assert query(requests[-1])["driveId"] == ["new-drive"]
 
 
 @pytest.mark.parametrize("operation", ["rename", "trash", "delete"])
@@ -971,3 +973,269 @@ def test_large_write_after_close_does_not_open_a_tempfile(mock_drive, mocker):
     with pytest.raises(ValueError, match="closed"):
         writer.write(b"too large")
     backing_file.assert_not_called()
+
+
+def test_makedirs_creates_empty_drive_folders(mock_drive):
+    drive, requests = mock_drive(
+        response({"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}),
+        response({"files": []}),
+        response({"id": "A"}),
+        response({"files": []}),
+        response({"id": "B"}),
+    )
+    fs = filesystem(drive, "shared")
+    fs.makedirs("gdrive://shared/parent/leaf")
+    assert [r[1] for r in requests] == ["GET", "GET", "POST", "GET", "POST"]
+    cold_requests = len(requests)
+    assert fs.exists("shared/parent/leaf")
+    fs.makedirs("shared/parent/leaf", exist_ok=True)
+    with pytest.raises(FileExistsError):
+        fs.makedirs("shared/parent/leaf")
+    with pytest.raises(FileExistsError):
+        fs.mkdir("shared/parent/leaf")
+    assert len(requests) == cold_requests
+    assert [json.loads(req[2]) for req in requests if req[1] == "POST"] == [
+        {
+            "name": "parent",
+            "parents": ["shared"],
+            "mimeType": FOLDER_MIME_TYPE,
+        },
+        {"name": "leaf", "parents": ["A"], "mimeType": FOLDER_MIME_TYPE},
+    ]
+
+
+def test_mkdir_without_missing_parents(mock_drive):
+    drive, requests = mock_drive(response({"files": []}))
+    with pytest.raises(FileNotFoundError):
+        filesystem(drive).mkdir("root/missing/leaf", create_parents=False)
+    assert [req[1] for req in requests] == ["GET"]
+
+
+def test_mkdir_in_existing_parent(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("parent", "P")), listing(), response({"id": "leaf"})
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/parent")
+    before = len(requests)
+    fs.mkdir("root/parent/leaf", create_parents=False)
+    lookup, create = requests[before:]
+    assert "'P' in parents" in query(lookup)["q"][0]
+    assert create[1] == "POST" and json.loads(create[2])["parents"] == ["P"]
+    before = len(requests)
+    fs.makedirs("root/parent/leaf", exist_ok=True)
+    assert len(requests) == before
+
+
+@pytest.mark.parametrize(
+    "path,expected",
+    [("root/blob", FileExistsError), ("root/blob/sub", NotADirectoryError)],
+)
+def test_makedirs_rejects_file(mock_drive, path, expected):
+    drive, requests = mock_drive(
+        response(
+            {"files": [{"name": "blob", "id": "F", "mimeType": "text/plain"}]}
+        )
+    )
+    with pytest.raises(expected):
+        filesystem(drive).makedirs(path, exist_ok=True)
+    assert [req[1] for req in requests] == ["GET"]
+
+
+def test_explicit_bare_folder_check_refreshes_trash_status(mock_drive):
+    root = {"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}
+    drive, requests = mock_drive(
+        response(root), listing(), response(dict(root, trashed=True))
+    )
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID", exist_ok=True)
+    assert fs.ls("FolderID") == []
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID", exist_ok=True)
+    first, children, fresh = requests
+    assert first[:2] == fresh[:2]
+    assert query(children)["driveId"] == ["shared"]
+
+
+@pytest.mark.parametrize("operation", ["upload", "copy"])
+def test_file_blocking_write_parent_is_not_a_directory(mock_drive, operation):
+    from io import BytesIO
+
+    file = {"id": "F", "name": "block", "mimeType": "text/plain"}
+    source = [listing(dict(file, name="src"))] if operation == "copy" else []
+    drive, requests = mock_drive(*source, listing(file))
+    fs = filesystem(drive)
+    with pytest.raises(NotADirectoryError, match="block"):
+        if operation == "copy":
+            fs.cp_file("root/src", "root/block/out")
+        else:
+            fs.upload_fobj(BytesIO(b"data"), "root/block/out")
+    assert [r[1] for r in requests] == ["GET"] * (1 + len(source))
+
+
+def test_invalidating_root_during_stat_discards_its_result(mock_drive):
+    def invalidate(request):
+        fs.invalidate_cache("FolderID")
+
+    root = {"mimeType": FOLDER_MIME_TYPE}
+    drive, _ = mock_drive(
+        response(root),
+        response(dict(root, trashed=True)),
+        on_request=invalidate,
+    )
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID", exist_ok=True)
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID", exist_ok=True)
+
+
+@pytest.mark.parametrize("operation", ["makedirs", "exists"])
+@pytest.mark.parametrize(
+    "missing",
+    [
+        response({"mimeType": FOLDER_MIME_TYPE, "trashed": True}),
+        error_response(404, "notFound"),
+    ],
+    ids=["trashed", "deleted"],
+)
+def test_missing_mount_discards_cached_children(
+    mock_drive, operation, missing
+):
+    drive, requests = mock_drive(
+        response({"mimeType": FOLDER_MIME_TYPE}),
+        listing(folder("sub", "S")),
+        missing,
+        missing,
+    )
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID/sub", exist_ok=True)
+    fs.makedirs("FolderID/sub", exist_ok=True)
+    assert len(requests) == 2
+    if operation == "exists":
+        assert not fs.exists("FolderID")
+    else:
+        with pytest.raises(FileNotFoundError):
+            fs.makedirs("FolderID", exist_ok=True)
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID/sub", exist_ok=True)
+    assert len(requests) == 4
+    assert all("q" not in query(req) for req in requests[2:])
+
+
+def test_makedirs_after_trashing_and_restoring_the_mount(mock_drive):
+    root = {"mimeType": FOLDER_MIME_TYPE}
+    drive, _ = mock_drive(
+        response(root),
+        response({"trashed": True}),
+        response(dict(root, trashed=True)),
+        response(root),
+    )
+    fs = filesystem(drive, "FolderID", trash_only=True)
+    fs.makedirs("FolderID", exist_ok=True)
+    fs.rm_file("FolderID")
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID", exist_ok=True)
+    fs.makedirs("FolderID", exist_ok=True)
+
+
+@pytest.mark.parametrize(
+    "failure, error",
+    [
+        (response({"mimeType": "text/plain"}), FileExistsError),
+        (error_response(404, "notFound"), FileNotFoundError),
+    ],
+)
+def test_makedirs_rejects_invalid_mount_id(mock_drive, failure, error):
+    drive, _ = mock_drive(failure)
+    with pytest.raises(error):
+        filesystem(drive, "FolderID").makedirs("FolderID", exist_ok=True)
+
+
+@pytest.mark.parametrize(
+    "metadata,error",
+    [
+        ({"mimeType": "text/plain"}, NotADirectoryError),
+        ({"mimeType": FOLDER_MIME_TYPE, "trashed": True}, FileNotFoundError),
+    ],
+)
+def test_makedirs_rejects_invalid_parent_id_before_creation(
+    mock_drive, metadata, error
+):
+    drive, requests = mock_drive(
+        response(metadata), listing(), response({"id": "sub"})
+    )
+    with pytest.raises(error):
+        filesystem(drive, "DriveID").makedirs("DriveID/sub")
+    assert [request[1] for request in requests] == ["GET"]
+
+
+def test_makedirs_checks_a_previously_valid_mount_before_creating(mock_drive):
+    root = {"mimeType": FOLDER_MIME_TYPE}
+    drive, requests = mock_drive(
+        response(root), response(dict(root, trashed=True))
+    )
+    fs = filesystem(drive, "FolderID")
+    fs.makedirs("FolderID", exist_ok=True)
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID/sub")
+    assert [request[1] for request in requests] == ["GET", "GET"]
+
+
+def test_makedirs_bare_root_is_independent_of_named_mount(mock_drive):
+    drive, requests = mock_drive(response({"mimeType": FOLDER_MIME_TYPE}))
+    filesystem(drive, "FolderID/missing").makedirs("FolderID", exist_ok=True)
+    (stat,) = requests
+    assert "q" not in query(stat)
+
+
+def test_makedirs_starts_at_cached_mount(mock_drive):
+    drive, requests = mock_drive(
+        response({"driveId": "shared", "mimeType": FOLDER_MIME_TYPE}),
+        listing(folder("a", "a")),
+        listing(folder("b", "b")),
+        listing(),
+        response({"id": "new"}),
+    )
+    fs = filesystem(drive, "FolderID/a/b")
+    fs.makedirs("FolderID/a/b/new")
+    fs.makedirs("FolderID/a/b/new", exist_ok=True)
+    assert [query(req)["q"][0] for req in requests if "q" in query(req)] == [
+        "('FolderID' in parents) and trashed=false and name='a'",
+        "('a' in parents) and trashed=false and name='b'",
+        "('b' in parents) and trashed=false and name='new'",
+    ]
+
+
+def test_makedirs_uses_the_matching_folder_during_invalidation(mock_drive):
+    def invalidate(request):
+        if "name='sub'" in query(request).get("q", [""])[0]:
+            fs.invalidate_cache("root/sub")
+
+    drive, requests = mock_drive(
+        listing(
+            {"name": "sub", "id": "file", "mimeType": "text/plain"},
+            folder("Sub", "wrong-case"),
+            folder("sub", "folder"),
+        ),
+        listing(),
+        response({"id": "leaf"}),
+        listing(),
+        on_request=invalidate,
+    )
+    fs = filesystem(drive)
+    fs.makedirs("root/sub/leaf")
+    (create,) = [r for r in requests if r[1] == "POST"]
+    assert json.loads(create[2])["parents"] == ["folder"]
+    assert not fs.exists("root/sub/leaf")
+
+
+def test_makedirs_rejects_file_at_nested_mount(mock_drive):
+    blob = response(
+        {"files": [{"name": "blob", "id": "F", "mimeType": "text/plain"}]}
+    )
+    drive, requests = mock_drive(blob)
+    fs = filesystem(drive, "root/blob")
+    with pytest.raises(NotADirectoryError):
+        fs.makedirs("root/blob/child")
+    (lookup,) = requests
+    assert "name='blob'" in query(lookup)["q"][0]
