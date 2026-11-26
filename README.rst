@@ -7,7 +7,7 @@ PyDrive2 is a Python client for the `Google Drive API v3`_ and an
 `fsspec`_-compatible filesystem for Google Drive. Use it to upload, download,
 and list files, or open them by URL with ``fsspec.open()``. PyDrive2 wraps
 `google-api-python-client`_ and is a fork of `PyDrive`_ maintained by the
-`DVC`_ team.
+`DataChain`_ team.
 
 Installation
 ------------
@@ -162,7 +162,7 @@ Thanks to all our contributors!
 .. _fsspec: https://filesystem-spec.readthedocs.io/en/latest/
 .. _google-api-python-client: https://github.com/google/google-api-python-client
 .. _PyDrive: https://pypi.org/project/PyDrive/
-.. _DVC: https://dvc.org/
+.. _DataChain: https://datachain.ai/
 .. _1.x examples: https://pypi.org/project/PyDrive2/1.21.3/
 .. _authentication guide: https://docs.iterative.ai/PyDrive2/oauth/
 .. _GDriveFileSystem: https://docs.iterative.ai/PyDrive2/fsspec/
