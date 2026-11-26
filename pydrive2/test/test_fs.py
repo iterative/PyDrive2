@@ -140,6 +140,20 @@ def test_copy_file_to_new_directory(fs, remote_dir):
     assert fs.cat_file(source) == b"payload"
 
 
+def test_invalidating_parent_reloads_replaced_mount(fs, remote_dir):
+    mount = remote_dir + "/mount"
+    fs.touch(mount + "/before")
+    reader = GDriveFileSystem(
+        mount, google_auth=fs.client.auth, skip_instance_cache=True
+    )
+    assert reader.ls(mount) == [mount + "/before"]
+
+    fs.mv(mount, remote_dir + "/original")
+    fs.touch(mount + "/after")
+    reader.invalidate_cache(remote_dir)
+    assert reader.ls(mount) == [mount + "/after"]
+
+
 def test_rm(fs, remote_dir):
     fs.touch(remote_dir + "/a.txt")
     fs.rm(remote_dir + "/a.txt")
@@ -179,45 +193,25 @@ def test_ls(fs, remote_dir):
     assert dirs == expected
 
 
-def test_basic_ops_caching(fs_factory, remote_dir, mocker):
-    # Internally we have to derefence names into IDs to call GDrive APIs
-    # we are trying hard to cache those and make sure that operations like
-    # exists, ls, find, etc. don't hit the API more than once per path
+def test_basic_ops_caching(fs, remote_dir, mocker):
+    # Count logical Drive listings. Transport retries and pages belong to
+    # the same ListFile call. The offline test counts individual requests.
+    lists = mocker.spy(fs.client, "ListFile")
+    leaf = remote_dir + "/a/b/c"
+    path = leaf + "/test.txt"
+    fs.touch(path)
+    assert lists.call_count == 5
 
-    # ListFile (_gdrive_list) is the main operation that we use to retieve file
-    # metadata in all operations like find/ls/exist - etc. It should be fine as
-    # a basic benchmark to count those.
-    # Note: we can't count direct API calls since we have retries, also can't
-    # count even direct calls to the GDrive client - for the same reason
-    fs, _ = fs_factory()
-    spy = mocker.spy(fs, "_gdrive_list")
-
-    dir_path = remote_dir + "/a/b/c/"
-    file_path = dir_path + "test.txt"
-    fs.touch(file_path)
-
-    assert spy.call_count == 5
-    spy.reset_mock()
-
-    fs.exists(file_path)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.ls(remote_dir)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.ls(dir_path)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.find(dir_path)
-    assert spy.call_count == 1
-    spy.reset_mock()
-
-    fs.find(remote_dir)
-    assert spy.call_count == 1
-    spy.reset_mock()
+    for operation, target, expected in (
+        (fs.exists, path, True),
+        (fs.ls, remote_dir, [remote_dir + "/a/"]),
+        (fs.ls, leaf, [path]),
+        (fs.find, leaf, [path]),
+        (fs.find, remote_dir, [path]),
+    ):
+        before = lists.call_count
+        assert operation(target) == expected
+        assert lists.call_count - before == 1, (operation.__name__, target)
 
 
 def test_ops_work_with_duplicate_names(fs_factory, remote_dir):

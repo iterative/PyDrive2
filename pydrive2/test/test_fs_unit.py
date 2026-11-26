@@ -1,5 +1,8 @@
 import json
+import re
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 from urllib.parse import urlsplit
 
 import pytest
@@ -16,6 +19,14 @@ def filesystem(drive, root="root", **kwargs):
     return GDriveFileSystem(
         root, google_auth=drive.auth, skip_instance_cache=True, **kwargs
     )
+
+
+def folder(name, item_id):
+    return {"name": name, "id": item_id, "mimeType": FOLDER_MIME_TYPE}
+
+
+def listing(*items):
+    return response({"files": items})
 
 
 @pytest.mark.parametrize("root", ["root", "appDataFolder"])
@@ -45,18 +56,187 @@ def test_ls_deduplicates_a_file_shared_across_parent_batches(mock_drive):
         "size": "1",
     }
     other = dict(shared, id="distinct", parents=[parents[-1]], size="2")
+    folders = [folder("duplicate", item_id) for item_id in parents]
     drive, requests = mock_drive(
-        response({"files": [shared]}), response({"files": [shared, other]})
+        response({"files": folders, "nextPageToken": "next"}),
+        listing(folders[0]),
+        listing(shared),
+        listing(shared, other),
     )
     fs = filesystem(drive)
-    fs._cache_path_id("duplicate", *parents)
     assert [
         (item["name"], item["size"])
         for item in fs.ls("root/duplicate", detail=True)
     ] == [("root/duplicate/same", 1), ("root/duplicate/same", 2)]
-    first, second = requests
-    assert query(first)["q"][0].count(" in parents") == 50
-    assert query(second)["q"][0].count(" in parents") == 1
+    _, page, first, second = requests
+    assert query(page)["pageToken"] == ["next"]
+    assert [
+        re.findall(r"'([^']+)' in parents", query(req)["q"][0])
+        for req in (first, second)
+    ] == [parents[:50], parents[50:]]
+
+
+def test_ls_finishes_listing_parents_resolved_before_a_rename(mock_drive):
+    parents = [folder("dir", f"id-{i}") for i in range(51)]
+    renamed = dict(parents[-1], name="renamed")
+    child = {"id": "child", "name": "last-file", "mimeType": "text/plain"}
+
+    def discover_rename(request):
+        if "'id-0' in parents" in query(request)["q"][0]:
+            assert fs.exists("root/renamed")
+
+    drive, requests = mock_drive(
+        listing(*parents),
+        listing(renamed),
+        listing(),
+        listing(child),
+        listing(),
+        on_request=discover_rename,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/dir")
+    assert fs.ls("root/dir") == ["root/dir/last-file"]
+    assert "'id-50' in parents" in query(requests[-1])["q"][0]
+    assert fs.ls("root/dir") == []
+    assert "'id-50' in parents" not in query(requests[-1])["q"][0]
+
+
+def test_ls_reuses_exact_case_folder_across_parent_batches(mock_drive):
+    parents = [folder("duplicate", f"id-{i}") for i in range(51)]
+    name = r"File's\name"
+    child = {"id": "child", "name": "contents", "mimeType": "text/plain"}
+    drive, requests = mock_drive(
+        listing(*parents),
+        listing(folder(name.lower(), "wrong-case")),
+        listing(folder(name, "exact")),
+        listing(child),
+    )
+    fs = filesystem(drive)
+    path = f"root/duplicate/{name}"
+    assert fs.exists(path)
+    assert fs.ls(path) == [path + "/contents"]
+
+    _, first, second, children = requests
+    for req, batch in ((first, parents[:50]), (second, parents[50:])):
+        q = query(req)["q"][0]
+        assert r"name='File\'s\\name'" in q
+        assert "trashed=false" in q
+        assert re.findall(r"'([^']+)' in parents", q) == [
+            p["id"] for p in batch
+        ]
+    assert re.findall(r"'([^']+)' in parents", query(children)["q"][0]) == [
+        "exact"
+    ]
+
+
+def test_repeated_separators_use_the_same_directory_cache(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("reports", "R")), listing(folder("daily", "D"))
+    )
+    fs = filesystem(drive)
+    path = "gdrive://root///reports/////daily"
+    assert fs.split_path(path) == ("root", "reports/daily")
+    assert fs.exists(path)
+    assert fs.exists("root/reports/daily")
+    assert len(requests) == 2
+
+
+def test_ls_evicts_the_old_path_after_a_folder_rename(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("child", "C")),
+        listing(folder("new", "D"), folder("new", "other")),
+        listing(),
+        listing(folder("new", "D"), folder("new", "other")),
+        listing({"id": "note", "name": "note", "mimeType": "text/plain"}),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert fs.ls("root") == ["root/new/", "root/new/"]
+    assert not fs.exists("root/old/child")
+    assert fs.ls("root/new") == ["root/new/note"]
+    assert set(
+        re.findall(r"'([^']+)' in parents", query(requests[-1])["q"][0])
+    ) == {"D", "other"}
+
+
+def test_ls_started_before_invalidation_cannot_evict_a_new_lookup(mock_drive):
+    def refresh_during_listing(request):
+        if query(request)["q"] == ["('root' in parents) and trashed=false"]:
+            fs.invalidate_cache()
+            assert fs.exists("root/old/child")
+
+    old, child = listing(folder("old", "D")), listing(folder("child", "C"))
+    drive, requests = mock_drive(
+        old,
+        child,
+        old,
+        child,
+        listing(folder("new", "D")),
+        on_request=refresh_during_listing,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert fs.ls("root") == ["root/new/"]
+    before = len(requests)
+    assert fs.exists("root/old/child")
+    assert len(requests) == before
+
+
+def test_nested_file_operations_reuse_resolved_directories(mock_drive):
+    a = dict(folder("a", "A"), parents=["run"])
+    b = dict(folder("b", "B"), parents=["A"])
+    c = dict(folder("c", "C"), parents=["B"])
+    file = {
+        "name": "test.txt",
+        "id": "file",
+        "mimeType": "text/plain",
+        "parents": ["C"],
+    }
+    drive, requests = mock_drive(
+        listing(folder("mount", "M")),
+        listing(),
+        response({"id": "run"}),
+        listing(),
+        response(a),
+        listing(),
+        response(b),
+        listing(),
+        response(c),
+        ({"status": "200", "location": "https://example.test/upload"}, ""),
+        response({"id": "file"}),
+        listing(file),
+        listing(a),
+        listing(file),
+        listing(file),
+        listing(a, b, c, file),
+    )
+    fs = filesystem(drive, "root/mount")
+    parent = "root/mount/run"
+    leaf = parent + "/a/b/c"
+    path = leaf + "/test.txt"
+    fs.touch(path)
+    assert [r[1] for r in requests] == [
+        "GET",
+        *(["GET", "POST"] * 4),
+        "POST",
+        "PUT",
+    ]
+    assert [
+        query(r)["q"][0].split("name=")[-1] for r in requests if r[1] == "GET"
+    ] == ["'mount'", "'run'", "'a'", "'b'", "'c'"]
+
+    for operation, target, expected in (
+        (fs.exists, path, True),
+        (fs.ls, parent, [parent + "/a/"]),
+        (fs.ls, leaf, [path]),
+        (fs.find, leaf, [path]),
+        (fs.find, parent, [path]),
+    ):
+        before = len(requests)
+        assert operation(target) == expected
+        (request,) = requests[before:]
+        assert request[1] == "GET" and "q" in query(request)
 
 
 def test_find_matches_legacy_parent_before_assuming_root(mock_drive):
@@ -73,25 +253,464 @@ def test_find_matches_legacy_parent_before_assuming_root(mock_drive):
         "parents": ["elsewhere", "dir"],
     }
     drive, _ = mock_drive(
-        response({"files": [folder]}), response({"files": [file]})
+        response({"files": [folder]}), response({"files": [file, folder]})
     )
     fs = filesystem(drive)
     assert fs.exists("root/sub")
     assert fs.find("root") == ["root/sub/child"]
 
 
-@pytest.mark.parametrize("trash_only", [False, True])
-def test_shared_drive_delete_permission_error(mock_drive, trash_only):
-    file = {"id": "file", "name": "note", "mimeType": "text/plain"}
+@pytest.mark.parametrize("operation", ["trash", "rename"])
+def test_directory_mutation_evicts_descendants_only(mock_drive, operation):
+    moved = folder("renamed", "dir-id")
+    mutation = (
+        [listing(), response(moved)]
+        if operation == "rename"
+        else [response({})]
+    )
+    drive, requests = mock_drive(
+        listing(folder("dir", "dir-id")),
+        listing(folder("child", "child-id")),
+        listing(folder("directory", "other-id")),
+        *mutation,
+        listing(),
+    )
+    fs = filesystem(drive, trash_only=True)
+    assert fs.exists("root/dir/child")
+    assert fs.exists("root/directory")
+    before = len(requests)
+    if operation == "rename":
+        fs.mv("root/dir", "gdrive:///renamed")
+        assert [r[1] for r in requests[before:]] == ["GET", "PATCH"]
+        assert "name='renamed'" in query(requests[before])["q"][0]
+    else:
+        fs.rm_file("root/dir")
+        assert [r[1] for r in requests[before:]] == ["PATCH"]
+
+    assert not fs.exists("root/dir/child")
+    assert "name='dir'" in query(requests[-1])["q"][0]
+    before = len(requests)
+    assert fs.exists("root/directory")
+    assert len(requests) == before
+
+
+def test_move_directory_to_implicit_root(mock_drive):
+    moved = folder("dir", "dir-id")
+    drive, requests = mock_drive(
+        listing(folder("sub", "sub-id")),
+        listing(moved),
+        response({"parents": ["sub-id"]}),
+        response({"id": "my-drive"}),
+        response(moved),
+        listing(),
+    )
+    fs = filesystem(drive)
+    fs.mv("root/sub/dir", "gdrive://")
+    assert not fs.exists("root/sub/dir")
+    (update,) = [r for r in requests if r[1] == "PATCH"]
+    assert query(update)["addParents"] == ["my-drive"]
+    assert query(update)["removeParents"] == ["sub-id"]
+
+
+def test_invalidated_lookup_does_not_recache_its_response(mock_drive):
+    def invalidate(request):
+        fs.invalidate_cache("root/dir")
+
+    drive, _ = mock_drive(
+        listing(folder("dir", "old")), listing(), on_request=invalidate
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/dir")
+    assert not fs.exists("root/dir")
+
+
+@pytest.mark.parametrize("trash_only", [True, False], ids=["trash", "delete"])
+def test_delayed_lookup_cannot_restore_a_removed_folder(
+    mock_drive, trash_only
+):
+    removing, lookup_started = Event(), Event()
+    path = "root/dir"
+
+    def pause_removal(request):
+        removing.set()
+        assert lookup_started.wait(5)
+
+    def delay_listing(request):
+        if removing.is_set():
+            lookup_started.set()
+            removal.result(timeout=5)
+
+    found = listing(folder("dir", "D"))
+    drive, lookups = mock_drive(
+        found, found, listing(), on_request=delay_listing
+    )
+    writer, mutations = mock_drive(response({}), on_request=pause_removal)
+    fs = filesystem(drive, trash_only=trash_only)
+    assert fs.exists(path)
+
+    def remove(http):
+        drive.auth.thread_local.http = http
+        fs.rm_file(path)
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        removal = pool.submit(remove, writer.auth.thread_local.http)
+        assert removing.wait(5)
+        fs.invalidate_cache(path)
+        assert fs.exists(path)  # The in-flight listing still sees the folder.
+    assert not fs.exists(path)
+    assert [r[1] for r in lookups] == ["GET"] * 3
+    assert [r[1] for r in mutations] == ["PATCH" if trash_only else "DELETE"]
+
+
+def test_copy_into_parent_invalidated_during_lookup(mock_drive):
+    def invalidate(request):
+        if "name='child'" in query(request).get("q", [""])[0]:
+            fs.invalidate_cache("root/dir")
+
+    source = {"name": "source", "id": "source", "mimeType": "text/plain"}
+    drive, requests = mock_drive(
+        listing(folder("dir", "old-parent")),
+        listing(source),
+        listing(),
+        response({"id": "new-child"}),
+        response({"id": "copy"}),
+        listing(),
+        on_request=invalidate,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/dir")
+    fs.cp_file("root/source", "root/dir/child/copy")
+    assert not fs.exists("root/dir/child")
+    assert [
+        json.loads(r[2])["parents"] for r in requests if r[1] == "POST"
+    ] == [["old-parent"], ["new-child"]]
+
+
+def test_move_refreshes_cached_destination_after_source_eviction(mock_drive):
+    def invalidate(request):
+        if request[1] == "PATCH":
+            fs.invalidate_cache("root/dir")
+
+    old = folder("dir", "already-there")
+    moved = folder("dir", "moved")
+    drive, requests = mock_drive(
+        listing(folder("dst", "destination")),
+        listing(old),
+        listing(folder("child", "old-child")),
+        listing(moved),
+        response({"parents": ["root"]}),
+        response(moved),
+        listing(old, moved),
+        listing(folder("child", "old-child"), folder("child", "new-child")),
+        listing({"id": "file", "name": "arrived", "mimeType": "text/plain"}),
+        on_request=invalidate,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/dst/dir/child")
+    fs.mv("root/dir", "root/dst")
+    assert fs.ls("root/dst/dir/child") == ["root/dst/dir/child/arrived"]
+    parents = query(requests[-1])["q"][0]
+    assert "'old-child' in parents" in parents
+    assert "'new-child' in parents" in parents
+
+
+@pytest.mark.parametrize("other_instance", [True, False])
+def test_unrelated_folder_creates_can_overlap(mock_drive, other_instance):
+    first_create, release = Event(), Event()
+    source = {"id": "src", "name": "src", "mimeType": "text/plain"}
+
+    def hold_first(request):
+        if request[1] == "POST" and not request[0].split("?")[0].endswith(
+            "/copy"
+        ):
+            first_create.set()
+            assert release.wait(10)
+
+    def setup(name, hook=None):
+        drive, _ = mock_drive(
+            listing(source),
+            listing(),
+            response({"id": name}),
+            response({"id": "copied"}),
+            on_request=hook,
+        )
+        return filesystem(drive), drive.auth.thread_local.http
+
+    first, first_http = setup("one", hold_first)
+    other, other_http = setup("two")
+
+    def copy(fs, http, name):
+        fs.client.auth.thread_local.http = http
+        fs.cp_file("root/src", f"root/{name}/copy")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        pending = pool.submit(copy, first, first_http, "one")
+        try:
+            assert first_create.wait(5)
+            pool.submit(
+                copy, other if other_instance else first, other_http, "two"
+            ).result(timeout=5)
+        finally:
+            release.set()
+        pending.result(timeout=5)
+
+
+def test_concurrent_copies_share_a_folder_after_unrelated_invalidation(
+    mock_drive,
+):
+    creating, release = Event(), Event()
+    second_started, second_lookup = Event(), Event()
+    source = {"id": "src", "name": "src", "mimeType": "text/plain"}
+
+    def pause_create(request):
+        if request[1] == "POST" and json.loads(request[2]).get("mimeType"):
+            creating.set()
+            assert release.wait(5)
+
+    def observe_lookup(request):
+        q = query(request).get("q", [""])[0]
+        if "name='src'" in q:
+            second_started.set()
+        if "name='ab'" in q:
+            second_lookup.set()
+
+    first, first_requests = mock_drive(
+        listing(source),
+        listing(),
+        response({"id": "AB"}),
+        response({"id": "first-copy"}),
+        on_request=pause_create,
+    )
+    second, second_requests = mock_drive(
+        listing(source),
+        listing(folder("ab", "AB")),
+        response({"id": "second-copy"}),
+        on_request=observe_lookup,
+    )
+    fs = filesystem(first)
+
+    def copy(http, name):
+        fs.client.auth.thread_local.http = http
+        fs.cp_file("root/src", f"root/ab/{name}")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        one = pool.submit(copy, first.auth.thread_local.http, "one")
+        try:
+            assert creating.wait(5)
+            fs.invalidate_cache("root/ef")
+            two = pool.submit(copy, second.auth.thread_local.http, "two")
+            assert second_started.wait(5)
+            # Drive cannot return the new folder until the first create finishes.
+            assert not second_lookup.wait(0.1)
+        finally:
+            release.set()
+        one.result(timeout=5)
+        two.result(timeout=5)
+
+    for requests in (first_requests, second_requests):
+        assert json.loads(requests[-1][2])["parents"] == ["AB"]
+    assert [r[1] for r in first_requests] == ["GET", "GET", "POST", "POST"]
+    assert [r[1] for r in second_requests] == ["GET", "GET", "POST"]
+
+
+def test_invalidating_an_unopened_mount_needs_no_drive_request(mock_drive):
+    drive, requests = mock_drive()
+    filesystem(drive, "root/parent/mount").invalidate_cache("root/parent")
+    assert requests == []
+
+
+def test_rediscovered_directory_id_leaves_its_old_path(mock_drive):
+    drive, _ = mock_drive(
+        listing(folder("old", "same-id")),
+        listing(folder("new", "same-id")),
+        listing(),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old")
+    assert fs.exists("root/new")
+    assert not fs.exists("root/old")
+
+
+@pytest.mark.parametrize("operation", ["move", "trash", "delete"])
+def test_folder_mutation_forgets_a_name_discovered_during_the_request(
+    mock_drive, operation
+):
+    def rediscover(request):
+        if request[1] in {"PATCH", "DELETE"}:
+            assert fs.exists("root/other/child")
+
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        *([listing()] if operation == "move" else []),
+        listing(folder("other", "D")),
+        listing(folder("child", "C")),
+        response(folder("new", "D")),
+        listing(),
+        on_request=rediscover,
+    )
+    fs = filesystem(drive, trash_only=operation != "delete")
+    assert fs.exists("root/old")
+    if operation == "move":
+        fs.mv("root/old", "root/new")
+    else:
+        fs.rm_file("root/old")
+    assert not fs.exists("root/other/child")
+    assert "name='other'" in query(requests[-1])["q"][0]
+
+
+def test_find_warms_descendants_when_it_rediscovers_a_renamed_folder(
+    mock_drive,
+):
+    child = dict(folder("child", "C"), parents=["D"])
+    note = {
+        "id": "F",
+        "name": "note",
+        "mimeType": "text/plain",
+        "parents": ["C"],
+    }
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("new", "D")),
+        listing(child),
+        listing(note),
+        listing(child, note),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old")
+    assert fs.find("root/new") == ["root/new/child/note"]
+    before = len(requests)
+    assert fs.find("root/new") == ["root/new/child/note"]
+    (warm,) = requests[before:]
+    assert set(re.findall(r"'([^']+)' in parents", query(warm)["q"][0])) == {
+        "D",
+        "C",
+    }
+
+
+@pytest.mark.parametrize("duplicate", [False, True])
+def test_rediscovered_directory_evicts_old_descendants(mock_drive, duplicate):
+    old = [folder("old", "moved")]
+    if duplicate:
+        old.append(folder("old", "stays"))
+    child = folder("child", "C")
+    drive, requests = mock_drive(
+        listing(*old),
+        listing(child),
+        listing(folder("sibling", "S")),
+        listing(folder("new", "moved")),
+        listing(),
+        listing(child),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert fs.exists("root/sibling")
+    assert fs.exists("root/new")
+    before = len(requests)
+    assert not fs.exists("root/old/child")
+    (lookup,) = requests[before:]
+    expected = "'stays' in parents" if duplicate else "name='old'"
+    assert expected in query(lookup)["q"][0]
+    assert fs.exists("root/new/child")
+    before = len(requests)
+    assert fs.exists("root/sibling")
+    assert len(requests) == before
+
+
+def test_old_child_lookup_cannot_repopulate_a_rediscovered_directory(
+    mock_drive,
+):
+    def rediscover(request):
+        if "name='child'" in query(request)["q"][0]:
+            assert fs.exists("root/new")
+
+    drive, _ = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("new", "D")),
+        listing(folder("child", "C")),
+        listing(),
+        on_request=rediscover,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    assert not fs.exists("root/old/child")
+
+
+@pytest.mark.parametrize("children_first", [False, True])
+def test_find_uses_current_parent_links_after_a_rename(
+    mock_drive, children_first
+):
+    old = dict(folder("old", "D"), parents=["root"])
+    child = dict(folder("child", "C"), parents=["D"])
+    file = {
+        "id": "F",
+        "name": "note",
+        "mimeType": "text/plain",
+        "parents": ["C"],
+    }
+    rows = [dict(old, name="new"), child, file]
+    drive, requests = mock_drive(
+        listing(old),
+        listing(child),
+        listing(*(reversed(rows) if children_first else rows)),
+        listing(),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    before = len(requests)
+    assert fs.find("root") == ["root/new/child/note"]
+    assert len(requests) == before + 1
+    assert not fs.exists("root/old/child")
+
+
+def test_empty_root_marker_refreshes_a_folder_id_mount(mock_drive):
     drive, _ = mock_drive(
         response({"driveId": "shared"}),
-        response({"files": [file]}),
+        listing(folder("dir", "old")),
+        listing(),
+    )
+    fs = filesystem(drive, "FolderID")
+    assert fs.exists("FolderID/dir")
+    fs.invalidate_cache("")
+    assert not fs.exists("FolderID/dir")
+
+
+@pytest.mark.parametrize("operation", ["rename", "trash", "delete"])
+def test_file_mutation_reuses_cached_parent(mock_drive, operation):
+    file = {"name": "file", "id": "blob", "mimeType": "text/plain"}
+    mutation = (
+        [listing(), listing(file), response(file)]
+        if operation == "rename"
+        else [listing(file), response({})]
+    )
+    drive, requests = mock_drive(listing(folder("dir", "parent")), *mutation)
+    fs = filesystem(drive, trash_only=operation == "trash")
+    assert fs.exists("root/dir")
+    before = len(requests)
+    if operation == "rename":
+        fs.mv("root/dir/file", "root/dir/renamed")
+        assert [r[1] for r in requests[before:]] == ["GET", "GET", "PATCH"]
+    else:
+        fs.rm_file("root/dir/file")
+        method = "PATCH" if operation == "trash" else "DELETE"
+        assert [r[1] for r in requests[before:]] == ["GET", method]
+    assert all("q" in query(r) for r in requests[before:-1])
+    before = len(requests)
+    assert fs.exists("root/dir")
+    assert len(requests) == before
+
+
+@pytest.mark.parametrize("trash_only", [False, True])
+def test_shared_drive_delete_permission_error(mock_drive, trash_only):
+    drive, requests = mock_drive(
+        response({"driveId": "shared"}),
+        listing(folder("dir", "folder-id")),
         error_response(403, "insufficientFilePermissions"),
     )
+    fs = filesystem(drive, "shared", trash_only=trash_only)
     with pytest.raises(PermissionError, match="Manager"):
-        filesystem(drive, "shared", trash_only=trash_only).rm_file(
-            "shared/note"
-        )
+        fs.rm_file("shared/dir")
+    assert fs.exists("shared/dir")
+    assert len(requests) == 3
 
 
 def test_copy_creates_missing_directories_and_copies_on_drive(mock_drive):
