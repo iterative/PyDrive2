@@ -1,7 +1,7 @@
 PyDrive2
 ========
 
-|CI| · PyPI_ · conda-forge_
+|CI| |PyPI| |conda-forge|
 
 PyDrive2 is a Python client for the `Google Drive API v3`_ and an
 `fsspec`_-compatible filesystem for Google Drive. Use it to upload, download,
@@ -150,8 +150,14 @@ Thanks to all our contributors!
    :target: https://github.com/iterative/PyDrive2/actions/workflows/test.yml?query=branch%3Amain
    :alt: Tests on main
 
-.. _PyPI: https://pypi.org/project/PyDrive2/
-.. _conda-forge: https://anaconda.org/conda-forge/pydrive2
+.. |PyPI| image:: https://raster.shields.io/pypi/v/pydrive2.png
+   :target: https://pypi.org/project/PyDrive2/
+   :alt: PyPI version
+
+.. |conda-forge| image:: https://raster.shields.io/conda/vn/conda-forge/pydrive2.png
+   :target: https://anaconda.org/conda-forge/pydrive2
+   :alt: conda-forge version
+
 .. _Google Drive API v3: https://developers.google.com/workspace/drive/api/guides/about-sdk
 .. _fsspec: https://filesystem-spec.readthedocs.io/en/latest/
 .. _google-api-python-client: https://github.com/google/google-api-python-client
