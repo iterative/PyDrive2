@@ -39,11 +39,16 @@ folder that the account can access:
     fs = fsspec.filesystem("gdrive", path="FOLDER_ID", **options)
     names = fs.ls("FOLDER_ID")
 
-Use ``fs.rmdir("root/empty")`` to remove an empty folder. A nonempty
+Use ``fs.rmdir("FOLDER_ID/empty")`` to remove an empty folder. A nonempty
 folder raises ``OSError`` with ``errno.ENOTEMPTY``. If the name is
 ambiguous, open a filesystem at the intended folder ID and remove it by
 ID. In trash mode, already trashed children are ignored. Permanent removal
-also checks for trashed children. Drive checks emptiness and performs the
+also checks for trashed children. For ordinary folders, the credentials
+must grant access to list metadata across Drive. A per-file grant
+(``drive.file``) can hide children. For a folder in the app data space,
+the grant must cover app data. If the granted scopes are unknown,
+``rmdir`` raises ``PermissionError``. Signing in again with PyDrive2 saves
+the granted scopes alongside the token. Drive checks emptiness and performs the
 removal in separate requests, so coordinate concurrent writers when using
 this operation.
 
