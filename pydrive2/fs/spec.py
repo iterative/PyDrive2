@@ -467,19 +467,17 @@ class GDriveFileSystem(AbstractFileSystem):
             except FileNotFoundError:
                 with self._cache_lock:
                     if self._root_metadata is cached:
-                        self._root_metadata = {}
+                        self.invalidate_cache(self.root)
                 raise
             with self._cache_lock:
                 if self._root_metadata is cached:
-                    # Trash status is only valid for the request that observed it.
-                    self._root_metadata = (
-                        {}
-                        if item.get("trashed")
-                        else {
+                    if item.get("trashed"):
+                        self.invalidate_cache(self.root)
+                    else:
+                        self._root_metadata = {
                             "driveId": item.get("driveId"),
                             "mimeType": item.get("mimeType"),
                         }
-                    )
             return item.metadata
 
     def _gdrive_list(self, query):
@@ -692,14 +690,18 @@ class GDriveFileSystem(AbstractFileSystem):
         else:
             return True
 
-    @_gdrive_retry
     def info(self, path):
-        bucket, base = self.split_path(path)
-        with _translate_not_found(path):
-            item_id = self._get_item_id(path)
-            gdrive_file = self.client.CreateFile({"id": item_id})
-            fields = _INFO_FIELDS if base else f"{_INFO_FIELDS},trashed"
-            gdrive_file.FetchMetadata(fields=fields)
+        bucket, base = self._split_mounted_path(path)
+        if not base and bucket not in {"root", "appDataFolder"}:
+            gdrive_file = self._get_root_metadata(
+                fresh=True, fields=f"driveId,trashed,{_INFO_FIELDS}"
+            )
+        else:
+            with _translate_not_found(path):
+                item_id = self._get_item_id(path)
+                gdrive_file = self.client.CreateFile({"id": item_id})
+                fields = _INFO_FIELDS if base else f"{_INFO_FIELDS},trashed"
+                _gdrive_retry(gdrive_file.FetchMetadata)(fields=fields)
         if not base and gdrive_file.get("trashed"):
             raise FileNotFoundError(
                 errno.ENOENT, os.strerror(errno.ENOENT), path
