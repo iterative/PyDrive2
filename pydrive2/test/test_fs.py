@@ -298,6 +298,17 @@ def test_find(fs, fs_factory, remote_dir):
             file for file in files if file.startswith(remote_dir + "/dir/c/d/")
         }
 
+        start = remote_dir + "/dir/c"
+        children = {start + suffix for suffix in ("/a", "/b", "/d")}
+        found = test_fs.find(start, maxdepth=1, withdirs=True, detail=True)
+        assert set(found) == children | {start}
+        assert found[start + "/d"]["type"] == "directory"
+        assert all(name == entry["name"] for name, entry in found.items())
+        assert set(test_fs.glob(start + "/*")) == children
+        assert set(
+            test_fs.expand_path(start, recursive=True, maxdepth=1)
+        ) == set(found)
+
         # General find test
         assert set(test_fs.find(remote_dir)) == set(files)
 

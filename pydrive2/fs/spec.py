@@ -6,6 +6,7 @@ import posixpath
 import re
 import tempfile
 import threading
+import warnings
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from itertools import chain
@@ -82,9 +83,13 @@ class GDriveAuthError(Exception):
     pass
 
 
+def _directory_entry(name):
+    return {"name": name, "type": "directory", "size": 0}
+
+
 def _file_entry(name, item):
     if item["mimeType"] == FOLDER_MIME_TYPE:
-        return {"name": name.rstrip("/") + "/", "type": "directory", "size": 0}
+        return _directory_entry(name.rstrip("/") + "/")
     size = item.get("size")
     return {
         "name": name,
@@ -748,22 +753,25 @@ class GDriveFileSystem(AbstractFileSystem):
                 # Re-resolve both names so same-name siblings remain visible.
                 self._invalidate_paths(*(f"{self.root}/{p}" for p in changed))
 
-    def _walk_folders(self, base, start_ids, cache):
+    def _walk_folders(self, base, start_ids, cache, maxdepth):
         # Cache entries are hints about which parents can share a request.
         # Build paths only from the parent links in the current Drive listing.
         frontier = dict.fromkeys(start_ids, base)
-        with self._cache_lock:
-            to_list = dict.fromkeys(frontier)
-            to_list.update(
-                {
-                    item_id: None
-                    for item_id, path in cache.by_id.items()
-                    if _in_subtrees(path, (base,))
-                }
-            )
+        to_list = dict.fromkeys(frontier)
+        if maxdepth != 1:
+            prefix = base + "/" if base else ""
+            with self._cache_lock:
+                for item_id, name in cache.by_id.items():
+                    if name.startswith(prefix) and (
+                        maxdepth is None
+                        or name[len(prefix) :].count("/") + 1 < maxdepth
+                    ):
+                        to_list[item_id] = None
+        depth = 0
         children: dict[str, list[dict]] = {}
         visited: set[str] = set()
         while frontier:
+            depth += 1
             children.update({item_id: [] for item_id in to_list})
             for item in self._gdrive_list_ids(to_list):
                 parent = next(
@@ -790,6 +798,8 @@ class GDriveFileSystem(AbstractFileSystem):
                         if item_id not in visited:
                             following[item_id] = path
                     yield path, item
+            if depth == maxdepth:
+                return
             frontier = following
             to_list = {
                 item_id: None
@@ -797,15 +807,70 @@ class GDriveFileSystem(AbstractFileSystem):
                 if item_id not in children
             }
 
-    def find(self, path, detail=False, **kwargs):
+    def find(
+        self, path, maxdepth=None, withdirs=False, detail=False, **kwargs
+    ):
+        # PyDrive2 historically accepted a boolean detail as its second argument.
+        if isinstance(maxdepth, bool):
+            warnings.warn(
+                "Positional detail is deprecated. Pass detail=True or detail=False.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            detail = detail or maxdepth
+            maxdepth = None
         root, base = self._split_mounted_path(path)
+        if maxdepth is not None and maxdepth < 1:
+            raise ValueError("maxdepth must be at least 1")
         cache, mount = self._directory_cache()
         match, cache = self._resolve_path(base, cache, mount)
-        contents = [
-            _file_entry(posixpath.join(root, name), item)
-            for name, item in self._walk_folders(base, match.folders, cache)
-            if item["mimeType"] != FOLDER_MIME_TYPE
-        ]
+        file = (
+            min(match.files, key=lambda item: item["id"], default=None)
+            if not match.folders
+            else None
+        )
+        start = posixpath.join(root, base).rstrip("/")
+        check_empty_root = False
+        if not base and root not in {"root", "appDataFolder"}:
+            if self._root_metadata.get("mimeType") == FOLDER_MIME_TYPE:
+                check_empty_root = withdirs
+            else:
+                try:
+                    metadata = self._get_root_metadata(
+                        fresh=True, fields=f"driveId,trashed,{_INFO_FIELDS}"
+                    )
+                except FileNotFoundError:
+                    return {} if detail else []
+                if metadata.get("trashed"):
+                    return {} if detail else []
+                if metadata["mimeType"] != FOLDER_MIME_TYPE:
+                    file = metadata
+        if file is not None:
+            return {start: _file_entry(start, file)} if detail else [start]
+        if not match.folders:
+            return {} if detail else []
+
+        contents = []
+        for relative, item in self._walk_folders(
+            base, match.folders, cache, maxdepth
+        ):
+            check_empty_root = False
+            name = posixpath.join(root, relative)
+            if item["mimeType"] == FOLDER_MIME_TYPE:
+                if withdirs:
+                    contents.append(_directory_entry(name))
+            else:
+                contents.append(_file_entry(name, item))
+
+        if check_empty_root:
+            try:
+                self.info(path)
+            except FileNotFoundError:
+                return {} if detail else []
+
+        if withdirs:
+            contents.insert(0, _directory_entry(start))
+        contents.sort(key=lambda entry: entry["name"])
         if detail:
             return {entry["name"]: entry for entry in contents}
         return [entry["name"] for entry in contents]
