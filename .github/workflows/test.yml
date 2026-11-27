@@ -14,10 +14,37 @@ name: Tests
 permissions:
   contents: read
 
+# A retarget can arrive while this PR head is still being tested.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.run_id }}-${{ github.event.pull_request.head.sha || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
+  revision:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pull-requests: read
+    outputs:
+      sha: ${{ steps.check.outputs.sha }}
+      checkout: ${{ steps.check.outputs.checkout }}
+      passed: ${{ steps.check.outputs.passed }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
+    - name: Check previous tests for this merge tree
+      id: check
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python3 .github/scripts/pr_matrix.py
+
   pending:
+    needs: revision
     if: >-
-      github.event_name == 'pull_request' && github.base_ref == 'main' &&
+      !cancelled() && github.event_name == 'pull_request' && github.base_ref == 'main' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login != 'dependabot[bot]' &&
       github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
@@ -26,10 +53,14 @@ jobs:
     uses: ./.github/workflows/drive-status.yml
     with:
       # Retargeting keeps the head SHA. Bind that run to the new test merge commit.
-      sha: &status-sha ${{ github.event.action == 'edited' && github.sha || github.event.pull_request.head.sha }}
+      sha: &status-sha ${{ github.event.action == 'edited' && (needs.revision.outputs.sha || github.sha) || github.event.pull_request.head.sha }}
       state: pending
 
   test:
+    needs: revision
+    if: >-
+      !cancelled() && (needs.revision.result == 'skipped' ||
+      (needs.revision.result == 'success' && !needs.revision.outputs.passed))
     name: test (${{ matrix.os }}, ${{ matrix.pyv }})
     runs-on: ${{ matrix.os }}
     outputs:
@@ -46,8 +77,10 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
 
     steps:
-    - uses: actions/checkout@v7
+    - name: ${{ needs.revision.outputs.checkout || 'Check out the revision' }}
+      uses: actions/checkout@v7
       with:
+        ref: ${{ needs.revision.outputs.sha || github.sha }}
         persist-credentials: false
 
     - uses: actions/setup-python@v7
@@ -92,11 +125,13 @@ jobs:
         GDRIVE_USER_CREDENTIALS_DATA: ${{ secrets.GDRIVE_USER_CREDENTIALS_DATA }}
 
   report:
-    needs: [pending, test]
+    needs: [pending, revision, test]
     if: always() && needs.pending.result == 'success'
     permissions:
       statuses: write
     uses: ./.github/workflows/drive-status.yml
     with:
       sha: *status-sha
-      state: ${{ needs.test.result == 'success' && needs.test.outputs.live == 'success' && 'success' || 'failure' }}
+      state: >-
+        ${{ ((needs.revision.result == 'success' && needs.revision.outputs.passed == 'true') ||
+        (needs.test.result == 'success' && needs.test.outputs.live == 'success')) && 'success' || 'failure' }}

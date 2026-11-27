@@ -9,7 +9,9 @@ jobs:
   retest:
     if: github.event.changes.base.ref.from
     permissions:
+      actions: read
       contents: read
+      pull-requests: read
       statuses: write
     uses: ./.github/workflows/test.yml
     secrets:
