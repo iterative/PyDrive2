@@ -22,9 +22,10 @@ to type-check the package for Python 3.11.
 Live Drive tests for external pull requests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Fork and Dependabot PRs run offline tests automatically. A repository
-maintainer or admin can comment ``/test-drive`` to request live tests.
-An ``external`` reviewer approves the displayed commit after reviewing the
-full change. The approved code runs with the existing Drive test credential.
-The PR's ``Live Drive tests`` check links to the run and must pass before
-merging. A new commit needs a fresh request and approval.
+Each matrix job runs the offline suite, then the live suite. Fork and
+Dependabot PRs normally have no repository Drive credential, so the live
+step fails. Their offline results are visible in the same jobs.
+
+To land a reviewed external change, a maintainer can open a PR from a
+branch in this repository. The required ``Live Drive tests`` check passes
+when every matrix job succeeds.
