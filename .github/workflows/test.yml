@@ -4,36 +4,20 @@ on:
       - main
   pull_request:
   workflow_dispatch:
-  workflow_call:
-    secrets:
-      GDRIVE_USER_CREDENTIALS_DATA:
-        required: false
 
 name: Tests
 
 permissions:
   contents: read
 
-jobs:
-  pending:
-    if: >-
-      github.event_name == 'pull_request' && github.base_ref == 'main' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.user.login != 'dependabot[bot]' &&
-      github.actor != 'dependabot[bot]' && !startsWith(github.head_ref, 'dependabot/')
-    permissions:
-      statuses: write
-    uses: ./.github/workflows/drive-status.yml
-    with:
-      # Retargeting keeps the head SHA. Bind that run to the new test merge commit.
-      sha: &status-sha ${{ github.event.action == 'edited' && github.sha || github.event.pull_request.head.sha }}
-      state: pending
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
+jobs:
   test:
     name: test (${{ matrix.os }}, ${{ matrix.pyv }})
     runs-on: ${{ matrix.os }}
-    outputs:
-      live: ${{ steps.live.outcome }}
 
     strategy:
       fail-fast: false
@@ -76,27 +60,22 @@ jobs:
       run: python -m pytest -m "not manual and not drive"
 
     - name: Run live Drive tests
-      id: live
-      # An offline failure still fails the job, but the live suite can run.
-      if: >-
-        !cancelled() && steps.install.outcome == 'success' &&
-        github.actor != 'dependabot[bot]' &&
-        !startsWith(github.head_ref || github.ref_name, 'dependabot/') &&
-        ((github.event_name == 'pull_request' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          github.event.pull_request.user.login != 'dependabot[bot]') ||
-         ((github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
-          github.ref_type == 'branch'))
-      run: python -m pytest -m "not manual and drive"
+      if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+      shell: bash
       env:
         GDRIVE_USER_CREDENTIALS_DATA: ${{ secrets.GDRIVE_USER_CREDENTIALS_DATA }}
+      run: |
+        if [[ -z "$GDRIVE_USER_CREDENTIALS_DATA" ]]; then
+          echo "::error::Drive test credentials are unavailable for this run."
+          exit 1
+        fi
+        python -m pytest -m "not manual and drive"
 
-  report:
-    needs: [pending, test]
-    if: always() && needs.pending.result == 'success'
-    permissions:
-      statuses: write
-    uses: ./.github/workflows/drive-status.yml
-    with:
-      sha: *status-sha
-      state: ${{ needs.test.result == 'success' && needs.test.outputs.live == 'success' && 'success' || 'failure' }}
+  required:
+    name: Live Drive tests
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+    - name: Require every matrix job to pass
+      run: test "${{ needs.test.result }}" = success
