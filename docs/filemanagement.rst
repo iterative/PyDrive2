@@ -1,8 +1,6 @@
 File management made easy
 =========================
 
-There are many methods to create and update file metadata and contents. With
-*PyDrive*, you don't have to care about any of these different API methods.
 Edit the metadata or contents of a :class:`~pydrive2.files.GoogleDriveFile`
 and call :meth:`~pydrive2.files.GoogleDriveFile.Upload` to save the changes.
 
@@ -21,7 +19,8 @@ In this example, ``gauth`` is an authenticated
 
     # Create GoogleDriveFile instance with name 'Hello.txt'.
     file1 = drive.CreateFile({'name': 'Hello.txt'})
-    file1.Upload() # Upload the file.
+    file1.SetContentString('Hello')
+    file1.Upload()  # Create a text file.
     print('name: %s, id: %s' % (file1['name'], file1['id']))
     # name: Hello.txt, id: {{FILE_ID}}
 
@@ -33,21 +32,17 @@ Google Drive.
 Delete, Trash and un-Trash files
 --------------------------------
 
-You may want to delete, trash, or un-trash a file. To do this use ``Delete()``,
-``Trash()`` or ``UnTrash()`` on a GoogleDriveFile object.
-
-*Note:* ``Trash()`` *moves a file into the trash and can be recovered,*
-``Delete()`` *deletes the file permanently and immediately.*
+Use ``Trash()`` to move a file to the trash and ``UnTrash()`` to restore it.
+``Delete()`` permanently deletes the file. This example creates a separate
+file so you can continue working with ``Hello.txt`` in the following sections.
 
 .. code-block:: python
 
-    # Create GoogleDriveFile instance and upload it.
-    file1 = drive.CreateFile()
-    file1.Upload()
-
-    file1.Trash()  # Move file to trash.
-    file1.UnTrash()  # Move file out of trash.
-    file1.Delete()  # Permanently delete the file.
+    temporary = drive.CreateFile({"name": "temporary.txt"})
+    temporary.Upload()
+    temporary.Trash()
+    temporary.UnTrash()
+    temporary.Delete()
 
 Update file metadata
 --------------------
@@ -85,97 +80,56 @@ Sample code continues from above:
 Handling special metadata
 -------------------------
 
-Not all metadata can be set with the methods described above.
-PyDrive gives you access to the metadata of an object through
-``file_object.FetchMetadata()``. This function has two optional parameters:
-``fields`` and ``fetch_all``.
+Drive returns a subset of file fields by default. Request specific fields
+with a field mask or use ``fetch_all=True`` to request all available fields.
 
 .. code-block:: python
 
-    file1 = drive.CreateFile({'id': '<some file ID here>'})
+    file2.FetchMetadata(fields="id,name,owners,capabilities")
+    file2.FetchMetadata(fetch_all=True)
 
-    # Fetches all basic metadata fields, including file size, last modified
-    # etc.
-    file1.FetchMetadata()
-
-    # Fetches all metadata available.
-    file1.FetchMetadata(fetch_all=True)
-
-    # Fetches the 'permissions' metadata field.
-    file1.FetchMetadata(fields='permissions')
-    # You can update a list of specific fields like this:
-    file1.FetchMetadata(fields='permissions,trashed,mimeType')
-
-See the `Drive API v3 file resource`_ for the available fields.
+See the `Drive API v3 file resource`_ for available fields.
 
 Insert permissions
 __________________
 
-Insert, retrieving or deleting permissions is illustrated by making a file
-readable to all who have a link to the file.
+To share a file by link, create an ``anyone`` permission with the
+``reader`` role. The file's sharing policy must allow link sharing.
+Keep the returned permission ID if you want to revoke that grant later.
 
 .. code-block:: python
 
-    file1 = drive.CreateFile()
-    file1.Upload()
+    shared = drive.CreateFile({"name": "Shared note.txt"})
+    shared.Upload()
+    permission = shared.InsertPermission({
+        "type": "anyone",
+        "allowFileDiscovery": False,
+        "role": "reader",
+    })
+    print(shared["webViewLink"])
 
-    # Insert the permission.
-    permission = file1.InsertPermission({
-                            'type': 'anyone',
-                            'allowFileDiscovery': False,
-                            'role': 'reader'})
-
-    print(file1['webViewLink'])  # Display the sharable link.
-
-Note: ``InsertPermission()`` calls ``GetPermissions()`` after successfully
-inserting the permission.
-
-See the `permissions.create request body`_ for the permission format.
-This file is now shared and anyone with the link can view it. But what if you
-want to check whether a file is already shared?
+See the `permissions.create request body`_ for other permission types.
 
 List permissions
 ________________
 
-Permissions can be fetched using the ``GetPermissions()`` function of a
-``GoogleDriveFile``, and can be used like so:
+Call ``GetPermissions()`` on an uploaded file or one opened by ID.
+PyDrive2 follows the permission list's page tokens and stores the results
+in the file object's ``permissions`` field.
 
 .. code-block:: python
 
-    # Create a new file
-    file1 = drive.CreateFile()
-    # Fetch permissions.
-    permissions = file1.GetPermissions()
-    print(permissions)
-
-    # The permissions are also available as file1['permissions']:
-    print(file1['permissions'])
-
-For the more advanced user: ``GetPermissions()`` is a shorthand for:
-
-.. code-block:: python
-
-    # Fetch Metadata, including the permissions field.
-    file1.FetchMetadata(fields='permissions')
-
-    # The permissions array is now available for further use.
-    print(file1['permissions'])
+    for grant in shared.GetPermissions():
+        print(grant["id"], grant["role"])
 
 Remove a Permission
 ___________________
 
-*PyDrive* allows you to remove a specific permission using the
-``DeletePermission(permission_id)`` function. This function allows you to
-delete one permission at a time by providing the permission's ID.
+Revoke the grant created above using the ID returned by ``InsertPermission()``.
 
 .. code-block:: python
 
-    file1 = drive.CreateFile({'id': '<file ID here>'})
-    permissions = file1.GetPermissions()  # Download file permissions.
-
-    permission_id = permissions[1]['id']  # Get a permission ID.
-
-    file1.DeletePermission(permission_id)  # Delete the permission.
+    shared.DeletePermission(permission["id"])
 
 Get files by complex queries
 ----------------------------
@@ -199,53 +153,32 @@ field such as ``mimeType`` in a Drive v3 search. See the
 List revisions
 ______________
 
-Revisions can be fetched using the ``GetRevisions()`` function of a
-``GoogleDriveFile``, and can be used like so:
+Use ``GetRevisions()`` on a file that has been uploaded or opened by ID.
 
 .. code-block:: python
 
-    # Create a new file
-    file1 = drive.CreateFile()
-    # Fetch revisions.
     revisions = file1.GetRevisions()
-    print(revisions)
+    for revision in revisions:
+        print(revision["id"])
 
-Not all files objects have revisions. If GetRevisions is called on a
-file object that does not have revisions, an exception will be raised.
+.. _upgrading-from-drive-api-v2:
 
-Upgrading from Drive API v2
----------------------------
+Import a file into Google Workspace
+-----------------------------------
 
-PyDrive2 uses Drive API v3 for all requests. Existing file and folder IDs
-remain valid. Use v3 names in metadata dictionaries, field masks, and queries:
-
-- ``title`` becomes ``name``, ``fileSize`` becomes ``size``, and
-  ``alternateLink`` becomes ``webViewLink``.
-- File reads and listings request a subset of metadata by default. To read
-  additional fields, use ``FetchMetadata(fields="owners,capabilities")``,
-  ``FetchMetadata(fetch_all=True)``, or a list selector such as
-  ``files(id,name,shortcutDetails)``.
-- Read ``trashed`` directly and supply parent IDs as strings,
-  for example ``{"parents": [folder_id]}``. Assign the new parent list and
-  call ``Upload()`` to move an existing file.
-- Replace ``maxResults`` with ``pageSize`` and use a list field mask such
-  as ``files(id,name)``. See :doc:`filelist` for automatic pagination.
-- For user or group permissions, use ``emailAddress`` in place of
-  ``value``. For link sharing, set ``allowFileDiscovery=False``.
-  When calling ``InsertPermission(permission, param=...)``, rename the v2
-  request parameter ``sendNotificationEmails`` to ``sendNotificationEmail``.
-  For example, ``param={"sendNotificationEmail": False}`` disables the
-  notification when sharing with a user or group.
-- To import a file, replace the v2 ``convert`` flag with the target
-  Workspace MIME type and pass the original media type to ``Upload()``.
+To import a CSV as a Google Sheet, set the destination MIME type on the
+file and pass the source MIME type to ``Upload()``.
 
 .. code-block:: python
 
-    sheet = drive.CreateFile({"name": "Sales", "mimeType": "application/vnd.google-apps.spreadsheet"})
+    sheet = drive.CreateFile({
+        "name": "Sales",
+        "mimeType": "application/vnd.google-apps.spreadsheet",
+    })
     sheet.SetContentFile("sales.csv")
     sheet.Upload(media_mime_type="text/csv")
 
-See Google's `Drive v2 to v3 reference`_ for the full field and method-parameter mappings.
+For changes to fields and request parameters, see :doc:`upgrading`.
 
 Upload and update file content
 ------------------------------
@@ -294,51 +227,29 @@ like so:
 Upload data as bytes in memory buffer
 -------------------------------------
 
-Data can be kept as bytes in an in-memory buffer when we use the ``io``
-module’s Byte IO operations, we can upload files that reside in memory, for
-example we have a base64 image, we can decode the string and upload it to drive
-without first saving it to disk and calling
-:meth:`~pydrive2.files.GoogleDriveFile.SetContentFile`.
+Assign a seekable binary stream to ``content``. The caller owns this
+stream and can close it after the upload.
 
 .. code-block:: python
 
-    import io
-    from pydrive2.drive import GoogleDrive
+    from io import BytesIO
 
-    # Create GoogleDrive instance with authenticated GoogleAuth instance.
-    drive = GoogleDrive(gauth)
-    # Define file name and type
-    metadata = {
-        'name': 'image_test',
-        'mimeType': 'image/jpeg'
-    }
-    # Create file
-    file = drive.CreateFile(metadata=metadata)
-    # Buffered I/O implementation using an in-memory bytes buffer.
-    image_file = io.BytesIO(image_bytes)
-    # Set the content of the file
-    file.content = image_file
-    # Upload the file to google drive
-    file.Upload()
+    sample = drive.CreateFile({"name": "sample.bin"})
+    with BytesIO(b"sample data") as stream:
+        sample.content = stream
+        sample.Upload()
 
 Upload file to a specific folder
 --------------------------------
 
-In order to upload a file into a specific drive folder we need to pass the
-``id`` of the folder in the metadata passed to
-:meth:`~pydrive2.drive.GoogleDrive.CreateFile`.
-Save the image from the previous example into a specific folder``:``
+Set ``parents`` to a list containing the destination folder ID. This
+example uploads the contents of a local image into that folder.
 
 .. code-block:: python
 
-    metadata = {
-        'parents': [id_drive_folder],
-        'name': 'image_test',
-        'mimeType': 'image/jpeg'
-    }
-    # Create file
-    file = drive.CreateFile(metadata=metadata)
-    file.Upload()
+    image = drive.CreateFile({"parents": ["YOUR_FOLDER_ID"]})
+    image.SetContentFile("cat.png")
+    image.Upload()
 
 Download file content
 ---------------------
@@ -384,11 +295,12 @@ See the :download:`complete Python example <../examples/strip_bom_example.py>`.
 Abusive files
 -------------
 
-Files identified as `abusive`_ (malware, etc.) are only downloadable by the
-owner. If you see a 'This file has been identified as malware or spam and
-cannot be downloaded' error, set 'acknowledge_abuse=True' parameter in
-`GetContentFile()`. By using it you indicate that you acknowledge the risks of
-downloading potential malware.
+If Drive flags a file as abusive, the owner or a shared-drive organizer
+can explicitly acknowledge the risk when downloading it. Pass
+``acknowledge_abuse=True`` to ``GetContentFile()`` for that download.
+See the `files.get parameters`_ for the access requirements.
+
+.. _files.get parameters: https://developers.google.com/workspace/drive/api/reference/rest/v3/files/get
 
 .. _Drive API v3 file resource:
    https://developers.google.com/workspace/drive/api/reference/rest/v3/files#resource:-file
@@ -398,7 +310,3 @@ downloading potential malware.
    https://developers.google.com/workspace/drive/api/guides/search-files#examples
 .. _add a byte order mark to plain-text exports:
    https://github.com/googleapis/google-api-nodejs-client/issues/2404
-.. _`abusive`: https://support.google.com/docs/answer/148505
-
-.. _Drive v2 to v3 reference:
-   https://developers.google.com/workspace/drive/api/guides/v2-to-v3-reference

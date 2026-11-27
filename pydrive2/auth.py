@@ -109,9 +109,8 @@ def LoadAuth(decoratee):
 class GoogleAuth(ApiAttributeMixin):
     """Google Drive authentication using google-auth.
 
-    Loads all settings and credentials from one 'settings.yaml' file
-    and performs common OAuth2.0 related functionality such as authentication
-    and authorization.
+    Reads authentication settings from a dictionary or YAML file. User tokens
+    can be cached in a separate file or dictionary.
     """
 
     DEFAULT_SETTINGS: ClassVar[dict[str, str | bool | list[str]]] = {
@@ -368,7 +367,7 @@ class GoogleAuth(ApiAttributeMixin):
         return store
 
     def LoadCredentials(self, backend=None):
-        """Loads credentials or create empty credentials if it doesn't exist.
+        """Load user credentials, setting credentials to None if the cache is empty.
 
         :param backend: target backend to save credential to.
         :type backend: str.
@@ -380,7 +379,7 @@ class GoogleAuth(ApiAttributeMixin):
             self._load_credentials(self._storage_for("dictionary"))
 
     def LoadCredentialsFile(self, credentials_file=None):
-        """Loads credentials or create empty credentials if it doesn't exist.
+        """Load user credentials, setting credentials to None if the cache is empty.
 
         Loads credentials file from path in settings if not specified.
 

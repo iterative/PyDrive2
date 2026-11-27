@@ -9,7 +9,7 @@ Installation
 
 .. code-block:: sh
 
-  pip install 'pydrive2[fsspec]'
+    python -m pip install 'PyDrive2[fsspec]'
 
 The ``[fsspec]`` extra installs fsspec. If fsspec is already installed,
 installing plain PyDrive2 also registers ``gdrive://``. This registration
@@ -66,9 +66,8 @@ Local webserver
         client_secret="my_client_secret",
     )
 
-By default, credentials will be cached per 'client_id', but if you are using
-multiple users you might want to use 'profile' to avoid accidentally using
-someone else's cached credentials:
+The filesystem caches OAuth user credentials per client ID. Give each user
+a separate ``profile`` when several users share a client ID and machine.
 
 .. code-block:: python
 
@@ -81,14 +80,8 @@ someone else's cached credentials:
         profile="myprofile",
     )
 
-PyDrive2 2.x uses a separate default cache. The first interactive connection
-after upgrading from 1.x prompts you to sign in. If you supplied a user
-credential file explicitly, choose a fresh path. For DVC jobs that use
-``GDRIVE_CREDENTIALS_DATA`` for a user account, replace that secret with the
-newly saved JSON. Service-account jobs can reuse their configured key.
-
-Writing cached credentials to a file and using it if it already exists (which
-avoids interactive auth):
+To choose where PyDrive2 saves and refreshes your user token, set
+``client_json_file_path``. For existing deployments, see :doc:`upgrading`.
 
 .. code-block:: python
 
@@ -98,10 +91,10 @@ avoids interactive auth):
         "root",
         client_id="my_client_id",
         client_secret="my_client_secret",
-        client_json_file_path="/path/to/keyfile.json",
+        client_json_file_path="/path/to/user-token.json",
     )
 
-Using cached credentials from json string (avoids interactive auth):
+To load saved user credentials from a JSON string, pass ``client_json``.
 
 .. code-block:: python
 
@@ -117,30 +110,26 @@ Using cached credentials from json string (avoids interactive auth):
 Service account
 ---------------
 
-Using json keyfile path:
+Give the service account access to the folder and mount its ID.
 
 .. code-block:: python
 
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
-        # replace with ID of a drive or directory and give service account
-        # access to it
-        "root",
+        "FOLDER_ID",
         use_service_account=True,
         client_json_file_path="/path/to/keyfile.json",
     )
 
-Using json keyfile string:
+You can also pass the service-account key as a JSON string.
 
 .. code-block:: python
 
     from pydrive2.fs import GDriveFileSystem
 
     fs = GDriveFileSystem(
-        # replace with ID of a drive or directory and give service account
-        # access to it
-        "root",
+        "FOLDER_ID",
         use_service_account=True,
         client_json=json_string,
     )
@@ -152,7 +141,8 @@ Additional parameters
 ---------------------
 
 :trash_only (bool):
-    Move files to trash instead of deleting.
+    Move files to the trash on removal (default: true). Set to false for
+    permanent deletion.
 :acknowledge_abuse (bool):
     Acknowledge the risk when downloading a file flagged as abusive.
     See :ref:`abusive-files`.
@@ -162,14 +152,17 @@ Using filesystem
 
 .. code-block:: python
 
-    # replace `root` with ID of a drive or directory and give service account
-    # access to it
-    for root, dnames, fnames in fs.walk("root"):
-        for dname in dnames:
-            print(f"dir: {root}/{dname}")
+    fs.makedirs("FOLDER_ID/reports/2026", exist_ok=True)
+    for parent, directories, files in fs.walk("FOLDER_ID/reports"):
+        for name in files:
+            print(f"{parent}/{name}")
 
-        for fname in fnames:
-            print(f"file: {root}/{fname}")
+``mkdir(path, create_parents=False)`` requires an existing parent.
+``makedirs(path, exist_ok=True)`` creates missing parents and accepts an
+existing directory. The filesystem caches directory IDs to speed up
+repeated lookups. After an external move or deletion, use
+``fs.invalidate_cache(path)`` for the affected path or
+``fs.invalidate_cache()`` to clear the whole cache.
 
 For sequential reads, pass a positive ``block_size`` to ``fs.open()`` to set
 the Drive download request size in bytes. A writer buffers data locally,
@@ -183,6 +176,6 @@ about and manipulating files, refer to fsspec docs on
 
 .. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
 .. _domain-wide delegation:
-   https://developers.google.com/workspace/guides/create-credentials#set-up-domain-wide-delegation
+   https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority
 .. _`how to use a filesystem`:
    https://filesystem-spec.readthedocs.io/en/latest/usage.html#use-a-file-system

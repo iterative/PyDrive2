@@ -4,8 +4,10 @@ File listing made easy
 PyDrive2 handles pagination and returns
 :class:`~pydrive2.files.GoogleDriveFile` instances.
 
-Get all files which matches the query
--------------------------------------
+.. _get-all-files-which-matches-the-query:
+
+List matching files
+-------------------
 
 Pass the `files.list query parameters`_ to
 :meth:`~pydrive2.drive.GoogleDrive.ListFile` as a dictionary. It returns a
@@ -44,8 +46,7 @@ contains up to ten files.
 
 .. code-block:: python
 
-    # Paginate file lists by specifying number of max results
-    for file_list in drive.ListFile({'q': 'trashed=true', 'pageSize': 10}):
+    for file_list in drive.ListFile({'q': 'trashed=false', 'pageSize': 10}):
         print('Received %s files from Files.list()' % len(file_list))  # <= 10
         for file1 in file_list:
             print('name: %s, id: %s' % (file1['name'], file1['id']))

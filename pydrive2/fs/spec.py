@@ -268,20 +268,20 @@ class GDriveFileSystem(AbstractFileSystem):
         :param client_user_email: User email that authority was delegated to
             (only for service account).
         :type client_user_email: str.
-        :param client_json: JSON keyfile loaded into a string.
+        :param client_json: Saved user credentials or a service-account key as JSON.
         :type client_json: str.
-        :param client_json_file_path: Path to JSON keyfile.
+        :param client_json_file_path: User token cache or service-account key path.
         :type client_json_file_path: str.
         :param use_service_account: Use service account.
         :type use_service_account: bool.
         :param profile: Profile name for caching credentials
             (ignored for service account).
+        :type profile: str.
         :param trash_only: Move files to trash instead of deleting.
         :type trash_only: bool.
         :param acknowledge_abuse: Acknowledging the risk and download file
             identified as abusive.
         :type acknowledge_abuse: bool
-        :type profile: str.
         :raises: GDriveAuthError
         """
         super().__init__(**kwargs)

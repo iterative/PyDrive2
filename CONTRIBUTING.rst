@@ -1,26 +1,24 @@
 Contributing guidelines
 =======================
 
-How to become a contributor and submit your own code
-----------------------------------------------------
-
-TODO
-
 Contributing code
-~~~~~~~~~~~~~~~~~
+-----------------
 
-If you have improvements to PyDrive2, send us your pull requests! For those
-just getting started, Github has a `howto`_.
+Submit changes in a pull request. GitHub's `pull request guide`_ describes
+how to propose and review changes.
 
 Install the development tools with
 ``python -m pip install -e '.[tests,fsspec,typing]'``. Run ``ruff check .`` to
 lint Python files and ``ruff format .`` to format them. Run ``python -m mypy``
 to type-check the package for Python 3.11.
 
-.. _howto: https://help.github.com/articles/using-pull-requests/
+See the `test guide <pydrive2/test/README.rst>`_ for offline and live suites
+and the `documentation guide <docs/README.md>`_ to preview the site.
+
+.. _pull request guide: https://docs.github.com/en/pull-requests
 
 Live Drive tests for external pull requests
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------------
 
 Fork and Dependabot PRs run offline tests automatically. A repository
 maintainer or admin can comment ``/test-drive`` to request live tests.

@@ -1,79 +1,45 @@
 Run tests locally
------------------
+=================
 
-After installing the test dependencies, run the offline tests from the
-repository root.
+From the repository root, install the test dependencies with Python 3.11
+or newer and run the offline suite.
 
-.. code-block:: console
+.. code-block:: sh
 
+    python -m pip install -e '.[tests,fsspec]'
     python -m pytest -m "not manual and not drive"
 
-Mark tests that need Drive credentials with ``pytest.mark.drive``. To run
-those tests locally, configure a service account as described below.
+Live Drive tests
+----------------
 
-1. Copy settings files to the :code:`pydrive2/test/settings/local` directory:
+The ``drive`` tests make real Google Drive requests, including creating,
+sharing, and deleting test files. Use a dedicated test account with the
+Drive API enabled. The filesystem tests create files under the account's
+``root`` and require write access and storage there.
 
-   ::
+For the noninteractive suite, set ``GDRIVE_USER_CREDENTIALS_DATA`` to the
+**contents of a service-account JSON key**. Some tests read this variable
+directly. The helpers also write it to ``/tmp/pydrive2/credentials.json``
+and prepare local copies of the settings templates. Run locally in a
+private test environment and remove the generated credential files when
+finished.
 
-       cd pydrive2/test/settings && cp *.yaml local
+.. code-block:: sh
 
-2. Setup a Google service account for your Google Cloud Project:
+    python -m pytest -m "drive and not manual"
 
-   - Sign into the `Google API Console`_
-   - Select or `Create a new`_ project.
-   - `Enable the Drive API`_ from the **APIs & Services** **Dashboard** (left
-     sidebar), click on **+ ENABLE APIS AND SERVICES**. Find and select the
-     "Google Drive API" in the API Library, and click on the **ENABLE** button.
-   - Go back to **IAM & Admin** in the left sidebar, and select
-     **Service Accounts**. Click **+ CREATE SERVICE ACCOUNT**, on the next
-     screen, enter **Service account name** e.g. "PyDrive tests", and click
-     **Create**. Select **Continue** at the next
-     **Service account permissions** page, click at **+ CREATE KEY**, select
-     **JSON** and **Create**. Save generated :code:`.json` key file at your
-     local disk.
-   - Copy downloaded :code:`json` file to
-     :code:`/tmp/pydrive2/credentials.json` directory.
+Manual OAuth tests
+------------------
 
-3. Optional. If you would like to use your own an OAuth client ID follow the
-   steps:
+Tests marked ``manual`` require interaction. For local browser sign-in, use
+a desktop OAuth client. Place its downloaded configuration in
+``pydrive2/test/client_secrets.json`` locally and configure the corresponding
+test settings under ``pydrive2/test/settings/local/`` when using inline client
+settings. Run the desired test by node ID, for example:
 
-   - Under `Google API Console`_ select **APIs & Services** from the left
-     sidebar, and select **OAuth consent screen**. Chose a **User Type** and
-     click **CREATE**. On the next screen, enter an **Application name** e.g.
-     "PyDrive tests", and click the **Save** (scroll to bottom).
-   - From the left sidebar, select **Credentials**, and click the
-     **Create credentials** dropdown to select **OAuth client ID**. Chose
-     **Other** and click **Create** to proceed with a default client name.
-     At **Credentials** screen find a list of your **OAuth 2.0 Client IDs**,
-     click download icon in front of your OAuth client id created previously.
-     You should be prompted to download :code:`client_secret_xxx_.json` file.
-   - Copy downloaded :code:`.json` file into :code:`pydrive2/test` directory
-     and rename to :code:`client_secrets.json`.
-   - Replace {{ }} sections in
-     :code:`pydrive2/test/settings/local/test_oauth_test_02.yaml` with the
-     relevant values of :code:`client_id` and :code:`client_secret` from your
-     **client_secrets.json** file.
+.. code-block:: sh
 
-4. Setup virtual environment (recommended optional step):
+    python -m pytest -m manual pydrive2/test/test_oauth.py -k test_01
 
-   ::
-
-       virtualenv -p python .env
-       source .env/bin/activate
-
-5. Install :code:`tests` deps from the root directory of the project:
-
-   ::
-
-       pip install -e .[tests,fsspec]
-
-6. Run tests:
-
-   ::
-
-       py.test -v -s
-
-.. _Google API Console: https://console.developers.google.com
-.. _Create a new:
-   https://cloud.google.com/resource-manager/docs/creating-managing-projects#creating_a_project
-.. _Enable the Drive API: https://developers.google.com/workspace/drive/api/guides/about-sdk
+Keep local credentials and changes to the example client configuration out
+of commits.
