@@ -46,7 +46,7 @@ Source = "https://github.com/iterative/PyDrive2"
 Changelog = "https://github.com/iterative/PyDrive2/releases"
 
 [project.optional-dependencies]
-fsspec = ["fsspec>=2021.07.0"]
+fsspec = ["fsspec>=2024.2.0"]
 tests = [
     "pytest>=4.6.0",
     "timeout-decorator",

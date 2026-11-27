@@ -60,6 +60,17 @@ alias followed by a filename. As with the direct PyDrive2 filesystem,
 a write creates a Drive item even when a sibling has the same name. All
 reads require credentials, including files shared by link.
 
+The filesystem extra requires fsspec 2024.2.0 or newer. Use
+``find(path, detail=True)`` to request metadata. The second positional
+argument specifies traversal depth. Directory names returned by ``ls()``
+and ``info()`` end in a slash. ``find(withdirs=True)`` returns directory
+paths without a trailing slash, like fsspec's other traversal methods.
+
+Named directory lookups reuse cached Drive IDs. If another client moves,
+trashes, or deletes a folder, call ``fs.invalidate_cache("root/empty")``
+before looking up its old path again. The next lookup checks Drive for all
+folders with that name, including any same-name folder that still exists.
+
 Drive queries for directory entries exclude trashed items. For a bare file
 ID, ``exists()`` returns false and ``info()`` raises ``FileNotFoundError``
 when the item is in the trash. Opening or downloading by ID requests the
