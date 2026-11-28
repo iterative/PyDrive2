@@ -445,7 +445,7 @@ class GDriveFileSystem(AbstractFileSystem):
         for page in iter(get_list, None):
             if file_list.metadata.get("incompleteSearch"):
                 raise OSError(errno.EIO, "Incomplete Drive listing")
-            yield from page
+            yield from (item.metadata for item in page)
 
     def _query_children(self, parents, names=()):
         parent_query = " or ".join(
@@ -459,7 +459,9 @@ class GDriveFileSystem(AbstractFileSystem):
 
     def _list_children(self, listing, *, require_parent=False):
         names = (listing.name,) if listing.name is not None else ()
-        seen_ids = set()
+        # Drive can return the same ID on multiple pages or in different
+        # batches. Wait for the last attributable row before constructing paths.
+        rows: dict[str, tuple[str | None, dict]] = {}
         for batch in chunks(_MAX_QUERY_TERMS, listing.folders):
             batch_ids = set(batch)
             unplaced = {}
@@ -482,18 +484,16 @@ class GDriveFileSystem(AbstractFileSystem):
                         # Drive can return the canonical ID of the root alias.
                         parent = self.root
                 if parent is None and require_parent:
-                    if file_id not in seen_ids:
-                        unplaced[file_id] = item["name"]
+                    unplaced[file_id] = item["name"]
                     continue
                 unplaced.pop(file_id, None)
-                if file_id in seen_ids:
-                    # A file may have moved between two parent queries.
-                    if item["mimeType"] != FOLDER_MIME_TYPE:
-                        listing.add(parent, item)
-                    continue
-                listing.add(parent, item)
-                seen_ids.add(file_id)
-                yield parent, item
+                previous = rows.get(file_id)
+                if previous is not None:
+                    previous_parent, _ = previous
+                    if previous_parent in item.get("parents", ()):
+                        # Shared memberships still refer to one output item.
+                        parent = previous_parent
+                rows[file_id] = parent, item
 
             # Some responses omit parents. Resolve only the missing IDs, using
             # their names to avoid paging through unrelated siblings.
@@ -508,13 +508,15 @@ class GDriveFileSystem(AbstractFileSystem):
                     file_id = item["id"]
                     if file_id in unplaced:
                         del unplaced[file_id]
-                        listing.add(parent_id, item)
-                        seen_ids.add(file_id)
-                        yield parent_id, item
+                        rows[file_id] = parent_id, item
             if unplaced:
                 # An item can change during the probes. This batch cannot
                 # establish which cached folders have disappeared.
                 listing.complete = False
+
+        for parent, item in rows.values():
+            listing.add(parent, item)
+            yield parent, item
 
     def _match_child(
         self,

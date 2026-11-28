@@ -482,7 +482,9 @@ def test_find_remembers_file_collisions_under_every_reported_parent(
         ({"status": "200", "content-length": "1"}, b"x"),
     )
     fs = filesystem(drive)
-    assert fs.find("root", maxdepth=2) == ["root/dir0/item"]
+    assert fs.find("root", maxdepth=2) == [
+        f"root/{last['name']}/item" if moved else "root/dir0/item"
+    ]
     with fs.open(f"root/{last['name']}/item", "rb") as stream:
         assert stream.read() == b"x"
     assert urlsplit(requests[-1][0]).path.endswith("/files/A")
@@ -515,6 +517,33 @@ def test_warm_file_lookup_and_upload_through_a_same_name_folder(
     ]
     fs.touch("root/data/uploaded")
     assert [req[1] for req in requests[before + 1 :]] == ["POST", "PUT"]
+
+
+@pytest.mark.parametrize("is_folder", [True, False])
+def test_find_uses_the_last_location_seen_for_a_moved_id(
+    mock_drive, is_folder
+):
+    parents = [folder(f"dir{i}", f"P{i}") for i in range(51)]
+    child = (
+        folder("before", "C")
+        if is_folder
+        else {"name": "before", "id": "C", "mimeType": "text/plain"}
+    )
+    drive, requests = mock_drive(
+        listing(*parents),
+        listing(dict(child, parents=["P0"])),
+        listing(dict(child, name="after", parents=["P50"])),
+        listing(),
+    )
+    fs = filesystem(drive)
+    result = fs.find("root", maxdepth=2, withdirs=True)
+    assert "root/dir50/after" in result
+    assert "root/dir0/before" not in result
+    if is_folder:
+        before = len(requests)
+        assert fs.exists("root/dir50/after")
+        assert len(requests) == before
+        assert not fs.exists("root/dir0/before")
 
 
 def test_ls_finishes_listing_parents_resolved_before_a_rename(mock_drive):
