@@ -270,6 +270,18 @@ folder that the account can access:</p>
 <span class="n">names</span> <span class="o">=</span> <span class="n">fs</span><span class="o">.</span><span class="n">ls</span><span class="p">(</span><span class="s2">"FOLDER_ID"</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">fs.rmdir(&quot;FOLDER_ID/empty&quot;)</span></code> to remove an empty folder. A nonempty
+folder raises <code class="docutils literal notranslate"><span class="pre">OSError</span></code> with <code class="docutils literal notranslate"><span class="pre">errno.ENOTEMPTY</span></code>. If the name is
+ambiguous, open a filesystem at the intended folder ID and remove it by
+ID. In trash mode, already trashed children are ignored. Permanent removal
+also checks for trashed children. For ordinary folders, the credentials
+must grant access to list metadata across Drive. A per-file grant
+(<code class="docutils literal notranslate"><span class="pre">drive.file</span></code>) can hide children. For a folder in the app data space,
+the grant must cover app data. If the granted scopes are unknown,
+<code class="docutils literal notranslate"><span class="pre">rmdir</span></code> raises <code class="docutils literal notranslate"><span class="pre">PermissionError</span></code>. Signing in again with PyDrive2 saves
+the granted scopes alongside the token. Drive checks emptiness and performs the
+removal in separate requests, so coordinate concurrent writers when using
+this operation.</p>
 <p>A filesystem instance is scoped to one root. Use URLs under the same folder
 ID or root alias in a single <code class="docutils literal notranslate"><span class="pre">fsspec.open_files</span></code> call. Sibling URLs reuse
 the filesystem and its directory ID cache. Reads by file ID skip name
