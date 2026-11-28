@@ -1488,6 +1488,137 @@ def test_rmdir_checks_emptiness_again_after_transient_failure(mock_drive):
     assert [r[1] for r in requests] == ["GET", "GET", "DELETE", "GET"]
 
 
+def test_upload_while_mkdir_is_waiting_for_drive_keeps_both_matches(
+    mock_drive,
+):
+    started, release = Event(), Event()
+
+    def pause_create(request):
+        if request[1] == "POST":
+            started.set()
+            assert release.wait(5)
+
+    directory = folder("item", "Z")
+    file = {"id": "A", "name": "item", "mimeType": "text/plain"}
+    creator, _ = mock_drive(
+        listing(), response(directory), on_request=pause_create
+    )
+    drive, requests = mock_drive(
+        ({"status": "200", "location": "https://example.test/upload"}, ""),
+        response(file),
+        listing(file, directory),
+        ({"status": "200", "content-length": "1"}, b"x"),
+    )
+    fs = filesystem(drive)
+    http = creator.auth.thread_local.http
+
+    def create():
+        drive.auth.thread_local.http = http
+        fs.mkdir("root/item")
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        pending = pool.submit(create)
+        try:
+            assert started.wait(5)
+            fs.touch("root/item")
+        finally:
+            release.set()
+        pending.result(timeout=5)
+
+    with fs.open("root/item", "rb") as stream:
+        assert stream.read() == b"x"
+    assert urlsplit(requests[-1][0]).path.endswith("/files/A")
+
+
+def test_listing_cannot_warm_children_of_a_detached_folder(mock_drive):
+    def remove_parent(request):
+        if query(request).get("q") == ["('D' in parents) and trashed=false"]:
+            assert fs.ls("root") == []
+
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(),
+        listing(folder("child", "C")),
+        listing(folder("new", "D")),
+        listing(),
+        on_request=remove_parent,
+    )
+    fs = filesystem(drive)
+    assert fs.ls("root/old") == ["root/old/child/"]
+    assert fs.exists("root/new")
+    assert not fs.exists("root/new/child")
+    assert "name='child'" in query(requests[-1])["q"][0]
+
+
+def test_delayed_cold_lookup_cannot_restore_a_folders_old_name(mock_drive):
+    def observe_new_name(request):
+        if "name='old'" in query(request)["q"][0] and not requests:
+            assert fs.exists("root/new")
+
+    drive, requests = mock_drive(
+        listing(folder("new", "D")),
+        listing(folder("old", "D")),
+        listing(),
+        on_request=observe_new_name,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old")
+    assert not fs.exists("root/old")
+    assert fs.exists("root/new")
+    assert len(requests) == 3
+
+
+@pytest.mark.parametrize("older_finishes_first", [True, False])
+def test_newer_listing_determines_which_id_a_warm_read_uses(
+    mock_drive, older_finishes_first
+):
+    file = {"id": "A", "name": "item", "mimeType": "text/plain"}
+    current, stale = folder("item", "CURRENT"), folder("item", "STALE")
+    path = "root/item"
+    media = ({"status": "200", "content-length": "1"}, b"x")
+    drive, requests = mock_drive(
+        listing(current, file), listing(current, file), media
+    )
+    fs = filesystem(drive)
+    fs.ls("root")
+
+    def start(pool, items):
+        started, release = Event(), Event()
+
+        def hold_lookup(request):
+            if "q" in query(request):
+                started.set()
+                assert release.wait(5)
+
+        worker, _ = mock_drive(listing(*items), media, on_request=hold_lookup)
+        http = worker.auth.thread_local.http
+
+        def read():
+            drive.auth.thread_local.http = http
+            with fs.open(path, "rb") as stream:
+                return stream.read()
+
+        result = pool.submit(read)
+        assert started.wait(5)
+        return release, result
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        older = start(pool, [stale])
+        newer = start(pool, [file, current])
+        first, second = (
+            (older, newer) if older_finishes_first else (newer, older)
+        )
+        try:
+            first[0].set()
+            assert first[1].result(timeout=5) == b"x"
+        finally:
+            second[0].set()
+        assert second[1].result(timeout=5) == b"x"
+    with fs.open(path, "rb") as stream:
+        assert stream.read() == b"x"
+    assert urlsplit(requests[-1][0]).path.endswith("/files/A")
+
+
 @pytest.mark.parametrize("invalidate", [False, True])
 def test_concurrent_copies_create_their_shared_folder_once(
     mock_drive, invalidate

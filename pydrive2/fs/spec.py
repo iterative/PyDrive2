@@ -525,22 +525,40 @@ class GDriveFileSystem(AbstractFileSystem):
         mount=None,
         *,
         folders_only=False,
+        create_in=None,
+        exist_ok=True,
     ):
-        if path == self.base and mount is not None:
-            return mount, generation
-        folders = self._dirs.lookup(
-            parent_ids, name, generation, folders_only=folders_only
-        )
-        if folders:
-            return _PathMatch(folders), generation
-        match = _PathMatch([])
-        with self._dirs.listing(generation, parent_ids, name=name) as listing:
-            for _, item in self._list_children(listing):
-                if item["mimeType"] == FOLDER_MIME_TYPE:
+        match = mount if path == self.base else None
+        if match is None:
+            folders = self._dirs.lookup(
+                parent_ids, name, generation, folders_only=folders_only
+            )
+            if folders:
+                match = _PathMatch(folders)
+        created = False
+        if match is None:
+            match = _PathMatch([])
+            with self._dirs.listing(
+                generation, parent_ids, name=name
+            ) as listing:
+                for _, item in self._list_children(listing):
+                    if item["mimeType"] == FOLDER_MIME_TYPE:
+                        match.folders.append(item["id"])
+                    else:
+                        match.files.append(item)
+                if (
+                    create_in is not None
+                    and not match.folders
+                    and not match.files
+                ):
+                    item = self._gdrive_create_dir(create_in, name)
+                    self._dirs.created(listing, create_in, item["id"])
                     match.folders.append(item["id"])
-                else:
-                    match.files.append(item)
-        return match, listing.generation
+                    created = True
+            generation = listing.generation
+        if not exist_ok and not created:
+            raise FileExistsError(posixpath.join(self.root, path))
+        return match, generation
 
     def _resolve_prefix(
         self, path, generation, mount=None, *, folders_only=False
@@ -630,18 +648,16 @@ class GDriveFileSystem(AbstractFileSystem):
                 lock = self._creation_locks[key] = threading.RLock()
         with lock:
             # Check Drive under the same name lock as the create on a cache miss.
-            match, generation = self._match_child(
-                generation, parents, path, name, mount, folders_only=True
+            return self._match_child(
+                generation,
+                parents,
+                path,
+                name,
+                mount,
+                folders_only=True,
+                create_in=parent_id,
+                exist_ok=exist_ok,
             )
-            if match.folders or match.files:
-                if not exist_ok:
-                    raise FileExistsError(posixpath.join(self.root, path))
-                return match, generation
-            item = self._gdrive_create_dir(parent_id, name)
-            generation = self._dirs.created(
-                generation, parents, parent_id, name, item["id"]
-            )
-            return _PathMatch([item["id"]]), generation
 
     def mkdir(self, path, create_parents=True, **kwargs):
         self._mkdir(path, create_parents, exist_ok=False)

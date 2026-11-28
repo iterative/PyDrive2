@@ -2,15 +2,24 @@
 
 from collections import defaultdict
 from contextlib import contextmanager
+from itertools import count
 from threading import RLock
+from typing import NamedTuple
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
+
+
+class FolderLocation(NamedTuple):
+    parent: str
+    name: str
+    revision: int
 
 
 class FolderListing:
     """Accumulate one logical listing across all pages and parent batches."""
 
-    def __init__(self, parents, name, generation):
+    def __init__(self, parents, name, generation, revision):
+        self.revision = revision
         self.name = name
         self.generation = generation
         self.folders: dict[str, dict[str, list[str]]] = {
@@ -40,18 +49,19 @@ class FolderListing:
 class DirectoryCache:
     """Keep children attached to Drive IDs across moves.
 
-    Invalidation advances the generation. Overlapping listings of the same
-    name can also supersede a pending response before it publishes its edges.
+    Mutations can invalidate an operation's generation. Reads are ordered by
+    when each listing started, including when an ID appears under a new name.
     """
 
     def __init__(self, root: str):
         self.root = root
         self.lock = RLock()
         self.generation = 0
+        self._revisions = count()
         self._pending: dict[FolderListing, None] = {}
         self.children: dict[str, dict[str, tuple[str, ...]]] = {}
-        # For each ID in children[parent][name], parents[ID] is (parent, name).
-        self.parents: dict[str, tuple[str, str]] = {}
+        # Each child records its parent/name and the revision that placed it.
+        self.parents: dict[str, FolderLocation] = {}
         # A mutation can leave the set of matching folders uncertain.
         self.incomplete: set[tuple[str, str]] = set()
 
@@ -130,7 +140,7 @@ class DirectoryCache:
         return ids
 
     def _unlink(self, item_id):
-        parent, name = self.parents.pop(item_id)
+        parent, name, _ = self.parents.pop(item_id)
         ids = self.children[parent][name]
         if len(ids) == 1:
             self._remove_name(parent, name)
@@ -214,7 +224,7 @@ class DirectoryCache:
         with self.lock:
             if generation != self.generation or item_id not in self.parents:
                 return False
-            old_parent, _ = self.parents[item_id]
+            old_parent = self.parents[item_id].parent
             # A rename leaves the physical parent unchanged.
             if parent is None:
                 parent = old_parent
@@ -222,36 +232,40 @@ class DirectoryCache:
             edge = (parent, name)
             names = self.children.setdefault(parent, {})
             names[name] = (*names.get(name, ()), item_id)
-            self.parents[item_id] = edge
+            self.parents[item_id] = FolderLocation(
+                parent, name, next(self._revisions)
+            )
             # The destination can already contain same-name files or folders.
             self.incomplete.add(edge)
             self.generation += 1
             return True
 
-    def created(self, generation, parents, parent, name, item_id):
+    def created(self, listing, parent, item_id):
+        # The empty name lookup and the folder POST share this listing. A
+        # concurrent file write can supersede it until the POST has finished.
         with self.lock:
-            # A new child only changes this parent's listing. Independent
-            # creations can still publish and reuse their own folder IDs.
-            self._supersede((parent,), name)
-            if generation == self.generation:
-                for p in parents:
-                    self.children.setdefault(p, {}).setdefault(name, ())
-                ids = self.children[parent][name]
-                if item_id not in ids:
-                    self.children[parent][name] = (*ids, item_id)
-                self.parents[item_id] = (parent, name)
-            elif name in self.children.get(parent, {}):
-                self.incomplete.add((parent, name))
-            return generation
+            self._supersede((parent,), listing.name, exclude=listing)
+            if (
+                listing.generation != self.generation
+                and listing.name in self.children.get(parent, {})
+            ):
+                self.incomplete.add((parent, listing.name))
+            listing.folders[parent][listing.name] = [item_id]
 
-    def _supersede(self, parents, name, *, until=None):
+    def _supersede(
+        self, parents, name, *, until=None, exclude=None, retired=False
+    ):
         # A newer completed listing can confirm an absence before an older
         # request has even published its first edge for that name.
         for pending in self._pending:
             if pending is until:
                 break
+            if pending is exclude:
+                continue
             same_name = name is None or pending.name in (None, name)
-            if same_name and not pending.folders.keys().isdisjoint(parents):
+            if retired or (
+                same_name and not pending.folders.keys().isdisjoint(parents)
+            ):
                 pending.generation = None
 
     def file_added(self, parent_id, name, *, parent_path=None):
@@ -270,14 +284,15 @@ class DirectoryCache:
 
     @contextmanager
     def listing(self, generation, parents, *, name=None):
-        listing = FolderListing(parents, name, generation)
         with self.lock:
+            listing = FolderListing(
+                parents, name, generation, next(self._revisions)
+            )
             self._pending[listing] = None
         try:
             yield listing
             with self.lock:
                 if listing.complete and listing.generation == self.generation:
-                    self._supersede(listing.folders, name, until=listing)
                     self._observe(listing, name)
         finally:
             with self.lock:
@@ -285,7 +300,20 @@ class DirectoryCache:
 
     def _observe(self, listing, name):
         groups = listing.folders
-        changed = self._relink(groups)
+        # Parents resolved by the caller can disappear while Drive is listing.
+        # Publishing children under detached IDs would create unreachable edges.
+        if any(p != self.root and p not in self.parents for p in groups):
+            groups = {
+                p: names
+                for p, names in groups.items()
+                if p == self.root or p in self.parents
+            }
+            if not groups:
+                listing.generation = None
+                return
+        if not self._relink(groups, listing.revision):
+            listing.generation = None
+            return
         retired: list[str] = []
         has_folder = any(groups.values())
         for parent, names in groups.items():
@@ -306,21 +334,15 @@ class DirectoryCache:
                     and set(before) == set(ids)
                 ):
                     ids = before
-                if before is not None and (
-                    before != ids
-                    or edge in self.incomplete
-                    or (edge in self.file_collisions)
-                    != (edge in listing.files)
-                ):
-                    changed = True
                 if before and before != ids:
                     retired.extend(set(before).difference(ids))
                 # Remember an empty sibling only if this exact name matched
                 # a folder under another queried parent. Never cache misses alone.
                 if ids or (name is not None and has_folder):
                     self.children.setdefault(parent, {})[key] = ids
+                    location = FolderLocation(parent, key, listing.revision)
                     for item_id in ids:
-                        self.parents[item_id] = edge
+                        self.parents[item_id] = location
                     self.incomplete.discard(edge)
                     if edge in listing.files:
                         self.file_collisions.add(edge)
@@ -329,11 +351,11 @@ class DirectoryCache:
                 else:
                     self._remove_name(parent, key)
         self._drop_subtrees(retired)
-        if changed:
-            self.generation += 1
-        listing.generation = self.generation
+        # Retired IDs have no reverse entry left to check against an older
+        # result. Only reads started before this observation need that barrier.
+        self._supersede(groups, name, until=listing, retired=bool(retired))
 
-    def _relink(self, groups):
+    def _relink(self, groups, revision):
         # Unlink moved IDs before pruning absent names. Their children stay
         # attached to the same ID even when an ancestor changes name or parent.
         moved = defaultdict(set)
@@ -341,8 +363,12 @@ class DirectoryCache:
             for name, ids in names.items():
                 for item_id in ids:
                     old = self.parents.get(item_id)
-                    if old is not None and old != (parent, name):
-                        moved[old].add(item_id)
+                    if old is not None and (
+                        old.parent != parent or old.name != name
+                    ):
+                        if old.revision > revision:
+                            return False
+                        moved[old.parent, old.name].add(item_id)
         for (parent, name), leaving in moved.items():
             remaining = tuple(
                 i for i in self.children[parent][name] if i not in leaving
@@ -351,4 +377,4 @@ class DirectoryCache:
                 self.children[parent][name] = remaining
             else:
                 self._remove_name(parent, name)
-        return bool(moved)
+        return True
