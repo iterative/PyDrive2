@@ -125,20 +125,20 @@ class DirectoryCache:
                 self.incomplete.discard((parent, name))
                 pending.extend(ids)
 
-    def _known_folder_ids(self, path, *, verified=False):
-        ids: tuple[str, ...] | list[str] = (self.root,)
+    def _known_folder_ids(self, path, *, verified=False) -> tuple[str, ...]:
+        ids: tuple[str, ...] = (self.root,)
         for part in path.split("/") if path else ():
             if len(ids) == 1:
                 if verified and (ids[0], part) in self.incomplete:
                     return ()
                 ids = self.children.get(ids[0], {}).get(part, ())
             else:
-                ids = [
+                ids = tuple(
                     child
                     for parent in ids
                     if not verified or (parent, part) not in self.incomplete
                     for child in self.children.get(parent, {}).get(part, ())
-                ]
+                )
             if not ids:
                 break
         return ids
