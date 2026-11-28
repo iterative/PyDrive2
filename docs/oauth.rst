@@ -1,288 +1,154 @@
-OAuth made easy
-===============
+.. _oauth-made-easy:
 
-Authentication in two lines
----------------------------
+Authentication
+==============
 
-OAuth2.0 is complex and difficult to start with. To make it more simple,
-*PyDrive2* makes all authentication into just two lines.
+.. _authentication-in-two-lines:
+
+Sign in from a local application
+--------------------------------
+
+Follow :doc:`quickstart` to create a desktop OAuth client and download its
+configuration as ``client_secrets.json``. PyDrive2 uses google-auth to
+authorize requests to Drive.
 
 .. code-block:: python
 
     from pydrive2.auth import GoogleAuth
 
     gauth = GoogleAuth()
-    # Create local webserver and auto handles authentication.
     gauth.LocalWebserverAuth()
 
-The :doc:`quickstart` registers ``http://localhost:8080/`` as the redirect
-URI for a web application client. With that client, use
-:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth` and keep port 8080
-available to receive the authorization code.
+:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth` opens the browser and
+listens on localhost, trying port 8080 and then 8090 by default. If you use
+a web application client, register the exact callback URI, such as
+``http://localhost:8080/``, and pass ``port_numbers=[8080]``.
 
-To open the login URL yourself, call
+To open the sign-in URL yourself, call
 ``gauth.LocalWebserverAuth(launch_browser=False)`` or
-:meth:`~pydrive2.auth.GoogleAuth.CommandLineAuth`. Both print the URL
-and wait for the same local callback. Open the URL in a browser that can
-reach the callback port on the machine running PyDrive2. For unattended
-jobs, use a service account or saved user credentials with a refresh token.
+:meth:`~pydrive2.auth.GoogleAuth.CommandLineAuth`. Both print the URL and
+wait for the same local callback. The browser must be able to reach the
+callback on the machine running PyDrive2. Unattended jobs can use a saved
+refresh token or a service account.
 
-Automatic and custom authentication with *settings.yaml*
---------------------------------------------------------
+.. _automatic-and-custom-authentication-with-settings-yaml:
+.. _sample-settings-yaml:
 
-Read this section if you need a custom authentication flow, **such as silent
-authentication on a remote machine**. For an example of such a setup have a
-look at `Sample settings.yaml`_.
+Save credentials across runs
+----------------------------
 
-OAuth is complicated and it requires a lot of settings. By default,
-when you don't provide any settings, *PyDrive* will automatically set default
-values which works for most of the cases. Here are some default settings.
+By default, ``GoogleAuth()`` reads client configuration from
+``client_secrets.json``, requests the Drive scope, and keeps the access token
+in memory. To reuse a login, create ``settings.yaml`` in your working
+directory and sign in once.
 
-- Read client configuration from file *client_secrets.json*
-- OAuth scope: :code:`https://www.googleapis.com/auth/drive`
-- Don't save credentials
-- Don't retrieve refresh token
+.. code-block:: yaml
 
-However, you might want to customize these settings while maintaining two lines
-of clean code. If that is the case, you can make *settings.yaml* file in your
-working directory and *PyDrive* will read it to customize authentication
-behavior.
-
-These are all the possible fields of a *settings.yaml* file:
-
-.. code-block:: python
-
-    client_config_backend: {{str}}
-    client_config_file: {{str}}
-    client_config:
-      client_id: {{str}}
-      client_secret: {{str}}
-      auth_uri: {{str}}
-      token_uri: {{str}}
-      redirect_uri: {{str}}
-      revoke_uri: {{str}}
-
-    service_config:
-      client_user_email: {{str}}
-      client_json_file_path: {{str}}
-      client_json_dict: {{dict}}
-      client_json: {{str}}
-
-    save_credentials: {{bool}}
-    save_credentials_backend: {{str}}
-    save_credentials_file: {{str}}
-    save_credentials_dict: {{dict}}
-    save_credentials_key: {{str}}
-
-    get_refresh_token: {{bool}}
-
-    oauth_scope: {{list of str}}
-
-Fields explained:
-
-:client_config_backend (str):
-    From where to read client configuration(API application settings such as
-    client_id and client_secrets) from. Valid values are 'file', 'settings' and
-    'service'.
-    **Default**: 'file'.
-    **Required**: No.
-:client_config_file (str):
-    When *client_config_backend* is 'file', path to the file containing client
-    configuration.
-    **Default**: 'client_secrets.json'.
-    **Required**: No.
-:client_config (dict):
-    Place holding dictionary for client configuration when
-    *client_config_backend* is 'settings'.
-    **Required**: Yes, only if *client_config_backend* is 'settings' and not
-    using *service_config*
-:client_config['client_id'] (str):
-    Client ID of the application.
-    **Required**: Yes, only if *client_config_backend* is 'settings'
-:client_config['client_secret'] (str):
-    Client secret of the application.
-    **Required**: Yes, only if *client_config_backend* is 'settings'
-:client_config['auth_uri'] (str):
-    The authorization server endpoint URI.
-    **Default**: ``https://accounts.google.com/o/oauth2/auth``.
-    **Required**: No.
-:client_config['token_uri'] (str):
-    The token server endpoint URI.
-    **Default**: ``https://accounts.google.com/o/oauth2/token``.
-    **Required**: No.
-:client_config['redirect_uri'] (str):
-    Redirection endpoint URI.
-    **Default**: ``http://localhost``.
-    **Required**: No.
-:client_config['revoke_uri'] (str):
-    Revoke endpoint URI.
-    **Default**: None.
-    **Required**: No.
-:service_config (dict):
-    Place holding dictionary for client configuration when
-    *client_config_backend* is 'service' or 'settings' and using service
-    account.
-    **Required**: Yes, only if *client_config_backend* is 'service' or
-    'settings' and not using *client_config*
-:service_config['client_user_email'] (str):
-    Email address of the user the service account acts as through
-    `domain-wide delegation`_.
-    **Required**: No.
-:service_config['client_json_file_path'] (str):
-    Path to service account `.json` key file.
-    **Required**: No.
-:service_config['client_json_dict'] (dict):
-    Service account `.json` key file loaded into a dictionary.
-    **Required**: No.
-:service_config['client_json'] (str):
-    Service account `.json` key file loaded into a string.
-    **Required**: No.
-:save_credentials (bool):
-    Save OAuth user credentials after signing in. A fresh login stays in
-    memory when this setting is false. When you load saved credentials,
-    PyDrive2 writes refreshed tokens back to the same file or dictionary key.
-    **Default**: False.
-    **Required**: No.
-:save_credentials_backend (str):
-    Backend to save credentials to. 'file' and 'dictionary' are the only valid
-    values for now.
-    **Default**: 'file'.
-    **Required**: No.
-:save_credentials_file (str):
-    Destination of the credentials file. Give the application a writable
-    directory for the lock and atomic file replacement. In containers, mount
-    the cache directory so the file can be replaced on refresh.
-    **Required**: Yes, only if *save_credentials_backend* is 'file'.
-:save_credentials_dict (dict):
-    Dict to use for storing credentials.
-    **Required**: Yes, only if *save_credentials_backend* is 'dictionary'.
-:save_credentials_key (str):
-    Key within the *save_credentials_dict* to store the credentials in.
-    **Required**: Yes, only if *save_credentials_backend* is 'dictionary'.
-:get_refresh_token (bool):
-    True if you want to retrieve refresh token along with access token.
-    **Default**: False.
-    **Required**: No.
-:oauth_scope (list of str):
-    OAuth scopes to request.
-    **Default**: ``['https://www.googleapis.com/auth/drive']``.
-    **Required**: No.
-
-.. _domain-wide delegation:
-   https://developers.google.com/workspace/guides/create-credentials#set-up-domain-wide-delegation
-
-Upgrading from PyDrive2 1.x
-___________________________
-
-Sign in once with PyDrive2 2.x to create new OAuth user credentials. Keep
-your existing OAuth client ID and client secret. If you configured a cache,
-choose a new ``save_credentials_file`` or ``save_credentials_key`` before
-signing in. For unattended jobs, set ``get_refresh_token: True`` during
-sign-in and provision the newly saved credentials before upgrading the job.
-
-Service accounts authenticate directly with their configured JSON or PKCS12
-key. Keep that key available to the application. If your deployment relied
-solely on a saved 1.x service-account cache, provision its signing key.
-
-Sample *settings.yaml*
-______________________
-
-::
-
-    client_config_backend: settings
-    client_config:
-      client_id: 9637341109347.apps.googleusercontent.com
-      client_secret: psDskOoWr1P602PXRTHi
-
-    save_credentials: True
+    client_config_backend: file
+    client_config_file: client_secrets.json
+    save_credentials: true
     save_credentials_backend: file
     save_credentials_file: credentials.json
+    get_refresh_token: true
 
-    get_refresh_token: True
+The client configuration identifies your OAuth application. The separate
+``credentials.json`` file contains the user's tokens. Give the application a
+writable cache directory so it can lock and atomically replace the token
+file on refresh. In containers, mount the directory. For an existing cache
+from an earlier release, see :doc:`upgrading`.
 
-    oauth_scope:
-      - https://www.googleapis.com/auth/drive.file
-      - https://www.googleapis.com/auth/drive.install
-      - https://www.googleapis.com/auth/drive.metadata
+Settings reference
+------------------
+
+Pass a settings file path as ``GoogleAuth(settings_file="path/to/settings.yaml")``
+or supply a Python dictionary with ``GoogleAuth(settings=settings)``.
+
+``client_config_backend``
+    Use ``file`` (the default) to read ``client_config_file``,
+    ``settings`` to supply a ``client_config`` dictionary, or ``service``
+    with ``service_config`` for a service account.
+``client_config``
+    For the ``settings`` backend, provide ``client_id`` and ``client_secret``.
+    PyDrive2 supplies Google's ``auth_uri`` and ``token_uri`` and defaults
+    ``redirect_uri`` to ``http://localhost``. For a web callback, set
+    ``redirect_uri`` to the URI registered for the client. The optional
+    ``revoke_uri`` field defaults to null.
+``oauth_scope``
+    A list of OAuth scope URLs. The default is
+    ``https://www.googleapis.com/auth/drive``. Choose scopes that grant
+    access to the files your application needs.
+``save_credentials`` and ``get_refresh_token``
+    Both default to false. Enable both to save the login and request
+    offline access. Credentials loaded from a cache are written back to
+    that cache when refreshed.
+``save_credentials_backend``
+    When saving credentials, select ``file`` with ``save_credentials_file``,
+    or ``dictionary`` with ``save_credentials_dict`` and
+    ``save_credentials_key``. To access the updated value in your program,
+    pass the actual dictionary to ``GoogleAuth(settings=...)``.
+``service_config``
+    Supply the JSON signing key as a path (``client_json_file_path``),
+    dictionary (``client_json_dict``), or JSON string (``client_json``).
+    For a PKCS12 key, specify both ``client_pkcs12_file_path`` and
+    ``client_service_email``. For domain-wide delegation, set
+    ``client_user_email`` to the user the account should act as.
 
 Building your own authentication flow
 -------------------------------------
 
-You might want to build your own authentication flow. For example, you might
-want to integrate your existing website with Drive API. In that case, you can
-customize an authentication flow as follows:
-
-1. Get the authorization URL from :meth:`~pydrive2.auth.GoogleAuth.GetAuthUrl`.
-2. Direct the user to the authorization URL. Receive the authorization code at
-   the redirect URI registered for your application and verify the OAuth state
-   in the callback.
-3. Pass the authorization code to :meth:`~pydrive2.auth.GoogleAuth.Auth` on
-   the same instance. Keep the flow for each login until the callback so the
-   exchange uses its original PKCE verifier. If a separate worker handles
-   the callback, retain the state and verifier in the user's server-side
-   session and restore the verifier on the flow before exchanging the code.
-
-Your *settings.yaml* will work for your customized authentication flow, too.
-
-Here is a sample code for your customized authentication flow
+For an application with its own web callback, configure a web OAuth client
+and its registered redirect URI. Start a separate authorization flow per
+login and keep the ``GoogleAuth`` instance and expected state in that user's
+server-side session until the callback. The flow holds the PKCE verifier
+needed for the token exchange.
 
 .. code-block:: python
 
-    from pydrive2.auth import GoogleAuth
+    from secrets import compare_digest
+    from urllib.parse import parse_qs, urlsplit
 
-    # Configure your registered redirect URI in settings.yaml
-    gauth = GoogleAuth()
-    # Create authentication url user needs to visit
-    auth_url = gauth.GetAuthUrl()
-    # Your application handles the redirect
-    code = ReceiveVerifiedCallback(auth_url)
-    gauth.Auth(code) # Authorize and build service from the code
+    def start_login():
+        gauth = GoogleAuth()
+        url = gauth.GetAuthUrl()
+        state = parse_qs(urlsplit(url).query)["state"][0]
+        return url, gauth, state
+
+    def finish_login(gauth, expected_state, callback_params):
+        if not compare_digest(expected_state, callback_params.get("state", "")):
+            raise ValueError("OAuth state mismatch")
+        gauth.Auth(callback_params["code"])
+
+Redirect the user to the returned URL. On callback, retrieve and consume
+the saved login from the session, then pass the decoded query parameters
+to ``finish_login``. If several workers handle requests, the callback
+worker needs the original verifier as well as the expected state.
 
 Authentication with a service account
 -------------------------------------
 
-A `Service account`_ is a special type of Google account intended to represent
-a non-human user that needs to authenticate and be authorized to access data in
-Google APIs.
-
-Typically, service accounts are used in scenarios such as:
-
-- Running workloads on virtual machines (VMs).
-- Running workloads on data centers that call Google APIs.
-- Running workloads which are not tied to the lifecycle of a human user.
-
-If we use OAuth client ID we need to do one manual login into the account with
-:meth:`~pydrive2.auth.GoogleAuth.LocalWebserverAuth`. If we use a service
-account the login is automatic.
-
+Give the service account access to the Drive folder or files it will use.
+To create files, use a shared drive where it can write, or configure
+`domain-wide delegation`_ to act as a Workspace user with storage.
 
 .. code-block:: python
 
     from pydrive2.auth import GoogleAuth
     from pydrive2.drive import GoogleDrive
 
-    def login_with_service_account():
-        """
-        Google Drive service with a service account.
-        note: for the service account to work, you need to share the folder or
-        files with the service account email.
+    settings = {
+        "client_config_backend": "service",
+        "service_config": {"client_json_file_path": "service-account.json"},
+    }
+    gauth = GoogleAuth(settings=settings)
+    gauth.ServiceAuth()
+    drive = GoogleDrive(gauth)
 
-        :return: google auth
-        """
-        # Define the settings dict to use a service account
-        # Set oauth_scope here to request specific Drive permissions.
-        settings = {
-                    "client_config_backend": "service",
-                    "service_config": {
-                        "client_json_file_path": "service-secrets.json",
-                    }
-                }
-        # Create instance of GoogleAuth
-        gauth = GoogleAuth(settings=settings)
-        # Authenticate
-        gauth.ServiceAuth()
-        return gauth
+.. _domain-wide delegation: https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority
 
+.. _upgrading-from-pydrive2-1-x:
 
-.. _`Service account`:
-   https://developers.google.com/workspace/guides/create-credentials#service-account
+Upgrading saved credentials
+---------------------------
+
+See :doc:`upgrading` for the first login, token cache, and service-account
+changes in PyDrive2 2.0.

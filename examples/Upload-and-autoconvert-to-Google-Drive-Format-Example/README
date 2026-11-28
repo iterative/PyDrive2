@@ -1,14 +1,18 @@
 This script uploads a file to a folder on Google Drive. If the file can be
 converted into the Google format, such as a Google Sheet, it will be converted.
 
-To run the script you need to complete the following steps:
-1. Update settings.yaml with your:
-   - client ID,
-   - client secret, and
-   - credential storage path
-2. Update upload.py with the location you save your settings.yaml file. This
-   can be an absolute or relative path.
+Install PyDrive2 and enable the Drive API for your Google Cloud project.
+Run from this example directory, with your desktop OAuth client configuration
+saved as client_secrets.json. The script reads the adjacent settings.yaml
+and saves user tokens in credentials.json in the working directory.
 
+    python upload.py FOLDER_ID /path/to/report.csv
+
+On the first run, open the printed URL in a browser that can reach the local
+callback. Choose a destination folder accessible to this app and user with
+the configured drive.file scope. A new CSV is imported as a Google Sheet
+when Drive advertises that import format. One existing file visible to the app with the
+same name is updated. Multiple matches stop the upload.
 
 This example is adapted from Evren Yurtesen (https://github.com/yurtesen/)
 with his consent.

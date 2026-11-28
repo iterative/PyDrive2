@@ -10,30 +10,21 @@ example usage: upload.py 0B5XXXXY9KddXXXXXXXA2c3ZXXXX /path/to/my/file
 
 import mimetypes
 import sys
-from os import path
+from pathlib import Path
 
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
-from pydrive2.settings import LoadSettingsFile
 
-# Update this value to the correct location.
-#   e.g. "/usr/local/scripts/pydrive/settings.yaml"
-PATH_TO_SETTINGS_FILE = None
-assert PATH_TO_SETTINGS_FILE is not None  # Fail if path not specified.
-
-gauth = GoogleAuth()
-gauth.settings = LoadSettingsFile(filename=PATH_TO_SETTINGS_FILE)
-gauth.CommandLineAuth()
-drive = GoogleDrive(gauth)
-
-# If provided arguments incorrect, print usage instructions and exit.
-if len(sys.argv) < 3:
-    print("usage: upload.py <Google Drive folder ID> <local file path>")
-    sys.exit(1)
+if len(sys.argv) != 3:
+    sys.exit("usage: upload.py <Google Drive folder ID> <local file path>")
 
 parentId = sys.argv[1]
 myFilePath = sys.argv[2]
-myFileName = path.basename(sys.argv[2])
+myFileName = Path(myFilePath).name
+
+gauth = GoogleAuth(settings_file=Path(__file__).with_name("settings.yaml"))
+gauth.CommandLineAuth()
+drive = GoogleDrive(gauth)
 
 # Drive query string literals escape backslashes and single quotes.
 escaped_name = myFileName.replace("\\", "\\\\").replace("'", "\\'")
@@ -43,6 +34,8 @@ file_list = drive.ListFile(
     }
 ).GetList()
 
+# Drive name queries can include names that differ only in case.
+file_list = [item for item in file_list if item["name"] == myFileName]
 # If file is found, update it, otherwise create new file.
 if len(file_list) > 1:
     sys.exit("Multiple files match. Choose a unique destination name.")

@@ -1,27 +1,19 @@
-This document outlines how to rebuild the documentation.
+# Building the PyDrive2 documentation
 
-## Setup
+From the repository root, install the package with fsspec support and the
+documentation dependencies. Sphinx imports the installed package to generate
+the API reference.
 
-- Install Sphinx: `pip install sphinx` or `apt-get install python-sphinx`
-- Install theme: `pip install furo`
-- Build site: `sphinx-build docs dist/site -b dirhtml -a`
-
-Updating GitHub Pages:
-
-```bash
-cd dist/site
-git init
-git add .
-git commit -m "update pages"
-git branch -M gh-pages
-git push -f git@github.com:iterative/PyDrive2 gh-pages
+```sh
+python -m pip install -e '.[fsspec]' -r docs/requirements.txt
+python -m sphinx -W --keep-going -b dirhtml docs dist/site
+python -m http.server --directory dist/site 8000
 ```
 
-## Contributing
+Open <http://localhost:8000/> to preview the site. To check external links,
+run `python -m sphinx -b linkcheck docs dist/linkcheck`.
 
-If code files were added, the easiest way to reflect code changes in the
-documentation by referencing the file from within `pydrive.rst`.
-
-If a non-code related file was added (it has to have the `.rst` ending),
-then add the file name to the list of names under "Table of Contents"
-in `index.rst`. Make sure to add the file name excluding the `.rst` file ending.
+Add new guides to the table of contents in `docs/index.rst`. Public modules
+and classes are documented in `docs/pydrive2.rst`. The **Build docs**
+workflow builds pull requests and publishes successful builds from `main`
+to GitHub Pages.

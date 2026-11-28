@@ -339,7 +339,7 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         :param remove_bom: Whether to strip a known BOM.
         :type remove_bom: bool
 
-        :returns: str -- utf-8 decoded content of the file
+        :returns: File content decoded with the requested encoding.
         :raises: ApiRequestError, FileNotUploadedError, FileNotDownloadableError
         """
         stale = not self.dirty["content"] and (
@@ -402,7 +402,10 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
         chunksize=DEFAULT_CHUNK_SIZE,
         acknowledge_abuse=False,
     ):
-        """Get a file-like object which has a buffered read() method.
+        """Return a sequential reader over Drive download or export chunks.
+
+        Iterate over the reader or call its read() method once per chunk.
+        Chunks are bytes unless an encoding is supplied.
 
         :param mimetype: mimeType of the file.
         :type mimetype: str
@@ -678,8 +681,6 @@ class GoogleDriveFile(ApiAttributeMixin, ApiResource):
 
         :param permission_id: The permission id.
         :type permission_id: str
-        :return: True if it succeeds.
-        :rtype: bool
         """
         request = self.auth.service.permissions().delete(
             fileId=self._FileId(),

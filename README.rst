@@ -1,164 +1,134 @@
-|CI| |Conda| |PyPI|
-
-.. |CI| image::
-   https://github.com/iterative/PyDrive2/workflows/Tests/badge.svg?branch=main
-   :target: https://github.com/iterative/PyDrive2/actions
-   :alt: GHA Tests
-
-.. |Conda| image::
-   https://img.shields.io/conda/v/conda-forge/PyDrive2.svg?label=conda&logo=conda-forge
-   :target: https://anaconda.org/conda-forge/PyDrive2
-   :alt: Conda-forge
-
-.. |PyPI| image::
-   https://img.shields.io/pypi/v/PyDrive2.svg?label=pip&logo=PyPI&logoColor=white
-   :target: https://pypi.org/project/PyDrive2
-   :alt: PyPI
-
 PyDrive2
---------
+========
 
-*PyDrive2* is a wrapper library of `google-api-python-client`_ that simplifies
-many common Google Drive API v3 tasks. It is an actively maintained fork of
-https://pypi.python.org/pypi/PyDrive. By the authors and maintainers of the
-`Git for Data <https://dvc.org>`_ - DVC project.
+|CI| |PyPI| |conda-forge|
 
-Project Info
+PyDrive2 is a Python client for the `Google Drive API v3`_ and an
+`fsspec`_-compatible filesystem for Google Drive. Use it to upload, download,
+and list files, or open them by URL with ``fsspec.open()``. PyDrive2 wraps
+`google-api-python-client`_ and is a fork of `PyDrive`_ maintained by the
+`DataChain`_ team.
+
+Installation
 ------------
 
-- Package: https://pypi.python.org/pypi/PyDrive2
-- Documentation: https://docs.iterative.ai/PyDrive2
-- Source: https://github.com/iterative/PyDrive2
-- Changelog: https://github.com/iterative/PyDrive2/releases
-- `Running tests </pydrive2/test/README.rst>`_
+PyDrive2 2.0 requires Python 3.11 or newer.
 
-Features of PyDrive2
---------------------
+.. code:: sh
 
--  Simplifies OAuth2.0 into just few lines with flexible settings.
--  Wraps `Google Drive API v3`_ into classes of each resource to make your
-   program more object-oriented.
--  Helps common operations else than API calls, such as content fetching
-   and pagination control.
--  Provides `fsspec`_ filesystem implementation.
+    python -m pip install PyDrive2
 
-How to install
+To open ``gdrive://`` URLs with fsspec, install the filesystem extra.
+
+.. code:: sh
+
+    python -m pip install 'PyDrive2[fsspec]'
+
+Authentication
 --------------
 
-PyDrive2 requires Python 3.11 or newer. Install it with ``pip``.
-
-::
-
-    $ pip install PyDrive2
-
-To install the current development version from GitHub, use:
-
-::
-
-    $  pip install git+https://github.com/iterative/PyDrive2.git#egg=PyDrive2
-
-OAuth made easy
----------------
-
-Download *client\_secrets.json* from Google API Console and OAuth2.0 is
-done in two lines. You can customize behavior of OAuth2 in one settings
-file *settings.yaml*.
+Enable the Google Drive API in your Google Cloud project and create an
+OAuth client for a desktop app. Save the downloaded JSON as
+``client_secrets.json`` in your working directory. Run the following code
+and sign in when the browser opens.
 
 .. code:: python
-
 
     from pydrive2.auth import GoogleAuth
     from pydrive2.drive import GoogleDrive
 
     gauth = GoogleAuth()
     gauth.LocalWebserverAuth()
-
     drive = GoogleDrive(gauth)
 
-File management made easy
--------------------------
+You can configure authentication in ``settings.yaml``. The
+`authentication guide`_ also covers service accounts.
 
-Upload/update the file with one method. PyDrive2 will do it in the most
-efficient way.
+Create, update, and download files
+----------------------------------
 
-.. code:: python
-
-    file1 = drive.CreateFile({'name': 'Hello.txt'})
-    file1.SetContentString('Hello')
-    file1.Upload() # Files.create()
-
-    file1['name'] = 'HelloWorld.txt'  # Change name of the file
-    file1.Upload() # Files.update()
-
-    content = file1.GetContentString()  # 'Hello'
-    file1.SetContentString(content+' World!')  # 'Hello World!'
-    file1.Upload() # Files.update()
-
-    file2 = drive.CreateFile()
-    file2.SetContentFile('hello.png')
-    file2.Upload()
-    print('Created file %s with mimeType %s' % (file2['name'],
-    file2['mimeType']))
-    # Created file hello.png with mimeType image/png
-
-    file3 = drive.CreateFile({'id': file2['id']})
-    print('Downloading file %s from Google Drive' % file3['name'])
-    # 'hello.png'
-    file3.GetContentFile('world.png')  # Save Drive file as a local file
-
-    # or download Google Docs files in an export format provided.
-    # downloading a docs document as an html file:
-    docsfile.GetContentFile('test.html', mimetype='text/html')
-
-File listing pagination made easy
----------------------------------
-
-*PyDrive2* handles file listing pagination for you.
+The first ``Upload()`` creates the file. Call it again on the same object
+to save changes to its name or contents.
 
 .. code:: python
 
-    # Auto-iterate through all files that matches this query
-    file_list = drive.ListFile({'q': "'root' in parents"}).GetList()
-    for file1 in file_list:
-        print('name: {}, id: {}'.format(file1['name'], file1['id']))
+    note = drive.CreateFile({"name": "Hello.txt"})
+    note.SetContentString("Hello")
+    note.Upload()
 
-    # Paginate file lists by specifying number of max results
-    for file_list in drive.ListFile({'pageSize': 10}):
-        print(
-            'Received {} files from Files.list()'.format(len(file_list))
-        )  # <= 10
-        for file1 in file_list:
-            print('name: {}, id: {}'.format(file1['name'], file1['id']))
+    note["name"] = "HelloWorld.txt"
+    note.SetContentString(note.GetContentString() + " World!")
+    note.Upload()
 
-Fsspec filesystem
+To upload a local file, pass its path to ``SetContentFile()``. Use the Drive
+ID to download it again.
+
+.. code:: python
+
+    photo = drive.CreateFile()
+    photo.SetContentFile("hello.png")
+    photo.Upload()
+
+    download = drive.CreateFile({"id": photo["id"]})
+    download.GetContentFile("downloaded.png")
+
+To export an existing Google Doc, replace ``DOCUMENT_ID`` with its Drive ID
+and specify the export format.
+
+.. code:: python
+
+    document = drive.CreateFile({"id": "DOCUMENT_ID"})
+    document.GetContentFile("document.pdf", mimetype="application/pdf")
+
+List files
+----------
+
+To collect all matching entries in My Drive's root folder, call
+``GetList()`` without a page size. To process the same results a page at a
+time, iterate over ``ListFile()`` directly.
+
+.. code:: python
+
+    query = "'root' in parents and trashed=false"
+    entries = drive.ListFile({"q": query}).GetList()
+    for entry in entries:
+        print(entry["name"], entry["id"])
+
+    for page in drive.ListFile({"q": query, "pageSize": 10}):
+        for entry in page:
+            print(entry["name"], entry["id"])
+
+Use Google Drive with fsspec
+----------------------------
+
+Reuse the authenticated ``gauth`` object to read the note created above by
+ID. You can also open a named path such as ``gdrive://root/HelloWorld.txt``
+or list a folder through the `GDriveFileSystem`_ interface.
+
+.. code:: python
+
+    import fsspec
+
+    with fsspec.open(f"gdrive://{note['id']}", "rt", google_auth=gauth) as stream:
+        print(stream.read())  # Hello World!
+
+    fs = fsspec.filesystem("gdrive", google_auth=gauth)
+    print(fs.ls("root"))
+
+Concurrent access
 -----------------
 
-*PyDrive2* provides easy way to work with your files through `fsspec`_
-compatible `GDriveFileSystem`_.
+PyDrive2 uses a separate HTTP transport for each thread. When using the Drive
+client concurrently, create a separate file object or listing iterator in
+each worker.
 
-Install PyDrive2 with the required dependencies
+Project links
+-------------
 
-::
-
-    $ pip install PyDrive2[fsspec]
-
-.. code:: python
-
-    from pydrive2.fs import GDriveFileSystem
-
-    # replace `root` with ID of a drive or directory and give service account
-    # access to it
-    fs = GDriveFileSystem("root", client_id=my_id, client_secret=my_secret)
-
-    for root, dnames, fnames in fs.walk("root"):
-        ...
-
-.. _`GDriveFileSystem`: https://docs.iterative.ai/PyDrive2/fsspec/
-
-Concurrent access made easy
----------------------------
-
-All API functions made to be thread-safe.
+- `Documentation <https://docs.iterative.ai/PyDrive2/>`_
+- `Source <https://github.com/iterative/PyDrive2>`_
+- `Releases <https://github.com/iterative/PyDrive2/releases>`_
+- `Running tests <https://github.com/iterative/PyDrive2/blob/main/pydrive2/test/README.rst>`_
 
 Contributors
 ------------
@@ -167,9 +137,24 @@ Thanks to all our contributors!
 
 .. image:: https://contrib.rocks/image?repo=iterative/PyDrive2
    :target: https://github.com/iterative/PyDrive2/graphs/contributors
+   :alt: PyDrive2 contributors
 
-.. _`fsspec`: https://filesystem-spec.readthedocs.io/en/latest/
+.. |CI| image:: https://github.com/iterative/PyDrive2/actions/workflows/test.yml/badge.svg?branch=main
+   :target: https://github.com/iterative/PyDrive2/actions/workflows/test.yml?query=branch%3Amain
+   :alt: Tests on main
 
-.. _google-api-python-client:
-   https://github.com/google/google-api-python-client
+.. |PyPI| image:: https://raster.shields.io/pypi/v/pydrive2.png
+   :target: https://pypi.org/project/PyDrive2/
+   :alt: PyPI version
+
+.. |conda-forge| image:: https://raster.shields.io/conda/vn/conda-forge/pydrive2.png
+   :target: https://anaconda.org/conda-forge/pydrive2
+   :alt: conda-forge version
+
 .. _Google Drive API v3: https://developers.google.com/workspace/drive/api/guides/about-sdk
+.. _fsspec: https://filesystem-spec.readthedocs.io/en/latest/
+.. _google-api-python-client: https://github.com/google/google-api-python-client
+.. _PyDrive: https://pypi.org/project/PyDrive/
+.. _DataChain: https://datachain.ai/
+.. _authentication guide: https://docs.iterative.ai/PyDrive2/oauth/
+.. _GDriveFileSystem: https://docs.iterative.ai/PyDrive2/fsspec/

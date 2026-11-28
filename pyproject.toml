@@ -10,7 +10,7 @@ authors = [
     {name = "JunYoung Gwak", email = "jgwak@dreamylab.com"},
 ]
 maintainers = [
-    {name = "DVC team", email = "support@dvc.org"},
+    {name = "DataChain team", email = "support@datachain.ai"},
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
