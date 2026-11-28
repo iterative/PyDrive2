@@ -487,36 +487,37 @@ class GDriveFileSystem(AbstractFileSystem):
                     unplaced[file_id] = item["name"]
                     continue
                 unplaced.pop(file_id, None)
-                previous = rows.get(file_id)
-                if previous is not None:
-                    previous_parent, _ = previous
-                    if previous_parent in item.get("parents", ()):
-                        # Shared memberships still refer to one output item.
-                        parent = previous_parent
                 rows[file_id] = parent, item
 
-            # Some responses omit parents. Resolve only the missing IDs, using
-            # their names to avoid paging through unrelated siblings.
-            for parent_id in batch:
-                if not unplaced:
-                    break
-                probes = dict.fromkeys(unplaced.values())
-                # Bound the OR expression for unusually large sets of names.
-                if len(probes) > _MAX_QUERY_TERMS:
-                    probes.clear()
-                for item in self._query_children([parent_id], probes):
-                    file_id = item["id"]
-                    if file_id in unplaced:
-                        del unplaced[file_id]
-                        rows[file_id] = parent_id, item
-            if unplaced:
-                # An item can change during the probes. This batch cannot
-                # establish which cached folders have disappeared.
+            if unplaced and not self._locate_children(batch, unplaced, rows):
+                # An item can move or disappear before the probes finish.
                 listing.complete = False
 
         for parent, item in rows.values():
             listing.add(parent, item)
             yield parent, item
+
+    def _locate_children(self, parents, missing, rows):
+        """Place rows with hidden parent IDs using Drive's parent query."""
+        size = 1
+        while parents and missing:
+            probe, parents = parents[:size], parents[size:]
+            names = dict.fromkeys(missing.values())
+            if len(names) > _MAX_QUERY_TERMS:
+                names.clear()
+            for item in self._query_children(probe, names):
+                item_id = item["id"]
+                if item_id not in missing:
+                    continue
+                if size > 1:
+                    parents = probe
+                    break
+                rows[item_id] = probe[0], item
+                del missing[item_id]
+            # For one remaining ID, narrow the search by halves. Only a
+            # single-parent query can confirm where to place the item.
+            size = (len(parents) + 1) // 2 if len(missing) == 1 else 1
+        return not missing
 
     def _match_child(
         self,
@@ -749,8 +750,8 @@ class GDriveFileSystem(AbstractFileSystem):
     def ls(self, path, detail=False):
         bucket, base = self._split_mounted_path(path)
 
-        match, generation = self._lookup_path(base)
-        dir_ids = match.ids
+        match, generation = self._lookup_path(base, folders_only=True)
+        dir_ids = match.folders or match.ids
         if not dir_ids:
             raise FileNotFoundError(
                 errno.ENOENT, os.strerror(errno.ENOENT), path
@@ -819,7 +820,9 @@ class GDriveFileSystem(AbstractFileSystem):
         if maxdepth is not None and maxdepth < 1:
             raise ValueError("maxdepth must be at least 1")
         generation, mount = self._resolve_mount()
-        match, generation = self._resolve_path(base, generation, mount)
+        match, generation = self._resolve_path(
+            base, generation, mount, folders_only=True
+        )
         file = (
             min(match.files, key=lambda item: item["id"], default=None)
             if not match.folders

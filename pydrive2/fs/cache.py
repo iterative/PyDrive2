@@ -29,21 +29,16 @@ class FolderListing:
         self.complete = True
 
     def add(self, parent, item):
-        if parent is None:
+        # Drive v3 defines one parent per item. An ambiguous response cannot
+        # establish which names are complete for either parent.
+        if parent is None or len(item.get("parents", ())) > 1:
             self.complete = False
         elif item["mimeType"] == FOLDER_MIME_TYPE:
             self.folders[parent].setdefault(item["name"], []).append(
                 item["id"]
             )
         else:
-            name = item["name"]
-            self.files.add((parent, name))
-            # Keep all reported collisions even though the listing emits an ID once.
-            parents = item.get("parents", ())
-            if len(parents) > 1:
-                self.files.update(
-                    (p, name) for p in parents if p in self.folders
-                )
+            self.files.add((parent, item["name"]))
 
 
 class DirectoryCache:
