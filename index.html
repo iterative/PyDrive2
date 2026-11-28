@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="genindex/"><link rel="search" title="Search" href="search/"><link rel="next" title="Quickstart" href="quickstart/">
 
     <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
-        <title>PyDrive2 1.19.0 documentation</title>
+        <title>PyDrive2 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="#"><div class="brand">PyDrive2 1.19.0 documentation</div></a>
+      <a href="#"><div class="brand">PyDrive2 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -172,7 +172,7 @@
           <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
         </button>
       </div>
-      <label class="toc-overlay-icon toc-header-icon no-toc" for="__toc">
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
         <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
       </label>
     </div>
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="#">
   
-  <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
+  <span class="sidebar-brand-text">PyDrive2 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="search/" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -192,12 +192,12 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart/">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="oauth/">OAuth made easy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="oauth/">Authentication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="filemanagement/">File management made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="filelist/">File listing made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="fsspec/">fsspec filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="pydrive2/">pydrive2 package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="genindex/">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="upgrading/">Upgrade to PyDrive2 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="pydrive2/">Python API reference</a></li>
 </ul>
 
 </div>
@@ -231,38 +231,34 @@
               <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
             </button>
           </div>
-          <label class="toc-overlay-icon toc-content-icon no-toc" for="__toc">
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
             <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="welcome-to-pydrive2-s-documentation">
-<h1>Welcome to PyDrive2’s documentation!<a class="headerlink" href="#welcome-to-pydrive2-s-documentation" title="Link to this heading">¶</a></h1>
-<p>PyDrive2 is a wrapper library of <a class="reference external" href="https://github.com/google/google-api-python-client">google-api-python-client</a> that simplifies
-many common Google Drive API tasks.</p>
-</section>
-<section id="project-info">
-<h1>Project Info<a class="headerlink" href="#project-info" title="Link to this heading">¶</a></h1>
-<ul class="simple">
-<li><p>Package: <a class="reference external" href="https://pypi.python.org/pypi/PyDrive2">https://pypi.python.org/pypi/PyDrive2</a></p></li>
-<li><p>Documentation: <a class="reference external" href="https://docs.iterative.ai/PyDrive2">https://docs.iterative.ai/PyDrive2</a></p></li>
-<li><p>Source: <a class="reference external" href="https://github.com/iterative/PyDrive2">https://github.com/iterative/PyDrive2</a></p></li>
-<li><p>Changelog: <a class="reference external" href="https://github.com/iterative/PyDrive2/releases">https://github.com/iterative/PyDrive2/releases</a></p></li>
-</ul>
-</section>
-<section id="how-to-install">
-<h1>How to install<a class="headerlink" href="#how-to-install" title="Link to this heading">¶</a></h1>
-<p>You can install PyDrive2 with regular <code class="docutils literal notranslate"><span class="pre">pip</span></code> command.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install PyDrive2
+          <section id="pydrive2-documentation">
+<span id="welcome-to-pydrive2-s-documentation"></span><h1>PyDrive2 documentation<a class="headerlink" href="#pydrive2-documentation" title="Link to this heading">¶</a></h1>
+<p>PyDrive2 2.0 is a Python client for Google Drive API v3 and an
+fsspec-compatible filesystem for Google Drive. Use the <a class="reference internal" href="quickstart/"><span class="doc">Quickstart</span></a>
+to sign in, upload a file, and list a folder. For path-based access with
+<code class="docutils literal notranslate"><span class="pre">gdrive://</span></code> URLs, see <a class="reference internal" href="fsspec/"><span class="doc">fsspec filesystem</span></a>.</p>
+<section id="installation">
+<span id="how-to-install"></span><h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
+<p>PyDrive2 requires Python 3.11 or newer.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>PyDrive2
 </pre></div>
 </div>
-<p>To install the current development version from GitHub, use:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ pip install git+https://github.com/iterative/PyDrive2.git#egg=PyDrive2
+<p>To use the fsspec filesystem, install the optional dependencies.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'PyDrive2[fsspec]'</span>
 </pre></div>
 </div>
+<p id="project-info">The <a class="reference external" href="https://www.datachain.ai/">DataChain team</a> maintains PyDrive2.
+Find the source on <a class="reference external" href="https://github.com/iterative/PyDrive2">GitHub</a>,
+the package on <a class="reference external" href="https://pypi.org/project/PyDrive2/">PyPI</a>, and the
+<a class="reference external" href="https://github.com/iterative/PyDrive2/releases">release history</a> on GitHub.</p>
 </section>
-<section id="table-of-contents">
-<h1>Table of Contents<a class="headerlink" href="#table-of-contents" title="Link to this heading">¶</a></h1>
+<section id="guides-and-reference">
+<span id="table-of-contents"></span><h2>Guides and reference<a class="headerlink" href="#guides-and-reference" title="Link to this heading">¶</a></h2>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart/">Quickstart</a><ul>
@@ -274,11 +270,13 @@ many common Google Drive API tasks.</p>
 <li class="toctree-l2"><a class="reference internal" href="quickstart/#browse-folders">Browse Folders</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="oauth/">OAuth made easy</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="oauth/#authentication-in-two-lines">Authentication in two lines</a></li>
-<li class="toctree-l2"><a class="reference internal" href="oauth/#automatic-and-custom-authentication-with-settings-yaml">Automatic and custom authentication with <em>settings.yaml</em></a></li>
+<li class="toctree-l1"><a class="reference internal" href="oauth/">Authentication</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="oauth/#sign-in-from-a-local-application">Sign in from a local application</a></li>
+<li class="toctree-l2"><a class="reference internal" href="oauth/#save-credentials-across-runs">Save credentials across runs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="oauth/#settings-reference">Settings reference</a></li>
 <li class="toctree-l2"><a class="reference internal" href="oauth/#building-your-own-authentication-flow">Building your own authentication flow</a></li>
 <li class="toctree-l2"><a class="reference internal" href="oauth/#authentication-with-a-service-account">Authentication with a service account</a></li>
+<li class="toctree-l2"><a class="reference internal" href="oauth/#upgrading-saved-credentials">Upgrading saved credentials</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="filemanagement/">File management made easy</a><ul>
@@ -288,7 +286,7 @@ many common Google Drive API tasks.</p>
 <li class="toctree-l2"><a class="reference internal" href="filemanagement/#download-file-metadata-from-file-id">Download file metadata from file ID</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filemanagement/#handling-special-metadata">Handling special metadata</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filemanagement/#get-files-by-complex-queries">Get files by complex queries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="filemanagement/#upgrading-from-drive-api-v2">Upgrading from Drive API v2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="filemanagement/#import-a-file-into-google-workspace">Import a file into Google Workspace</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filemanagement/#upload-and-update-file-content">Upload and update file content</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filemanagement/#upload-data-as-bytes-in-memory-buffer">Upload data as bytes in memory buffer</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filemanagement/#upload-file-to-a-specific-folder">Upload file to a specific folder</a></li>
@@ -297,7 +295,7 @@ many common Google Drive API tasks.</p>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="filelist/">File listing made easy</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="filelist/#get-all-files-which-matches-the-query">Get all files which matches the query</a></li>
+<li class="toctree-l2"><a class="reference internal" href="filelist/#list-matching-files">List matching files</a></li>
 <li class="toctree-l2"><a class="reference internal" href="filelist/#paginate-and-iterate-through-files">Paginate and iterate through files</a></li>
 </ul>
 </li>
@@ -309,7 +307,12 @@ many common Google Drive API tasks.</p>
 <li class="toctree-l2"><a class="reference internal" href="fsspec/#using-filesystem">Using filesystem</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="pydrive2/">pydrive2 package</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="upgrading/">Upgrade to PyDrive2 2.0</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="upgrading/#credentials">Credentials</a></li>
+<li class="toctree-l2"><a class="reference internal" href="upgrading/#drive-api-fields-and-requests">Drive API fields and requests</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="pydrive2/">Python API reference</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="pydrive2/#module-pydrive2.apiattr">pydrive2.apiattr module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pydrive2/#module-pydrive2.auth">pydrive2.auth module</a></li>
 <li class="toctree-l2"><a class="reference internal" href="pydrive2/#module-pydrive2.drive">pydrive2.drive module</a></li>
@@ -318,9 +321,10 @@ many common Google Drive API tasks.</p>
 <li class="toctree-l2"><a class="reference internal" href="pydrive2/#pydrive2-fs-module">pydrive2.fs module</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="genindex/">Index</a></li>
 </ul>
 </div>
+<p><a class="reference internal" href="genindex/"><span class="std std-ref">Index</span></a></p>
+</section>
 </section>
 
         </article>
@@ -356,13 +360,33 @@ many common Google Drive API tasks.</p>
         
       </footer>
     </div>
-    <aside class="toc-drawer no-toc">
+    <aside class="toc-drawer">
       
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">PyDrive2 documentation</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#guides-and-reference">Guides and reference</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
       
       
     </aside>
   </div>
-</div><script src="_static/documentation_options.js?v=947f95a7"></script>
+</div><script src="_static/documentation_options.js?v=813c3733"></script>
     <script src="_static/doctools.js?v=fd6eb6e6"></script>
     <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>

@@ -1,43 +1,41 @@
-.. PyDrive2 documentation master file, created by
-   sphinx-quickstart on Sun Jun 12 23:01:40 2016.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
+.. _welcome-to-pydrive2-s-documentation:
 
-Welcome to PyDrive2's documentation!
-====================================
+PyDrive2 documentation
+======================
 
-PyDrive2 is a wrapper library of `google-api-python-client`_ that simplifies
-many common Google Drive API tasks.
+PyDrive2 2.0 is a Python client for Google Drive API v3 and an
+fsspec-compatible filesystem for Google Drive. Use the :doc:`quickstart`
+to sign in, upload a file, and list a folder. For path-based access with
+``gdrive://`` URLs, see :doc:`fsspec`.
 
-Project Info
-============
+.. _how-to-install:
 
-- Package: https://pypi.python.org/pypi/PyDrive2
-- Documentation: https://docs.iterative.ai/PyDrive2
-- Source: https://github.com/iterative/PyDrive2
-- Changelog: https://github.com/iterative/PyDrive2/releases
+Installation
+------------
 
-How to install
-==============
+PyDrive2 requires Python 3.11 or newer.
 
-You can install PyDrive2 with regular ``pip`` command.
+.. code-block:: sh
 
-::
+    python -m pip install PyDrive2
 
-    $ pip install PyDrive2
+To use the fsspec filesystem, install the optional dependencies.
 
-To install the current development version from GitHub, use:
+.. code-block:: sh
 
-::
+    python -m pip install 'PyDrive2[fsspec]'
 
-    $ pip install git+https://github.com/iterative/PyDrive2.git#egg=PyDrive2
+.. _project-info:
 
+The `DataChain team <https://www.datachain.ai/>`_ maintains PyDrive2.
+Find the source on `GitHub <https://github.com/iterative/PyDrive2>`_,
+the package on `PyPI <https://pypi.org/project/PyDrive2/>`_, and the
+`release history <https://github.com/iterative/PyDrive2/releases>`_ on GitHub.
 
-.. _`google-api-python-client`:
-   https://github.com/google/google-api-python-client
+.. _table-of-contents:
 
-Table of Contents
-=================
+Guides and reference
+--------------------
 
 .. toctree::
    :maxdepth: 2
@@ -47,5 +45,7 @@ Table of Contents
    filemanagement
    filelist
    fsspec
+   upgrading
    pydrive2
-   genindex
+
+:ref:`genindex`

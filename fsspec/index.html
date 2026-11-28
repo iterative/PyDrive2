@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="pydrive2 package" href="../pydrive2/"><link rel="prev" title="File listing made easy" href="../filelist/">
+<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="Upgrade to PyDrive2 2.0" href="../upgrading/"><link rel="prev" title="File listing made easy" href="../filelist/">
 
     <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
-        <title>fsspec filesystem - PyDrive2 1.19.0 documentation</title>
+        <title>fsspec filesystem - PyDrive2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../"><div class="brand">PyDrive2 1.19.0 documentation</div></a>
+      <a href="../"><div class="brand">PyDrive2 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
   
-  <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
+  <span class="sidebar-brand-text">PyDrive2 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search/" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -192,12 +192,12 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../oauth/">OAuth made easy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../oauth/">Authentication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filemanagement/">File management made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filelist/">File listing made easy</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">fsspec filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">pydrive2 package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../genindex/">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../upgrading/">Upgrade to PyDrive2 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">Python API reference</a></li>
 </ul>
 
 </div>
@@ -242,7 +242,7 @@
 interface to Google Drive.</p>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
-<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'pydrive2[fsspec]'</span>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">'PyDrive2[fsspec]'</span>
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">[fsspec]</span></code> extra installs fsspec. If fsspec is already installed,
@@ -315,9 +315,8 @@ account has access.</p>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>By default, credentials will be cached per ‘client_id’, but if you are using
-multiple users you might want to use ‘profile’ to avoid accidentally using
-someone else’s cached credentials:</p>
+<p>The filesystem caches OAuth user credentials per client ID. Give each user
+a separate <code class="docutils literal notranslate"><span class="pre">profile</span></code> when several users share a client ID and machine.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
@@ -328,24 +327,19 @@ someone else’s cached credentials:</p>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>PyDrive2 2.x uses a separate default cache. The first interactive connection
-after upgrading from 1.x prompts you to sign in. If you supplied a user
-credential file explicitly, choose a fresh path. For DVC jobs that use
-<code class="docutils literal notranslate"><span class="pre">GDRIVE_CREDENTIALS_DATA</span></code> for a user account, replace that secret with the
-newly saved JSON. Service-account jobs can reuse their configured key.</p>
-<p>Writing cached credentials to a file and using it if it already exists (which
-avoids interactive auth):</p>
+<p>To choose where PyDrive2 saves and refreshes your user token, set
+<code class="docutils literal notranslate"><span class="pre">client_json_file_path</span></code>. For existing deployments, see <a class="reference internal" href="../upgrading/"><span class="doc">Upgrade to PyDrive2 2.0</span></a>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
     <span class="s2">"root"</span><span class="p">,</span>
     <span class="n">client_id</span><span class="o">=</span><span class="s2">"my_client_id"</span><span class="p">,</span>
     <span class="n">client_secret</span><span class="o">=</span><span class="s2">"my_client_secret"</span><span class="p">,</span>
-    <span class="n">client_json_file_path</span><span class="o">=</span><span class="s2">"/path/to/keyfile.json"</span><span class="p">,</span>
+    <span class="n">client_json_file_path</span><span class="o">=</span><span class="s2">"/path/to/user-token.json"</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Using cached credentials from json string (avoids interactive auth):</p>
+<p>To load saved user credentials from a JSON string, pass <code class="docutils literal notranslate"><span class="pre">client_json</span></code>.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
@@ -359,38 +353,35 @@ avoids interactive auth):</p>
 </section>
 <section id="service-account">
 <h2>Service account<a class="headerlink" href="#service-account" title="Link to this heading">¶</a></h2>
-<p>Using json keyfile path:</p>
+<p>Give the service account access to the folder and mount its ID.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
-    <span class="c1"># replace with ID of a drive or directory and give service account</span>
-    <span class="c1"># access to it</span>
-    <span class="s2">"root"</span><span class="p">,</span>
+    <span class="s2">"FOLDER_ID"</span><span class="p">,</span>
     <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">client_json_file_path</span><span class="o">=</span><span class="s2">"/path/to/keyfile.json"</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Using json keyfile string:</p>
+<p>You can also pass the service-account key as a JSON string.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.fs</span><span class="w"> </span><span class="kn">import</span> <span class="n">GDriveFileSystem</span>
 
 <span class="n">fs</span> <span class="o">=</span> <span class="n">GDriveFileSystem</span><span class="p">(</span>
-    <span class="c1"># replace with ID of a drive or directory and give service account</span>
-    <span class="c1"># access to it</span>
-    <span class="s2">"root"</span><span class="p">,</span>
+    <span class="s2">"FOLDER_ID"</span><span class="p">,</span>
     <span class="n">use_service_account</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">client_json</span><span class="o">=</span><span class="n">json_string</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>If your service account uses <a class="reference external" href="https://developers.google.com/workspace/guides/create-credentials#set-up-domain-wide-delegation">domain-wide delegation</a>, set
+<p>If your service account uses <a class="reference external" href="https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority">domain-wide delegation</a>, set
 <code class="docutils literal notranslate"><span class="pre">client_user_email</span></code> to the email address of the user it should act as.</p>
 </section>
 <section id="additional-parameters">
 <h2>Additional parameters<a class="headerlink" href="#additional-parameters" title="Link to this heading">¶</a></h2>
 <dl class="field-list simple">
 <dt class="field-odd">trash_only (bool)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Move files to trash instead of deleting.</p>
+<dd class="field-odd"><p>Move files to the trash on removal (default: true). Set to false for
+permanent deletion.</p>
 </dd>
 <dt class="field-even">acknowledge_abuse (bool)<span class="colon">:</span></dt>
 <dd class="field-even"><p>Acknowledge the risk when downloading a file flagged as abusive.
@@ -400,16 +391,18 @@ See <a class="reference internal" href="../filemanagement/#abusive-files"><span 
 </section>
 <section id="using-filesystem">
 <h2>Using filesystem<a class="headerlink" href="#using-filesystem" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># replace `root` with ID of a drive or directory and give service account</span>
-<span class="c1"># access to it</span>
-<span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dnames</span><span class="p">,</span> <span class="n">fnames</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">"root"</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">dname</span> <span class="ow">in</span> <span class="n">dnames</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"dir: </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">dname</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
-
-    <span class="k">for</span> <span class="n">fname</span> <span class="ow">in</span> <span class="n">fnames</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"file: </span><span class="si">{</span><span class="n">root</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">fname</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">fs</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s2">"FOLDER_ID/reports/2026"</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">parent</span><span class="p">,</span> <span class="n">directories</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">fs</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="s2">"FOLDER_ID/reports"</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">files</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">parent</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </pre></div>
 </div>
+<p><code class="docutils literal notranslate"><span class="pre">mkdir(path,</span> <span class="pre">create_parents=False)</span></code> requires an existing parent.
+<code class="docutils literal notranslate"><span class="pre">makedirs(path,</span> <span class="pre">exist_ok=True)</span></code> creates missing parents and accepts an
+existing directory. The filesystem caches directory IDs to speed up
+repeated lookups. After an external move or deletion, use
+<code class="docutils literal notranslate"><span class="pre">fs.invalidate_cache(path)</span></code> for the affected path or
+<code class="docutils literal notranslate"><span class="pre">fs.invalidate_cache()</span></code> to clear the whole cache.</p>
 <p>For sequential reads, pass a positive <code class="docutils literal notranslate"><span class="pre">block_size</span></code> to <code class="docutils literal notranslate"><span class="pre">fs.open()</span></code> to set
 the Drive download request size in bytes. A writer buffers data locally,
 using a temporary file for larger uploads. Calling <code class="docutils literal notranslate"><span class="pre">flush()</span></code> flushes the
@@ -426,12 +419,12 @@ about and manipulating files, refer to fsspec docs on
       <footer>
         
         <div class="related-pages">
-          <a class="next-page" href="../pydrive2/">
+          <a class="next-page" href="../upgrading/">
               <div class="page-info">
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">pydrive2 package</div>
+                <div class="title">Upgrade to PyDrive2 2.0</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -493,7 +486,7 @@ about and manipulating files, refer to fsspec docs on
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=947f95a7"></script>
+</div><script src="../_static/documentation_options.js?v=813c3733"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

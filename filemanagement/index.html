@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="File listing made easy" href="../filelist/"><link rel="prev" title="OAuth made easy" href="../oauth/">
+<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="File listing made easy" href="../filelist/"><link rel="prev" title="Authentication" href="../oauth/">
 
     <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
-        <title>File management made easy - PyDrive2 1.19.0 documentation</title>
+        <title>File management made easy - PyDrive2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../"><div class="brand">PyDrive2 1.19.0 documentation</div></a>
+      <a href="../"><div class="brand">PyDrive2 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
   
-  <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
+  <span class="sidebar-brand-text">PyDrive2 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search/" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -192,12 +192,12 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../oauth/">OAuth made easy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../oauth/">Authentication</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">File management made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filelist/">File listing made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../fsspec/">fsspec filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">pydrive2 package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../genindex/">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../upgrading/">Upgrade to PyDrive2 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">Python API reference</a></li>
 </ul>
 
 </div>
@@ -238,9 +238,7 @@
         <article role="main" id="furo-main-content">
           <section id="file-management-made-easy">
 <h1>File management made easy<a class="headerlink" href="#file-management-made-easy" title="Link to this heading">¶</a></h1>
-<p>There are many methods to create and update file metadata and contents. With
-<em>PyDrive</em>, you don’t have to care about any of these different API methods.
-Edit the metadata or contents of a <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile" title="pydrive2.files.GoogleDriveFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code></a>
+<p>Edit the metadata or contents of a <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile" title="pydrive2.files.GoogleDriveFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code></a>
 and call <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.Upload" title="pydrive2.files.GoogleDriveFile.Upload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Upload()</span></code></a> to save the changes.</p>
 <section id="upload-a-new-file">
 <h2>Upload a new file<a class="headerlink" href="#upload-a-new-file" title="Link to this heading">¶</a></h2>
@@ -253,7 +251,8 @@ and call <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleD
 
 <span class="c1"># Create GoogleDriveFile instance with name 'Hello.txt'.</span>
 <span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Hello.txt'</span><span class="p">})</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span> <span class="c1"># Upload the file.</span>
+<span class="n">file1</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">'Hello'</span><span class="p">)</span>
+<span class="n">file1</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>  <span class="c1"># Create a text file.</span>
 <span class="nb">print</span><span class="p">(</span><span class="s1">'name: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'name'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
 <span class="c1"># name: Hello.txt, id: {{FILE_ID}}</span>
 </pre></div>
@@ -265,17 +264,14 @@ Google Drive.</p>
 </section>
 <section id="delete-trash-and-un-trash-files">
 <h2>Delete, Trash and un-Trash files<a class="headerlink" href="#delete-trash-and-un-trash-files" title="Link to this heading">¶</a></h2>
-<p>You may want to delete, trash, or un-trash a file. To do this use <code class="docutils literal notranslate"><span class="pre">Delete()</span></code>,
-<code class="docutils literal notranslate"><span class="pre">Trash()</span></code> or <code class="docutils literal notranslate"><span class="pre">UnTrash()</span></code> on a GoogleDriveFile object.</p>
-<p><em>Note:</em> <code class="docutils literal notranslate"><span class="pre">Trash()</span></code> <em>moves a file into the trash and can be recovered,</em>
-<code class="docutils literal notranslate"><span class="pre">Delete()</span></code> <em>deletes the file permanently and immediately.</em></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create GoogleDriveFile instance and upload it.</span>
-<span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">()</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
-
-<span class="n">file1</span><span class="o">.</span><span class="n">Trash</span><span class="p">()</span>  <span class="c1"># Move file to trash.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">UnTrash</span><span class="p">()</span>  <span class="c1"># Move file out of trash.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">Delete</span><span class="p">()</span>  <span class="c1"># Permanently delete the file.</span>
+<p>Use <code class="docutils literal notranslate"><span class="pre">Trash()</span></code> to move a file to the trash and <code class="docutils literal notranslate"><span class="pre">UnTrash()</span></code> to restore it.
+<code class="docutils literal notranslate"><span class="pre">Delete()</span></code> permanently deletes the file. This example creates a separate
+file so you can continue working with <code class="docutils literal notranslate"><span class="pre">Hello.txt</span></code> in the following sections.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">temporary</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"temporary.txt"</span><span class="p">})</span>
+<span class="n">temporary</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+<span class="n">temporary</span><span class="o">.</span><span class="n">Trash</span><span class="p">()</span>
+<span class="n">temporary</span><span class="o">.</span><span class="n">UnTrash</span><span class="p">()</span>
+<span class="n">temporary</span><span class="o">.</span><span class="n">Delete</span><span class="p">()</span>
 </pre></div>
 </div>
 </section>
@@ -307,82 +303,44 @@ returned file object.</p>
 </section>
 <section id="handling-special-metadata">
 <h2>Handling special metadata<a class="headerlink" href="#handling-special-metadata" title="Link to this heading">¶</a></h2>
-<p>Not all metadata can be set with the methods described above.
-PyDrive gives you access to the metadata of an object through
-<code class="docutils literal notranslate"><span class="pre">file_object.FetchMetadata()</span></code>. This function has two optional parameters:
-<code class="docutils literal notranslate"><span class="pre">fields</span></code> and <code class="docutils literal notranslate"><span class="pre">fetch_all</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="s1">'&lt;some file ID here&gt;'</span><span class="p">})</span>
-
-<span class="c1"># Fetches all basic metadata fields, including file size, last modified</span>
-<span class="c1"># etc.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">()</span>
-
-<span class="c1"># Fetches all metadata available.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fetch_all</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-
-<span class="c1"># Fetches the 'permissions' metadata field.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">'permissions'</span><span class="p">)</span>
-<span class="c1"># You can update a list of specific fields like this:</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">'permissions,trashed,mimeType'</span><span class="p">)</span>
+<p>Drive returns a subset of file fields by default. Request specific fields
+with a field mask or use <code class="docutils literal notranslate"><span class="pre">fetch_all=True</span></code> to request all available fields.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file2</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s2">"id,name,owners,capabilities"</span><span class="p">)</span>
+<span class="n">file2</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fetch_all</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See the <a class="reference external" href="https://developers.google.com/workspace/drive/api/reference/rest/v3/files#resource:-file">Drive API v3 file resource</a> for the available fields.</p>
+<p>See the <a class="reference external" href="https://developers.google.com/workspace/drive/api/reference/rest/v3/files#resource:-file">Drive API v3 file resource</a> for available fields.</p>
 <section id="insert-permissions">
 <h3>Insert permissions<a class="headerlink" href="#insert-permissions" title="Link to this heading">¶</a></h3>
-<p>Insert, retrieving or deleting permissions is illustrated by making a file
-readable to all who have a link to the file.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">()</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
-
-<span class="c1"># Insert the permission.</span>
-<span class="n">permission</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">InsertPermission</span><span class="p">({</span>
-                        <span class="s1">'type'</span><span class="p">:</span> <span class="s1">'anyone'</span><span class="p">,</span>
-                        <span class="s1">'allowFileDiscovery'</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
-                        <span class="s1">'role'</span><span class="p">:</span> <span class="s1">'reader'</span><span class="p">})</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'webViewLink'</span><span class="p">])</span>  <span class="c1"># Display the sharable link.</span>
+<p>To share a file by link, create an <code class="docutils literal notranslate"><span class="pre">anyone</span></code> permission with the
+<code class="docutils literal notranslate"><span class="pre">reader</span></code> role. The file’s sharing policy must allow link sharing.
+Keep the returned permission ID if you want to revoke that grant later.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">shared</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Shared note.txt"</span><span class="p">})</span>
+<span class="n">shared</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+<span class="n">permission</span> <span class="o">=</span> <span class="n">shared</span><span class="o">.</span><span class="n">InsertPermission</span><span class="p">({</span>
+    <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"anyone"</span><span class="p">,</span>
+    <span class="s2">"allowFileDiscovery"</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="s2">"role"</span><span class="p">:</span> <span class="s2">"reader"</span><span class="p">,</span>
+<span class="p">})</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">shared</span><span class="p">[</span><span class="s2">"webViewLink"</span><span class="p">])</span>
 </pre></div>
 </div>
-<p>Note: <code class="docutils literal notranslate"><span class="pre">InsertPermission()</span></code> calls <code class="docutils literal notranslate"><span class="pre">GetPermissions()</span></code> after successfully
-inserting the permission.</p>
-<p>See the <a class="reference external" href="https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create#request-body">permissions.create request body</a> for the permission format.
-This file is now shared and anyone with the link can view it. But what if you
-want to check whether a file is already shared?</p>
+<p>See the <a class="reference external" href="https://developers.google.com/workspace/drive/api/reference/rest/v3/permissions/create#request-body">permissions.create request body</a> for other permission types.</p>
 </section>
 <section id="list-permissions">
 <h3>List permissions<a class="headerlink" href="#list-permissions" title="Link to this heading">¶</a></h3>
-<p>Permissions can be fetched using the <code class="docutils literal notranslate"><span class="pre">GetPermissions()</span></code> function of a
-<code class="docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code>, and can be used like so:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a new file</span>
-<span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">()</span>
-<span class="c1"># Fetch permissions.</span>
-<span class="n">permissions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetPermissions</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">permissions</span><span class="p">)</span>
-
-<span class="c1"># The permissions are also available as file1['permissions']:</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'permissions'</span><span class="p">])</span>
-</pre></div>
-</div>
-<p>For the more advanced user: <code class="docutils literal notranslate"><span class="pre">GetPermissions()</span></code> is a shorthand for:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Fetch Metadata, including the permissions field.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">FetchMetadata</span><span class="p">(</span><span class="n">fields</span><span class="o">=</span><span class="s1">'permissions'</span><span class="p">)</span>
-
-<span class="c1"># The permissions array is now available for further use.</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'permissions'</span><span class="p">])</span>
+<p>Call <code class="docutils literal notranslate"><span class="pre">GetPermissions()</span></code> on an uploaded file or one opened by ID.
+PyDrive2 follows the permission list’s page tokens and stores the results
+in the file object’s <code class="docutils literal notranslate"><span class="pre">permissions</span></code> field.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">grant</span> <span class="ow">in</span> <span class="n">shared</span><span class="o">.</span><span class="n">GetPermissions</span><span class="p">():</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">grant</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span> <span class="n">grant</span><span class="p">[</span><span class="s2">"role"</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>
 <section id="remove-a-permission">
 <h3>Remove a Permission<a class="headerlink" href="#remove-a-permission" title="Link to this heading">¶</a></h3>
-<p><em>PyDrive</em> allows you to remove a specific permission using the
-<code class="docutils literal notranslate"><span class="pre">DeletePermission(permission_id)</span></code> function. This function allows you to
-delete one permission at a time by providing the permission’s ID.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'id'</span><span class="p">:</span> <span class="s1">'&lt;file ID here&gt;'</span><span class="p">})</span>
-<span class="n">permissions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetPermissions</span><span class="p">()</span>  <span class="c1"># Download file permissions.</span>
-
-<span class="n">permission_id</span> <span class="o">=</span> <span class="n">permissions</span><span class="p">[</span><span class="mi">1</span><span class="p">][</span><span class="s1">'id'</span><span class="p">]</span>  <span class="c1"># Get a permission ID.</span>
-
-<span class="n">file1</span><span class="o">.</span><span class="n">DeletePermission</span><span class="p">(</span><span class="n">permission_id</span><span class="p">)</span>  <span class="c1"># Delete the permission.</span>
+<p>Revoke the grant created above using the ID returned by <code class="docutils literal notranslate"><span class="pre">InsertPermission()</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">shared</span><span class="o">.</span><span class="n">DeletePermission</span><span class="p">(</span><span class="n">permission</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>
@@ -405,50 +363,27 @@ field such as <code class="docutils literal notranslate"><span class="pre">mimeT
 </div>
 <section id="list-revisions">
 <h3>List revisions<a class="headerlink" href="#list-revisions" title="Link to this heading">¶</a></h3>
-<p>Revisions can be fetched using the <code class="docutils literal notranslate"><span class="pre">GetRevisions()</span></code> function of a
-<code class="docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code>, and can be used like so:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a new file</span>
-<span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">()</span>
-<span class="c1"># Fetch revisions.</span>
-<span class="n">revisions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetRevisions</span><span class="p">()</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">revisions</span><span class="p">)</span>
+<p>Use <code class="docutils literal notranslate"><span class="pre">GetRevisions()</span></code> on a file that has been uploaded or opened by ID.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">revisions</span> <span class="o">=</span> <span class="n">file1</span><span class="o">.</span><span class="n">GetRevisions</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">revision</span> <span class="ow">in</span> <span class="n">revisions</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">revision</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
 </pre></div>
 </div>
-<p>Not all files objects have revisions. If GetRevisions is called on a
-file object that does not have revisions, an exception will be raised.</p>
 </section>
 </section>
-<section id="upgrading-from-drive-api-v2">
-<h2>Upgrading from Drive API v2<a class="headerlink" href="#upgrading-from-drive-api-v2" title="Link to this heading">¶</a></h2>
-<p>PyDrive2 uses Drive API v3 for all requests. Existing file and folder IDs
-remain valid. Use v3 names in metadata dictionaries, field masks, and queries:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">title</span></code> becomes <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">fileSize</span></code> becomes <code class="docutils literal notranslate"><span class="pre">size</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">alternateLink</span></code> becomes <code class="docutils literal notranslate"><span class="pre">webViewLink</span></code>.</p></li>
-<li><p>File reads and listings request a subset of metadata by default. To read
-additional fields, use <code class="docutils literal notranslate"><span class="pre">FetchMetadata(fields=&quot;owners,capabilities&quot;)</span></code>,
-<code class="docutils literal notranslate"><span class="pre">FetchMetadata(fetch_all=True)</span></code>, or a list selector such as
-<code class="docutils literal notranslate"><span class="pre">files(id,name,shortcutDetails)</span></code>.</p></li>
-<li><p>Read <code class="docutils literal notranslate"><span class="pre">trashed</span></code> directly and supply parent IDs as strings,
-for example <code class="docutils literal notranslate"><span class="pre">{&quot;parents&quot;:</span> <span class="pre">[folder_id]}</span></code>. Assign the new parent list and
-call <code class="docutils literal notranslate"><span class="pre">Upload()</span></code> to move an existing file.</p></li>
-<li><p>Replace <code class="docutils literal notranslate"><span class="pre">maxResults</span></code> with <code class="docutils literal notranslate"><span class="pre">pageSize</span></code> and use a list field mask such
-as <code class="docutils literal notranslate"><span class="pre">files(id,name)</span></code>. See <a class="reference internal" href="../filelist/"><span class="doc">File listing made easy</span></a> for automatic pagination.</p></li>
-<li><p>For user or group permissions, use <code class="docutils literal notranslate"><span class="pre">emailAddress</span></code> in place of
-<code class="docutils literal notranslate"><span class="pre">value</span></code>. For link sharing, set <code class="docutils literal notranslate"><span class="pre">allowFileDiscovery=False</span></code>.
-When calling <code class="docutils literal notranslate"><span class="pre">InsertPermission(permission,</span> <span class="pre">param=...)</span></code>, rename the v2
-request parameter <code class="docutils literal notranslate"><span class="pre">sendNotificationEmails</span></code> to <code class="docutils literal notranslate"><span class="pre">sendNotificationEmail</span></code>.
-For example, <code class="docutils literal notranslate"><span class="pre">param={&quot;sendNotificationEmail&quot;:</span> <span class="pre">False}</span></code> disables the
-notification when sharing with a user or group.</p></li>
-<li><p>To import a file, replace the v2 <code class="docutils literal notranslate"><span class="pre">convert</span></code> flag with the target
-Workspace MIME type and pass the original media type to <code class="docutils literal notranslate"><span class="pre">Upload()</span></code>.</p></li>
-</ul>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sheet</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Sales"</span><span class="p">,</span> <span class="s2">"mimeType"</span><span class="p">:</span> <span class="s2">"application/vnd.google-apps.spreadsheet"</span><span class="p">})</span>
+<section id="import-a-file-into-google-workspace">
+<span id="upgrading-from-drive-api-v2"></span><h2>Import a file into Google Workspace<a class="headerlink" href="#import-a-file-into-google-workspace" title="Link to this heading">¶</a></h2>
+<p>To import a CSV as a Google Sheet, set the destination MIME type on the
+file and pass the source MIME type to <code class="docutils literal notranslate"><span class="pre">Upload()</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sheet</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span>
+    <span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Sales"</span><span class="p">,</span>
+    <span class="s2">"mimeType"</span><span class="p">:</span> <span class="s2">"application/vnd.google-apps.spreadsheet"</span><span class="p">,</span>
+<span class="p">})</span>
 <span class="n">sheet</span><span class="o">.</span><span class="n">SetContentFile</span><span class="p">(</span><span class="s2">"sales.csv"</span><span class="p">)</span>
 <span class="n">sheet</span><span class="o">.</span><span class="n">Upload</span><span class="p">(</span><span class="n">media_mime_type</span><span class="o">=</span><span class="s2">"text/csv"</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See Google’s <a class="reference external" href="https://developers.google.com/workspace/drive/api/guides/v2-to-v3-reference">Drive v2 to v3 reference</a> for the full field and method-parameter mappings.</p>
+<p>For changes to fields and request parameters, see <a class="reference internal" href="../upgrading/"><span class="doc">Upgrade to PyDrive2 2.0</span></a>.</p>
 </section>
 <section id="upload-and-update-file-content">
 <h2>Upload and update file content<a class="headerlink" href="#upload-and-update-file-content" title="Link to this heading">¶</a></h2>
@@ -489,46 +424,24 @@ like so:</p>
 </section>
 <section id="upload-data-as-bytes-in-memory-buffer">
 <h2>Upload data as bytes in memory buffer<a class="headerlink" href="#upload-data-as-bytes-in-memory-buffer" title="Link to this heading">¶</a></h2>
-<p>Data can be kept as bytes in an in-memory buffer when we use the <code class="docutils literal notranslate"><span class="pre">io</span></code>
-module’s Byte IO operations, we can upload files that reside in memory, for
-example we have a base64 image, we can decode the string and upload it to drive
-without first saving it to disk and calling
-<a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.SetContentFile" title="pydrive2.files.GoogleDriveFile.SetContentFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">SetContentFile()</span></code></a>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">io</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
+<p>Assign a seekable binary stream to <code class="docutils literal notranslate"><span class="pre">content</span></code>. The caller owns this
+stream and can close it after the upload.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">io</span><span class="w"> </span><span class="kn">import</span> <span class="n">BytesIO</span>
 
-<span class="c1"># Create GoogleDrive instance with authenticated GoogleAuth instance.</span>
-<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
-<span class="c1"># Define file name and type</span>
-<span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'image_test'</span><span class="p">,</span>
-    <span class="s1">'mimeType'</span><span class="p">:</span> <span class="s1">'image/jpeg'</span>
-<span class="p">}</span>
-<span class="c1"># Create file</span>
-<span class="n">file</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
-<span class="c1"># Buffered I/O implementation using an in-memory bytes buffer.</span>
-<span class="n">image_file</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">BytesIO</span><span class="p">(</span><span class="n">image_bytes</span><span class="p">)</span>
-<span class="c1"># Set the content of the file</span>
-<span class="n">file</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="n">image_file</span>
-<span class="c1"># Upload the file to google drive</span>
-<span class="n">file</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+<span class="n">sample</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"sample.bin"</span><span class="p">})</span>
+<span class="k">with</span> <span class="n">BytesIO</span><span class="p">(</span><span class="sa">b</span><span class="s2">"sample data"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+    <span class="n">sample</span><span class="o">.</span><span class="n">content</span> <span class="o">=</span> <span class="n">stream</span>
+    <span class="n">sample</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
 </pre></div>
 </div>
 </section>
 <section id="upload-file-to-a-specific-folder">
 <h2>Upload file to a specific folder<a class="headerlink" href="#upload-file-to-a-specific-folder" title="Link to this heading">¶</a></h2>
-<p>In order to upload a file into a specific drive folder we need to pass the
-<code class="docutils literal notranslate"><span class="pre">id</span></code> of the folder in the metadata passed to
-<a class="reference internal" href="../pydrive2/#pydrive2.drive.GoogleDrive.CreateFile" title="pydrive2.drive.GoogleDrive.CreateFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CreateFile()</span></code></a>.
-Save the image from the previous example into a specific folder``:``</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
-    <span class="s1">'parents'</span><span class="p">:</span> <span class="p">[</span><span class="n">id_drive_folder</span><span class="p">],</span>
-    <span class="s1">'name'</span><span class="p">:</span> <span class="s1">'image_test'</span><span class="p">,</span>
-    <span class="s1">'mimeType'</span><span class="p">:</span> <span class="s1">'image/jpeg'</span>
-<span class="p">}</span>
-<span class="c1"># Create file</span>
-<span class="n">file</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">(</span><span class="n">metadata</span><span class="o">=</span><span class="n">metadata</span><span class="p">)</span>
-<span class="n">file</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+<p>Set <code class="docutils literal notranslate"><span class="pre">parents</span></code> to a list containing the destination folder ID. This
+example uploads the contents of a local image into that folder.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">image</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s2">"parents"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"YOUR_FOLDER_ID"</span><span class="p">]})</span>
+<span class="n">image</span><span class="o">.</span><span class="n">SetContentFile</span><span class="p">(</span><span class="s2">"cat.png"</span><span class="p">)</span>
+<span class="n">image</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
 </pre></div>
 </div>
 </section>
@@ -567,11 +480,10 @@ defaults to a plain-text export. Both calls below strip the byte order mark.</p>
 </section>
 <section id="abusive-files">
 <span id="id1"></span><h2>Abusive files<a class="headerlink" href="#abusive-files" title="Link to this heading">¶</a></h2>
-<p>Files identified as <a class="reference external" href="https://support.google.com/docs/answer/148505">abusive</a> (malware, etc.) are only downloadable by the
-owner. If you see a ‘This file has been identified as malware or spam and
-cannot be downloaded’ error, set ‘acknowledge_abuse=True’ parameter in
-<cite>GetContentFile()</cite>. By using it you indicate that you acknowledge the risks of
-downloading potential malware.</p>
+<p>If Drive flags a file as abusive, the owner or a shared-drive organizer
+can explicitly acknowledge the risk when downloading it. Pass
+<code class="docutils literal notranslate"><span class="pre">acknowledge_abuse=True</span></code> to <code class="docutils literal notranslate"><span class="pre">GetContentFile()</span></code> for that download.
+See the <a class="reference external" href="https://developers.google.com/workspace/drive/api/reference/rest/v3/files/get">files.get parameters</a> for the access requirements.</p>
 </section>
 </section>
 
@@ -596,7 +508,7 @@ downloading potential malware.</p>
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">OAuth made easy</div>
+                <div class="title">Authentication</div>
                 
               </div>
             </a>
@@ -645,7 +557,7 @@ downloading potential malware.</p>
 <li><a class="reference internal" href="#list-revisions">List revisions</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#upgrading-from-drive-api-v2">Upgrading from Drive API v2</a></li>
+<li><a class="reference internal" href="#import-a-file-into-google-workspace">Import a file into Google Workspace</a></li>
 <li><a class="reference internal" href="#upload-and-update-file-content">Upload and update file content</a></li>
 <li><a class="reference internal" href="#upload-data-as-bytes-in-memory-buffer">Upload data as bytes in memory buffer</a></li>
 <li><a class="reference internal" href="#upload-file-to-a-specific-folder">Upload file to a specific folder</a></li>
@@ -662,7 +574,7 @@ downloading potential malware.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=947f95a7"></script>
+</div><script src="../_static/documentation_options.js?v=813c3733"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

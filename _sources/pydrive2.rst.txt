@@ -1,5 +1,11 @@
-pydrive2 package
-================
+.. _pydrive2-package:
+
+Python API reference
+====================
+
+Use :class:`~pydrive2.auth.GoogleAuth` to authenticate and
+:class:`~pydrive2.drive.GoogleDrive` to work with files and listings. For
+path-based operations, see :doc:`fsspec`.
 
 pydrive2.apiattr module
 -----------------------
@@ -45,4 +51,5 @@ pydrive2.fs module
 ------------------
 
 .. autoclass:: pydrive2.fs.GDriveFileSystem
+    :members: __init__
     :show-inheritance:

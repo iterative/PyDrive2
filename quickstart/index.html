@@ -3,10 +3,10 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="OAuth made easy" href="../oauth/"><link rel="prev" title="Welcome to PyDrive2’s documentation!" href="../">
+<link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="Authentication" href="../oauth/"><link rel="prev" title="PyDrive2 documentation" href="../">
 
     <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
-        <title>Quickstart - PyDrive2 1.19.0 documentation</title>
+        <title>Quickstart - PyDrive2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../"><div class="brand">PyDrive2 1.19.0 documentation</div></a>
+      <a href="../"><div class="brand">PyDrive2 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
   
-  <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
+  <span class="sidebar-brand-text">PyDrive2 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search/" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -192,12 +192,12 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../oauth/">OAuth made easy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../oauth/">Authentication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filemanagement/">File management made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filelist/">File listing made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../fsspec/">fsspec filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">pydrive2 package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../genindex/">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../upgrading/">Upgrade to PyDrive2 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">Python API reference</a></li>
 </ul>
 
 </div>
@@ -240,156 +240,97 @@
 <h1>Quickstart<a class="headerlink" href="#quickstart" title="Link to this heading">¶</a></h1>
 <section id="authentication">
 <h2>Authentication<a class="headerlink" href="#authentication" title="Link to this heading">¶</a></h2>
-<p>Drive API requires OAuth2.0 for authentication. <em>PyDrive2</em> makes your life much
-easier by handling complex authentication steps for you.</p>
 <ol class="arabic simple">
-<li><p>Go to <a class="reference external" href="https://console.developers.google.com/iam-admin/projects">APIs Console</a> and make your own project.</p></li>
-<li><p>Search for ‘Google Drive API’, select the entry, and click ‘Enable’.</p></li>
-<li><p>Select ‘Credentials’ from the left menu, click ‘Create Credentials’, select
-‘OAuth client ID’.</p></li>
-<li><p>Now, the product name and consent screen need to be set -&gt; click ‘Configure
-consent screen’ and follow the instructions. Once finished:</p>
-<ol class="loweralpha simple">
-<li><p>Select ‘Application type’ to be <em>Web application</em>.</p></li>
-<li><p>Enter an appropriate name.</p></li>
-<li><p>Input <em>http://localhost:8080/</em> for ‘Authorized redirect URIs’.</p></li>
-<li><p>Click ‘Create’.</p></li>
+<li><p>Enable the Google Drive API in your Google Cloud project and configure
+the OAuth consent screen. If the app is in testing, add the account
+you will use as a test user.</p></li>
+<li><p>Create an OAuth client ID with application type <strong>Desktop app</strong> and
+download its JSON configuration. Google’s <a class="reference external" href="https://developers.google.com/workspace/drive/api/quickstart/python">Drive quickstart</a> walks
+through the console setup.</p></li>
+<li><p>Save the downloaded file as <code class="docutils literal notranslate"><span class="pre">client_secrets.json</span></code> in your working
+directory. Run the following Python code and sign in when the browser
+opens. PyDrive2 receives the authorization code on a local callback.</p></li>
 </ol>
-</li>
-<li><p>Click ‘Download JSON’ on the right side of Client ID to download
-<strong>client_secret_&lt;really long ID&gt;.json</strong>.</p></li>
-</ol>
-<p>The downloaded file has all authentication information of your application.
-<strong>Rename the file to “client_secrets.json” and place it in your working
-directory.</strong></p>
-<p>Create <em>quickstart.py</em> file and copy and paste the following code.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAuth</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 
 <span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">()</span>
-<span class="c1"># Creates local webserver and auto handles authentication.</span>
 <span class="n">gauth</span><span class="o">.</span><span class="n">LocalWebserverAuth</span><span class="p">()</span>
+<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Run this code with <em>python quickstart.py</em> and you will see a web browser asking
-you for authentication. Click <em>Accept</em> and you are done with authentication.
-For more details, take a look at documentation: <a class="reference external" href="/PyDrive2/oauth/">OAuth made easy</a></p>
+<p>The examples below use this <code class="docutils literal notranslate"><span class="pre">drive</span></code> object. To save credentials across
+runs or use a service account, see <a class="reference internal" href="../oauth/"><span class="doc">Authentication</span></a>.</p>
 </section>
 <section id="creating-and-updating-files">
 <h2>Creating and Updating Files<a class="headerlink" href="#creating-and-updating-files" title="Link to this heading">¶</a></h2>
-<p>There are many methods to create and update file metadata and contents. With
-<em>PyDrive2</em>, all you have to know is <a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile.Upload">Upload()</a> method which makes optimal API
-call for you. Add the following code to your <em>quickstart.py</em> and run it.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
+<p>Create a local file object, set its content, and call
+<a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile.Upload" title="pydrive2.files.GoogleDriveFile.Upload"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Upload()</span></code></a> to create the file on Drive.
+Call the same method to save later changes to the file.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">note</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Hello.txt"</span><span class="p">})</span>
+<span class="n">note</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s2">"Hello World!"</span><span class="p">)</span>
+<span class="n">note</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">note</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
 
-<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
-
-<span class="c1"># Create GoogleDriveFile instance with name 'Hello.txt'.</span>
-<span class="n">file1</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span><span class="s1">'name'</span><span class="p">:</span> <span class="s1">'Hello.txt'</span><span class="p">})</span>
-<span class="c1"># Set content of the file from given string.</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">SetContentString</span><span class="p">(</span><span class="s1">'Hello World!'</span><span class="p">)</span>
-<span class="n">file1</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+<span class="n">note</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"Greetings.txt"</span>
+<span class="n">note</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>This code will create a new file with name <em>Hello.txt</em> and its content <em>Hello
-World!</em>. You can see and open this file from <a class="reference external" href="https://drive.google.com">Google Drive</a> if you want. For
-more details, take a look at documentation: <a class="reference external" href="/PyDrive2/filemanagement/">File management made easy</a></p>
 </section>
 <section id="listing-files">
 <h2>Listing Files<a class="headerlink" href="#listing-files" title="Link to this heading">¶</a></h2>
-<p><em>PyDrive2</em> handles paginations and parses response as list of
-<a class="reference external" href="/PyDrive2/pydrive2/#pydrive2.files.GoogleDriveFile">GoogleDriveFile</a>. Let’s get name and id of all the files in the root folder
-of Google Drive. Again, add the following code to <em>quickstart.py</em> and execute
-it.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Auto-iterate through all files that matches this query</span>
-<span class="n">file_list</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">(</span>
-    <span class="p">{</span><span class="s1">'q'</span><span class="p">:</span> <span class="s2">"'root' in parents and trashed=false"</span><span class="p">}</span>
-<span class="p">)</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
-<span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s1">'name: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'name'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
+<p>List the entries in My Drive’s root folder, excluding trashed items.
+<a class="reference internal" href="../pydrive2/#pydrive2.apiattr.ApiResourceList.GetList" title="pydrive2.apiattr.ApiResourceList.GetList"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GetList()</span></code></a> collects all matching
+pages when the query omits <code class="docutils literal notranslate"><span class="pre">pageSize</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">entries</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s2">"q"</span><span class="p">:</span> <span class="s2">"'root' in parents and trashed=false"</span><span class="p">})</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
+<span class="k">for</span> <span class="n">entry</span> <span class="ow">in</span> <span class="n">entries</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span> <span class="n">entry</span><span class="p">[</span><span class="s2">"id"</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>
 <section id="creating-a-folder">
 <h2>Creating a Folder<a class="headerlink" href="#creating-a-folder" title="Link to this heading">¶</a></h2>
-<p>GoogleDrive treats everything as a file and assigns different mimetypes for
-different file formats. A folder is thus also a file with a special mimetype.
-The code below allows you to add a subfolder to an existing folder.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">create_folder</span><span class="p">(</span><span class="n">parent_folder_id</span><span class="p">,</span> <span class="n">subfolder_name</span><span class="p">):</span>
-    <span class="n">newFolder</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span>
-        <span class="s1">'name'</span><span class="p">:</span> <span class="n">subfolder_name</span><span class="p">,</span>
-        <span class="s2">"parents"</span><span class="p">:</span> <span class="p">[</span><span class="n">parent_folder_id</span><span class="p">],</span>
-        <span class="s2">"mimeType"</span><span class="p">:</span> <span class="s2">"application/vnd.google-apps.folder"</span><span class="p">,</span>
-    <span class="p">})</span>
-    <span class="n">newFolder</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">newFolder</span>
+<p>A folder has the Drive folder MIME type. Set <code class="docutils literal notranslate"><span class="pre">parents</span></code> to a list
+containing the destination folder ID. Use <code class="docutils literal notranslate"><span class="pre">root</span></code> for My Drive.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">folder</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">CreateFile</span><span class="p">({</span>
+    <span class="s2">"name"</span><span class="p">:</span> <span class="s2">"Reports"</span><span class="p">,</span>
+    <span class="s2">"mimeType"</span><span class="p">:</span> <span class="s2">"application/vnd.google-apps.folder"</span><span class="p">,</span>
+    <span class="s2">"parents"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"root"</span><span class="p">],</span>
+<span class="p">})</span>
+<span class="n">folder</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
+
+<span class="n">note</span><span class="p">[</span><span class="s2">"parents"</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">folder</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]]</span>
+<span class="n">note</span><span class="o">.</span><span class="n">Upload</span><span class="p">()</span>
 </pre></div>
 </div>
 </section>
 <section id="return-file-id-via-file-name">
 <h2>Return File ID via File Name<a class="headerlink" href="#return-file-id-via-file-name" title="Link to this heading">¶</a></h2>
-<p>A common task is providing the Google Drive API with a file id.
-<code class="docutils literal notranslate"><span class="pre">get_id_of_name</span></code> demonstrates a simple workflow to return the id of a file
-handle by searching the file names in a given directory. The function takes
-two arguments, <code class="docutils literal notranslate"><span class="pre">name</span></code> and <code class="docutils literal notranslate"><span class="pre">parent_directory_id</span></code>. <code class="docutils literal notranslate"><span class="pre">name</span></code> is a string
-that will be compared against file names included in a directory identified by
-the <code class="docutils literal notranslate"><span class="pre">parent_directory_id</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">get_id_of_name</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">parent_directory_id</span><span class="p">):</span>
-    <span class="n">foldered_list</span> <span class="o">=</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span>
-        <span class="s1">'q'</span><span class="p">:</span> <span class="s2">"'"</span> <span class="o">+</span> <span class="n">parent_directory_id</span> <span class="o">+</span> <span class="s2">"' in parents and trashed=false"</span>
-    <span class="p">})</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
-    <span class="k">for</span> <span class="n">file</span> <span class="ow">in</span> <span class="n">foldered_list</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">file</span><span class="p">[</span><span class="s1">'name'</span><span class="p">]</span> <span class="o">==</span> <span class="n">name</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">file</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]</span>
-    <span class="k">return</span> <span class="kc">None</span>
+<p>Drive allows multiple entries with the same name. To find every matching
+ID, list the parent folder and compare names.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">ids_for_name</span><span class="p">(</span><span class="n">parent_id</span><span class="p">,</span> <span class="n">name</span><span class="p">):</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"q"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"'</span><span class="si">{</span><span class="n">parent_id</span><span class="si">}</span><span class="s2">' in parents and trashed=false"</span><span class="p">}</span>
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="n">item</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">(</span><span class="n">query</span><span class="p">)</span><span class="o">.</span><span class="n">GetList</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">item</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span> <span class="o">==</span> <span class="n">name</span>
+    <span class="p">]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">ids_for_name</span><span class="p">(</span><span class="n">folder</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span> <span class="s2">"Greetings.txt"</span><span class="p">))</span>
 </pre></div>
 </div>
 </section>
 <section id="browse-folders">
 <h2>Browse Folders<a class="headerlink" href="#browse-folders" title="Link to this heading">¶</a></h2>
-<p>This returns a json output of the data in a directory with some important
-attributes like size, name, parent_id.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">browsed</span> <span class="o">=</span> <span class="p">[]</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">folder_browser</span><span class="p">(</span><span class="n">folder_list</span><span class="p">,</span> <span class="n">parent_id</span><span class="p">):</span>
-    <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">folder_list</span><span class="p">:</span>
-        <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">element</span><span class="p">[</span><span class="s1">'name'</span><span class="p">])</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">element</span><span class="p">)</span>
-    <span class="nb">print</span><span class="p">(</span>
-        <span class="s2">"Enter Name of Folder You Want to Use</span><span class="se">\n</span><span class="s2">"</span>
-        <span class="s2">"Enter '/' to use current folder</span><span class="se">\n</span><span class="s2">"</span>
-        <span class="s2">"Enter ':' to create New Folder and use that"</span>
-    <span class="p">)</span>
-    <span class="n">inp</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span>
-    <span class="k">if</span> <span class="n">inp</span> <span class="o">==</span> <span class="s1">'/'</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">parent_id</span>
-    <span class="k">elif</span> <span class="n">inp</span> <span class="o">==</span> <span class="s1">':'</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="s2">"Enter Name of Folder You Want to Create"</span><span class="p">)</span>
-        <span class="n">inp</span> <span class="o">=</span> <span class="nb">input</span><span class="p">()</span>
-        <span class="n">newfolder</span> <span class="o">=</span> <span class="n">create_folder</span><span class="p">(</span><span class="n">parent_id</span><span class="p">,</span> <span class="n">inp</span><span class="p">)</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span>
-            <span class="n">HOME_DIRECTORY</span> <span class="o">+</span> <span class="n">ROOT_FOLDER_NAME</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">USERNAME</span>
-        <span class="p">):</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span>
-                <span class="n">HOME_DIRECTORY</span> <span class="o">+</span> <span class="n">ROOT_FOLDER_NAME</span> <span class="o">+</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">sep</span> <span class="o">+</span> <span class="n">USERNAME</span>
-            <span class="p">)</span>
-        <span class="k">return</span> <span class="n">newfolder</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">folder_selected</span> <span class="o">=</span> <span class="n">inp</span>
-        <span class="k">for</span> <span class="n">element</span> <span class="ow">in</span> <span class="n">folder_list</span><span class="p">:</span>
-            <span class="k">if</span> <span class="nb">type</span><span class="p">(</span><span class="n">element</span><span class="p">)</span> <span class="ow">is</span> <span class="nb">dict</span><span class="p">:</span>
-                <span class="k">if</span> <span class="n">element</span><span class="p">[</span><span class="s2">"name"</span><span class="p">]</span> <span class="o">==</span> <span class="n">folder_selected</span><span class="p">:</span>
-                    <span class="n">struc</span> <span class="o">=</span> <span class="n">element</span><span class="p">[</span><span class="s2">"list"</span><span class="p">]</span>
-                    <span class="n">browsed</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">folder_selected</span><span class="p">)</span>
-                    <span class="nb">print</span><span class="p">(</span><span class="s2">"Inside "</span> <span class="o">+</span> <span class="n">folder_selected</span><span class="p">)</span>
-                    <span class="k">return</span> <span class="n">folder_browser</span><span class="p">(</span><span class="n">struc</span><span class="p">,</span> <span class="n">element</span><span class="p">[</span><span class="s1">'id'</span><span class="p">])</span>
+<p>To browse a folder one page at a time, use its ID in a parent query. A
+folder entry’s ID can be used as the parent for the next listing.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">parent_id</span> <span class="o">=</span> <span class="n">folder</span><span class="p">[</span><span class="s2">"id"</span><span class="p">]</span>
+<span class="k">for</span> <span class="n">page</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s2">"q"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"'</span><span class="si">{</span><span class="n">parent_id</span><span class="si">}</span><span class="s2">' in parents and trashed=false"</span><span class="p">}):</span>
+    <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">page</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">item</span><span class="p">[</span><span class="s2">"id"</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s2">"name"</span><span class="p">],</span> <span class="n">item</span><span class="p">[</span><span class="s2">"mimeType"</span><span class="p">])</span>
 </pre></div>
 </div>
-<p>here <code class="docutils literal notranslate"><span class="pre">folder_list</span></code> is the list of folders that is present</p>
-<p>You will see name and id of all the files and folders in root folder of your
-Google Drive. For more details, refer to the documentation:
-<a class="reference external" href="/PyDrive2/filelist/">File listing made easy</a></p>
+<p>See <a class="reference internal" href="../filemanagement/"><span class="doc">File management made easy</span></a> for downloads and permissions, and <a class="reference internal" href="../filelist/"><span class="doc">File listing made easy</span></a>
+for pagination and field selection.</p>
 </section>
 </section>
 
@@ -403,7 +344,7 @@ Google Drive. For more details, refer to the documentation:
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">OAuth made easy</div>
+                <div class="title">Authentication</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -466,7 +407,7 @@ Google Drive. For more details, refer to the documentation:
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=947f95a7"></script>
+</div><script src="../_static/documentation_options.js?v=813c3733"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

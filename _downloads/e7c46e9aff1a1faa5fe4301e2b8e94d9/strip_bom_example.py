@@ -19,40 +19,24 @@ file2 = drive.CreateFile({"id": file1["id"]})
 
 # Print content before download.
 print("Original text:")
-print(bytes(original_file_content.encode("unicode-escape")))
+print(repr(original_file_content))
 print(f"Number of chars: {len(original_file_content)}")
 print()
-#     Original text:
-#     Generic, non-exhaustive\n ASCII test string.
-#     Number of chars: 43
-
 
 # Download document as text file WITH the BOM and print the contents.
 content_with_bom = file2.GetContentString(mimetype="text/plain")
 print("Content with BOM:")
-print(bytes(content_with_bom.encode("unicode-escape")))
+print(repr(content_with_bom))
 print(f"Number of chars: {len(content_with_bom)}")
 print()
-#     Content with BOM:
-#     \ufeffGeneric, non-exhaustive\r\n ASCII test string.
-#     Number of chars: 45
-
 
 # Download document as text file WITHOUT the BOM and print the contents.
 content_without_bom = file2.GetContentString(
     mimetype="text/plain", remove_bom=True
 )
 print("Content without BOM:")
-print(bytes(content_without_bom.encode("unicode-escape")))
+print(repr(content_without_bom))
 print(f"Number of chars: {len(content_without_bom)}")
-print()
-#     Content without BOM:
-#     Generic, non-exhaustive\r\n ASCII test string.
-#     Number of chars: 44
 
-# *NOTE*: When downloading a Google Drive document as text file, line-endings
-# are converted to the Windows-style: \r\n.
-
-
-# Delete the file as necessary.
+# Remove the document created for this example.
 file1.Delete()

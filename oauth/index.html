@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="File management made easy" href="../filemanagement/"><link rel="prev" title="Quickstart" href="../quickstart/">
 
     <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
-        <title>OAuth made easy - PyDrive2 1.19.0 documentation</title>
+        <title>Authentication - PyDrive2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../"><div class="brand">PyDrive2 1.19.0 documentation</div></a>
+      <a href="../"><div class="brand">PyDrive2 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
   
-  <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
+  <span class="sidebar-brand-text">PyDrive2 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search/" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -192,12 +192,12 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">OAuth made easy</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Authentication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filemanagement/">File management made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filelist/">File listing made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../fsspec/">fsspec filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">pydrive2 package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../genindex/">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../upgrading/">Upgrade to PyDrive2 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">Python API reference</a></li>
 </ul>
 
 </div>
@@ -236,289 +236,135 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="oauth-made-easy">
-<h1>OAuth made easy<a class="headerlink" href="#oauth-made-easy" title="Link to this heading">¶</a></h1>
-<section id="authentication-in-two-lines">
-<h2>Authentication in two lines<a class="headerlink" href="#authentication-in-two-lines" title="Link to this heading">¶</a></h2>
-<p>OAuth2.0 is complex and difficult to start with. To make it more simple,
-<em>PyDrive2</em> makes all authentication into just two lines.</p>
+          <section id="authentication">
+<span id="oauth-made-easy"></span><h1>Authentication<a class="headerlink" href="#authentication" title="Link to this heading">¶</a></h1>
+<section id="sign-in-from-a-local-application">
+<span id="authentication-in-two-lines"></span><h2>Sign in from a local application<a class="headerlink" href="#sign-in-from-a-local-application" title="Link to this heading">¶</a></h2>
+<p>Follow <a class="reference internal" href="../quickstart/"><span class="doc">Quickstart</span></a> to create a desktop OAuth client and download its
+configuration as <code class="docutils literal notranslate"><span class="pre">client_secrets.json</span></code>. PyDrive2 uses google-auth to
+authorize requests to Drive.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAuth</span>
 
 <span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">()</span>
-<span class="c1"># Create local webserver and auto handles authentication.</span>
 <span class="n">gauth</span><span class="o">.</span><span class="n">LocalWebserverAuth</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>The <a class="reference internal" href="../quickstart/"><span class="doc">Quickstart</span></a> registers <code class="docutils literal notranslate"><span class="pre">http://localhost:8080/</span></code> as the redirect
-URI for a web application client. With that client, use
-<a class="reference internal" href="../pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth" title="pydrive2.auth.GoogleAuth.LocalWebserverAuth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">LocalWebserverAuth()</span></code></a> and keep port 8080
-available to receive the authorization code.</p>
-<p>To open the login URL yourself, call
+<p><a class="reference internal" href="../pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth" title="pydrive2.auth.GoogleAuth.LocalWebserverAuth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">LocalWebserverAuth()</span></code></a> opens the browser and
+listens on localhost, trying port 8080 and then 8090 by default. If you use
+a web application client, register the exact callback URI, such as
+<code class="docutils literal notranslate"><span class="pre">http://localhost:8080/</span></code>, and pass <code class="docutils literal notranslate"><span class="pre">port_numbers=[8080]</span></code>.</p>
+<p>To open the sign-in URL yourself, call
 <code class="docutils literal notranslate"><span class="pre">gauth.LocalWebserverAuth(launch_browser=False)</span></code> or
-<a class="reference internal" href="../pydrive2/#pydrive2.auth.GoogleAuth.CommandLineAuth" title="pydrive2.auth.GoogleAuth.CommandLineAuth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CommandLineAuth()</span></code></a>. Both print the URL
-and wait for the same local callback. Open the URL in a browser that can
-reach the callback port on the machine running PyDrive2. For unattended
-jobs, use a service account or saved user credentials with a refresh token.</p>
+<a class="reference internal" href="../pydrive2/#pydrive2.auth.GoogleAuth.CommandLineAuth" title="pydrive2.auth.GoogleAuth.CommandLineAuth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">CommandLineAuth()</span></code></a>. Both print the URL and
+wait for the same local callback. The browser must be able to reach the
+callback on the machine running PyDrive2. Unattended jobs can use a saved
+refresh token or a service account.</p>
 </section>
-<section id="automatic-and-custom-authentication-with-settings-yaml">
-<h2>Automatic and custom authentication with <em>settings.yaml</em><a class="headerlink" href="#automatic-and-custom-authentication-with-settings-yaml" title="Link to this heading">¶</a></h2>
-<p>Read this section if you need a custom authentication flow, <strong>such as silent
-authentication on a remote machine</strong>. For an example of such a setup have a
-look at <a class="reference internal" href="#sample-settings-yaml">Sample settings.yaml</a>.</p>
-<p>OAuth is complicated and it requires a lot of settings. By default,
-when you don’t provide any settings, <em>PyDrive</em> will automatically set default
-values which works for most of the cases. Here are some default settings.</p>
-<ul class="simple">
-<li><p>Read client configuration from file <em>client_secrets.json</em></p></li>
-<li><p>OAuth scope: <code class="code docutils literal notranslate"><span class="pre">https://www.googleapis.com/auth/drive</span></code></p></li>
-<li><p>Don’t save credentials</p></li>
-<li><p>Don’t retrieve refresh token</p></li>
-</ul>
-<p>However, you might want to customize these settings while maintaining two lines
-of clean code. If that is the case, you can make <em>settings.yaml</em> file in your
-working directory and <em>PyDrive</em> will read it to customize authentication
-behavior.</p>
-<p>These are all the possible fields of a <em>settings.yaml</em> file:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">client_config_backend</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-<span class="n">client_config_file</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-<span class="n">client_config</span><span class="p">:</span>
-  <span class="n">client_id</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-  <span class="n">client_secret</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-  <span class="n">auth_uri</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-  <span class="n">token_uri</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-  <span class="n">redirect_uri</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-  <span class="n">revoke_uri</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-
-<span class="n">service_config</span><span class="p">:</span>
-  <span class="n">client_user_email</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-  <span class="n">client_json_file_path</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-  <span class="n">client_json_dict</span><span class="p">:</span> <span class="p">{{</span><span class="nb">dict</span><span class="p">}}</span>
-  <span class="n">client_json</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-
-<span class="n">save_credentials</span><span class="p">:</span> <span class="p">{{</span><span class="nb">bool</span><span class="p">}}</span>
-<span class="n">save_credentials_backend</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-<span class="n">save_credentials_file</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-<span class="n">save_credentials_dict</span><span class="p">:</span> <span class="p">{{</span><span class="nb">dict</span><span class="p">}}</span>
-<span class="n">save_credentials_key</span><span class="p">:</span> <span class="p">{{</span><span class="nb">str</span><span class="p">}}</span>
-
-<span class="n">get_refresh_token</span><span class="p">:</span> <span class="p">{{</span><span class="nb">bool</span><span class="p">}}</span>
-
-<span class="n">oauth_scope</span><span class="p">:</span> <span class="p">{{</span><span class="nb">list</span> <span class="n">of</span> <span class="nb">str</span><span class="p">}}</span>
+<section id="save-credentials-across-runs">
+<span id="sample-settings-yaml"></span><span id="automatic-and-custom-authentication-with-settings-yaml"></span><h2>Save credentials across runs<a class="headerlink" href="#save-credentials-across-runs" title="Link to this heading">¶</a></h2>
+<p>By default, <code class="docutils literal notranslate"><span class="pre">GoogleAuth()</span></code> reads client configuration from
+<code class="docutils literal notranslate"><span class="pre">client_secrets.json</span></code>, requests the Drive scope, and keeps the access token
+in memory. To reuse a login, create <code class="docutils literal notranslate"><span class="pre">settings.yaml</span></code> in your working
+directory and sign in once.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">client_config_backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">file</span>
+<span class="nt">client_config_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">client_secrets.json</span>
+<span class="nt">save_credentials</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="nt">save_credentials_backend</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">file</span>
+<span class="nt">save_credentials_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">credentials.json</span>
+<span class="nt">get_refresh_token</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
-<p>Fields explained:</p>
-<dl class="field-list simple">
-<dt class="field-odd">client_config_backend (str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>From where to read client configuration(API application settings such as
-client_id and client_secrets) from. Valid values are ‘file’, ‘settings’ and
-‘service’.
-<strong>Default</strong>: ‘file’.
-<strong>Required</strong>: No.</p>
+<p>The client configuration identifies your OAuth application. The separate
+<code class="docutils literal notranslate"><span class="pre">credentials.json</span></code> file contains the user’s tokens. Give the application a
+writable cache directory so it can lock and atomically replace the token
+file on refresh. In containers, mount the directory. For an existing cache
+from an earlier release, see <a class="reference internal" href="../upgrading/"><span class="doc">Upgrade to PyDrive2 2.0</span></a>.</p>
+</section>
+<section id="settings-reference">
+<h2>Settings reference<a class="headerlink" href="#settings-reference" title="Link to this heading">¶</a></h2>
+<p>Pass a settings file path as <code class="docutils literal notranslate"><span class="pre">GoogleAuth(settings_file=&quot;path/to/settings.yaml&quot;)</span></code>
+or supply a Python dictionary with <code class="docutils literal notranslate"><span class="pre">GoogleAuth(settings=settings)</span></code>.</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">client_config_backend</span></code></dt><dd><p>Use <code class="docutils literal notranslate"><span class="pre">file</span></code> (the default) to read <code class="docutils literal notranslate"><span class="pre">client_config_file</span></code>,
+<code class="docutils literal notranslate"><span class="pre">settings</span></code> to supply a <code class="docutils literal notranslate"><span class="pre">client_config</span></code> dictionary, or <code class="docutils literal notranslate"><span class="pre">service</span></code>
+with <code class="docutils literal notranslate"><span class="pre">service_config</span></code> for a service account.</p>
 </dd>
-<dt class="field-even">client_config_file (str)<span class="colon">:</span></dt>
-<dd class="field-even"><p>When <em>client_config_backend</em> is ‘file’, path to the file containing client
-configuration.
-<strong>Default</strong>: ‘client_secrets.json’.
-<strong>Required</strong>: No.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">client_config</span></code></dt><dd><p>For the <code class="docutils literal notranslate"><span class="pre">settings</span></code> backend, provide <code class="docutils literal notranslate"><span class="pre">client_id</span></code> and <code class="docutils literal notranslate"><span class="pre">client_secret</span></code>.
+PyDrive2 supplies Google’s <code class="docutils literal notranslate"><span class="pre">auth_uri</span></code> and <code class="docutils literal notranslate"><span class="pre">token_uri</span></code> and defaults
+<code class="docutils literal notranslate"><span class="pre">redirect_uri</span></code> to <code class="docutils literal notranslate"><span class="pre">http://localhost</span></code>. For a web callback, set
+<code class="docutils literal notranslate"><span class="pre">redirect_uri</span></code> to the URI registered for the client. The optional
+<code class="docutils literal notranslate"><span class="pre">revoke_uri</span></code> field defaults to null.</p>
 </dd>
-<dt class="field-odd">client_config (dict)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Place holding dictionary for client configuration when
-<em>client_config_backend</em> is ‘settings’.
-<strong>Required</strong>: Yes, only if <em>client_config_backend</em> is ‘settings’ and not
-using <em>service_config</em></p>
+<dt><code class="docutils literal notranslate"><span class="pre">oauth_scope</span></code></dt><dd><p>A list of OAuth scope URLs. The default is
+<code class="docutils literal notranslate"><span class="pre">https://www.googleapis.com/auth/drive</span></code>. Choose scopes that grant
+access to the files your application needs.</p>
 </dd>
-<dt class="field-even">client_config[‘client_id’] (str)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Client ID of the application.
-<strong>Required</strong>: Yes, only if <em>client_config_backend</em> is ‘settings’</p>
+<dt><code class="docutils literal notranslate"><span class="pre">save_credentials</span></code> and <code class="docutils literal notranslate"><span class="pre">get_refresh_token</span></code></dt><dd><p>Both default to false. Enable both to save the login and request
+offline access. Credentials loaded from a cache are written back to
+that cache when refreshed.</p>
 </dd>
-<dt class="field-odd">client_config[‘client_secret’] (str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Client secret of the application.
-<strong>Required</strong>: Yes, only if <em>client_config_backend</em> is ‘settings’</p>
+<dt><code class="docutils literal notranslate"><span class="pre">save_credentials_backend</span></code></dt><dd><p>When saving credentials, select <code class="docutils literal notranslate"><span class="pre">file</span></code> with <code class="docutils literal notranslate"><span class="pre">save_credentials_file</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">dictionary</span></code> with <code class="docutils literal notranslate"><span class="pre">save_credentials_dict</span></code> and
+<code class="docutils literal notranslate"><span class="pre">save_credentials_key</span></code>. To access the updated value in your program,
+pass the actual dictionary to <code class="docutils literal notranslate"><span class="pre">GoogleAuth(settings=...)</span></code>.</p>
 </dd>
-<dt class="field-even">client_config[‘auth_uri’] (str)<span class="colon">:</span></dt>
-<dd class="field-even"><p>The authorization server endpoint URI.
-<strong>Default</strong>: <code class="docutils literal notranslate"><span class="pre">https://accounts.google.com/o/oauth2/auth</span></code>.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-odd">client_config[‘token_uri’] (str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>The token server endpoint URI.
-<strong>Default</strong>: <code class="docutils literal notranslate"><span class="pre">https://accounts.google.com/o/oauth2/token</span></code>.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-even">client_config[‘redirect_uri’] (str)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Redirection endpoint URI.
-<strong>Default</strong>: <code class="docutils literal notranslate"><span class="pre">http://localhost</span></code>.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-odd">client_config[‘revoke_uri’] (str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Revoke endpoint URI.
-<strong>Default</strong>: None.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-even">service_config (dict)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Place holding dictionary for client configuration when
-<em>client_config_backend</em> is ‘service’ or ‘settings’ and using service
-account.
-<strong>Required</strong>: Yes, only if <em>client_config_backend</em> is ‘service’ or
-‘settings’ and not using <em>client_config</em></p>
-</dd>
-<dt class="field-odd">service_config[‘client_user_email’] (str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Email address of the user the service account acts as through
-<a class="reference external" href="https://developers.google.com/workspace/guides/create-credentials#set-up-domain-wide-delegation">domain-wide delegation</a>.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-even">service_config[‘client_json_file_path’] (str)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Path to service account <cite>.json</cite> key file.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-odd">service_config[‘client_json_dict’] (dict)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Service account <cite>.json</cite> key file loaded into a dictionary.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-even">service_config[‘client_json’] (str)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Service account <cite>.json</cite> key file loaded into a string.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-odd">save_credentials (bool)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Save OAuth user credentials after signing in. A fresh login stays in
-memory when this setting is false. When you load saved credentials,
-PyDrive2 writes refreshed tokens back to the same file or dictionary key.
-<strong>Default</strong>: False.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-even">save_credentials_backend (str)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Backend to save credentials to. ‘file’ and ‘dictionary’ are the only valid
-values for now.
-<strong>Default</strong>: ‘file’.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-odd">save_credentials_file (str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Destination of the credentials file. Give the application a writable
-directory for the lock and atomic file replacement. In containers, mount
-the cache directory so the file can be replaced on refresh.
-<strong>Required</strong>: Yes, only if <em>save_credentials_backend</em> is ‘file’.</p>
-</dd>
-<dt class="field-even">save_credentials_dict (dict)<span class="colon">:</span></dt>
-<dd class="field-even"><p>Dict to use for storing credentials.
-<strong>Required</strong>: Yes, only if <em>save_credentials_backend</em> is ‘dictionary’.</p>
-</dd>
-<dt class="field-odd">save_credentials_key (str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Key within the <em>save_credentials_dict</em> to store the credentials in.
-<strong>Required</strong>: Yes, only if <em>save_credentials_backend</em> is ‘dictionary’.</p>
-</dd>
-<dt class="field-even">get_refresh_token (bool)<span class="colon">:</span></dt>
-<dd class="field-even"><p>True if you want to retrieve refresh token along with access token.
-<strong>Default</strong>: False.
-<strong>Required</strong>: No.</p>
-</dd>
-<dt class="field-odd">oauth_scope (list of str)<span class="colon">:</span></dt>
-<dd class="field-odd"><p>OAuth scopes to request.
-<strong>Default</strong>: <code class="docutils literal notranslate"><span class="pre">['https://www.googleapis.com/auth/drive']</span></code>.
-<strong>Required</strong>: No.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">service_config</span></code></dt><dd><p>Supply the JSON signing key as a path (<code class="docutils literal notranslate"><span class="pre">client_json_file_path</span></code>),
+dictionary (<code class="docutils literal notranslate"><span class="pre">client_json_dict</span></code>), or JSON string (<code class="docutils literal notranslate"><span class="pre">client_json</span></code>).
+For a PKCS12 key, specify both <code class="docutils literal notranslate"><span class="pre">client_pkcs12_file_path</span></code> and
+<code class="docutils literal notranslate"><span class="pre">client_service_email</span></code>. For domain-wide delegation, set
+<code class="docutils literal notranslate"><span class="pre">client_user_email</span></code> to the user the account should act as.</p>
 </dd>
 </dl>
-<section id="upgrading-from-pydrive2-1-x">
-<h3>Upgrading from PyDrive2 1.x<a class="headerlink" href="#upgrading-from-pydrive2-1-x" title="Link to this heading">¶</a></h3>
-<p>Sign in once with PyDrive2 2.x to create new OAuth user credentials. Keep
-your existing OAuth client ID and client secret. If you configured a cache,
-choose a new <code class="docutils literal notranslate"><span class="pre">save_credentials_file</span></code> or <code class="docutils literal notranslate"><span class="pre">save_credentials_key</span></code> before
-signing in. For unattended jobs, set <code class="docutils literal notranslate"><span class="pre">get_refresh_token:</span> <span class="pre">True</span></code> during
-sign-in and provision the newly saved credentials before upgrading the job.</p>
-<p>Service accounts authenticate directly with their configured JSON or PKCS12
-key. Keep that key available to the application. If your deployment relied
-solely on a saved 1.x service-account cache, provision its signing key.</p>
-</section>
-<section id="sample-settings-yaml">
-<h3>Sample <em>settings.yaml</em><a class="headerlink" href="#sample-settings-yaml" title="Link to this heading">¶</a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">client_config_backend</span><span class="p">:</span> <span class="n">settings</span>
-<span class="n">client_config</span><span class="p">:</span>
-  <span class="n">client_id</span><span class="p">:</span> <span class="mf">9637341109347.</span><span class="n">apps</span><span class="o">.</span><span class="n">googleusercontent</span><span class="o">.</span><span class="n">com</span>
-  <span class="n">client_secret</span><span class="p">:</span> <span class="n">psDskOoWr1P602PXRTHi</span>
-
-<span class="n">save_credentials</span><span class="p">:</span> <span class="kc">True</span>
-<span class="n">save_credentials_backend</span><span class="p">:</span> <span class="n">file</span>
-<span class="n">save_credentials_file</span><span class="p">:</span> <span class="n">credentials</span><span class="o">.</span><span class="n">json</span>
-
-<span class="n">get_refresh_token</span><span class="p">:</span> <span class="kc">True</span>
-
-<span class="n">oauth_scope</span><span class="p">:</span>
-  <span class="o">-</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">www</span><span class="o">.</span><span class="n">googleapis</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">auth</span><span class="o">/</span><span class="n">drive</span><span class="o">.</span><span class="n">file</span>
-  <span class="o">-</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">www</span><span class="o">.</span><span class="n">googleapis</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">auth</span><span class="o">/</span><span class="n">drive</span><span class="o">.</span><span class="n">install</span>
-  <span class="o">-</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">www</span><span class="o">.</span><span class="n">googleapis</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">auth</span><span class="o">/</span><span class="n">drive</span><span class="o">.</span><span class="n">metadata</span>
-</pre></div>
-</div>
-</section>
 </section>
 <section id="building-your-own-authentication-flow">
 <h2>Building your own authentication flow<a class="headerlink" href="#building-your-own-authentication-flow" title="Link to this heading">¶</a></h2>
-<p>You might want to build your own authentication flow. For example, you might
-want to integrate your existing website with Drive API. In that case, you can
-customize an authentication flow as follows:</p>
-<ol class="arabic simple">
-<li><p>Get the authorization URL from <a class="reference internal" href="../pydrive2/#pydrive2.auth.GoogleAuth.GetAuthUrl" title="pydrive2.auth.GoogleAuth.GetAuthUrl"><code class="xref py py-meth docutils literal notranslate"><span class="pre">GetAuthUrl()</span></code></a>.</p></li>
-<li><p>Direct the user to the authorization URL. Receive the authorization code at
-the redirect URI registered for your application and verify the OAuth state
-in the callback.</p></li>
-<li><p>Pass the authorization code to <a class="reference internal" href="../pydrive2/#pydrive2.auth.GoogleAuth.Auth" title="pydrive2.auth.GoogleAuth.Auth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Auth()</span></code></a> on
-the same instance. Keep the flow for each login until the callback so the
-exchange uses its original PKCE verifier. If a separate worker handles
-the callback, retain the state and verifier in the user’s server-side
-session and restore the verifier on the flow before exchanging the code.</p></li>
-</ol>
-<p>Your <em>settings.yaml</em> will work for your customized authentication flow, too.</p>
-<p>Here is a sample code for your customized authentication flow</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAuth</span>
+<p>For an application with its own web callback, configure a web OAuth client
+and its registered redirect URI. Start a separate authorization flow per
+login and keep the <code class="docutils literal notranslate"><span class="pre">GoogleAuth</span></code> instance and expected state in that user’s
+server-side session until the callback. The flow holds the PKCE verifier
+needed for the token exchange.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">secrets</span><span class="w"> </span><span class="kn">import</span> <span class="n">compare_digest</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">urllib.parse</span><span class="w"> </span><span class="kn">import</span> <span class="n">parse_qs</span><span class="p">,</span> <span class="n">urlsplit</span>
 
-<span class="c1"># Configure your registered redirect URI in settings.yaml</span>
-<span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">()</span>
-<span class="c1"># Create authentication url user needs to visit</span>
-<span class="n">auth_url</span> <span class="o">=</span> <span class="n">gauth</span><span class="o">.</span><span class="n">GetAuthUrl</span><span class="p">()</span>
-<span class="c1"># Your application handles the redirect</span>
-<span class="n">code</span> <span class="o">=</span> <span class="n">ReceiveVerifiedCallback</span><span class="p">(</span><span class="n">auth_url</span><span class="p">)</span>
-<span class="n">gauth</span><span class="o">.</span><span class="n">Auth</span><span class="p">(</span><span class="n">code</span><span class="p">)</span> <span class="c1"># Authorize and build service from the code</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">start_login</span><span class="p">():</span>
+    <span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">()</span>
+    <span class="n">url</span> <span class="o">=</span> <span class="n">gauth</span><span class="o">.</span><span class="n">GetAuthUrl</span><span class="p">()</span>
+    <span class="n">state</span> <span class="o">=</span> <span class="n">parse_qs</span><span class="p">(</span><span class="n">urlsplit</span><span class="p">(</span><span class="n">url</span><span class="p">)</span><span class="o">.</span><span class="n">query</span><span class="p">)[</span><span class="s2">"state"</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">url</span><span class="p">,</span> <span class="n">gauth</span><span class="p">,</span> <span class="n">state</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">finish_login</span><span class="p">(</span><span class="n">gauth</span><span class="p">,</span> <span class="n">expected_state</span><span class="p">,</span> <span class="n">callback_params</span><span class="p">):</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">compare_digest</span><span class="p">(</span><span class="n">expected_state</span><span class="p">,</span> <span class="n">callback_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"state"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"OAuth state mismatch"</span><span class="p">)</span>
+    <span class="n">gauth</span><span class="o">.</span><span class="n">Auth</span><span class="p">(</span><span class="n">callback_params</span><span class="p">[</span><span class="s2">"code"</span><span class="p">])</span>
 </pre></div>
 </div>
+<p>Redirect the user to the returned URL. On callback, retrieve and consume
+the saved login from the session, then pass the decoded query parameters
+to <code class="docutils literal notranslate"><span class="pre">finish_login</span></code>. If several workers handle requests, the callback
+worker needs the original verifier as well as the expected state.</p>
 </section>
 <section id="authentication-with-a-service-account">
 <h2>Authentication with a service account<a class="headerlink" href="#authentication-with-a-service-account" title="Link to this heading">¶</a></h2>
-<p>A <a class="reference external" href="https://developers.google.com/workspace/guides/create-credentials#service-account">Service account</a> is a special type of Google account intended to represent
-a non-human user that needs to authenticate and be authorized to access data in
-Google APIs.</p>
-<p>Typically, service accounts are used in scenarios such as:</p>
-<ul class="simple">
-<li><p>Running workloads on virtual machines (VMs).</p></li>
-<li><p>Running workloads on data centers that call Google APIs.</p></li>
-<li><p>Running workloads which are not tied to the lifecycle of a human user.</p></li>
-</ul>
-<p>If we use OAuth client ID we need to do one manual login into the account with
-<a class="reference internal" href="../pydrive2/#pydrive2.auth.GoogleAuth.LocalWebserverAuth" title="pydrive2.auth.GoogleAuth.LocalWebserverAuth"><code class="xref py py-meth docutils literal notranslate"><span class="pre">LocalWebserverAuth()</span></code></a>. If we use a service
-account the login is automatic.</p>
+<p>Give the service account access to the Drive folder or files it will use.
+To create files, use a shared drive where it can write, or configure
+<a class="reference external" href="https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority">domain-wide delegation</a> to act as a Workspace user with storage.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleAuth</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pydrive2.drive</span><span class="w"> </span><span class="kn">import</span> <span class="n">GoogleDrive</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">login_with_service_account</span><span class="p">():</span>
-<span class="w">    </span><span class="sd">"""</span>
-<span class="sd">    Google Drive service with a service account.</span>
-<span class="sd">    note: for the service account to work, you need to share the folder or</span>
-<span class="sd">    files with the service account email.</span>
-
-<span class="sd">    :return: google auth</span>
-<span class="sd">    """</span>
-    <span class="c1"># Define the settings dict to use a service account</span>
-    <span class="c1"># Set oauth_scope here to request specific Drive permissions.</span>
-    <span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
-                <span class="s2">"client_config_backend"</span><span class="p">:</span> <span class="s2">"service"</span><span class="p">,</span>
-                <span class="s2">"service_config"</span><span class="p">:</span> <span class="p">{</span>
-                    <span class="s2">"client_json_file_path"</span><span class="p">:</span> <span class="s2">"service-secrets.json"</span><span class="p">,</span>
-                <span class="p">}</span>
-            <span class="p">}</span>
-    <span class="c1"># Create instance of GoogleAuth</span>
-    <span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">(</span><span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span>
-    <span class="c1"># Authenticate</span>
-    <span class="n">gauth</span><span class="o">.</span><span class="n">ServiceAuth</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">gauth</span>
+<span class="n">settings</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">"client_config_backend"</span><span class="p">:</span> <span class="s2">"service"</span><span class="p">,</span>
+    <span class="s2">"service_config"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"client_json_file_path"</span><span class="p">:</span> <span class="s2">"service-account.json"</span><span class="p">},</span>
+<span class="p">}</span>
+<span class="n">gauth</span> <span class="o">=</span> <span class="n">GoogleAuth</span><span class="p">(</span><span class="n">settings</span><span class="o">=</span><span class="n">settings</span><span class="p">)</span>
+<span class="n">gauth</span><span class="o">.</span><span class="n">ServiceAuth</span><span class="p">()</span>
+<span class="n">drive</span> <span class="o">=</span> <span class="n">GoogleDrive</span><span class="p">(</span><span class="n">gauth</span><span class="p">)</span>
 </pre></div>
 </div>
+</section>
+<section id="upgrading-saved-credentials">
+<span id="upgrading-from-pydrive2-1-x"></span><h2>Upgrading saved credentials<a class="headerlink" href="#upgrading-saved-credentials" title="Link to this heading">¶</a></h2>
+<p>See <a class="reference internal" href="../upgrading/"><span class="doc">Upgrade to PyDrive2 2.0</span></a> for the first login, token cache, and service-account
+changes in PyDrive2 2.0.</p>
 </section>
 </section>
 
@@ -577,15 +423,13 @@ account the login is automatic.</p>
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">OAuth made easy</a><ul>
-<li><a class="reference internal" href="#authentication-in-two-lines">Authentication in two lines</a></li>
-<li><a class="reference internal" href="#automatic-and-custom-authentication-with-settings-yaml">Automatic and custom authentication with <em>settings.yaml</em></a><ul>
-<li><a class="reference internal" href="#upgrading-from-pydrive2-1-x">Upgrading from PyDrive2 1.x</a></li>
-<li><a class="reference internal" href="#sample-settings-yaml">Sample <em>settings.yaml</em></a></li>
-</ul>
-</li>
+<li><a class="reference internal" href="#">Authentication</a><ul>
+<li><a class="reference internal" href="#sign-in-from-a-local-application">Sign in from a local application</a></li>
+<li><a class="reference internal" href="#save-credentials-across-runs">Save credentials across runs</a></li>
+<li><a class="reference internal" href="#settings-reference">Settings reference</a></li>
 <li><a class="reference internal" href="#building-your-own-authentication-flow">Building your own authentication flow</a></li>
 <li><a class="reference internal" href="#authentication-with-a-service-account">Authentication with a service account</a></li>
+<li><a class="reference internal" href="#upgrading-saved-credentials">Upgrading saved credentials</a></li>
 </ul>
 </li>
 </ul>
@@ -597,7 +441,7 @@ account the login is automatic.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=947f95a7"></script>
+</div><script src="../_static/documentation_options.js?v=813c3733"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>

@@ -6,7 +6,7 @@
 <link rel="index" title="Index" href="../genindex/"><link rel="search" title="Search" href="../search/"><link rel="next" title="fsspec filesystem" href="../fsspec/"><link rel="prev" title="File management made easy" href="../filemanagement/">
 
     <!-- Generated with Sphinx 9.1.1 and Furo 2025.12.19 -->
-        <title>File listing made easy - PyDrive2 1.19.0 documentation</title>
+        <title>File listing made easy - PyDrive2 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -161,7 +161,7 @@
       </label>
     </div>
     <div class="header-center">
-      <a href="../"><div class="brand">PyDrive2 1.19.0 documentation</div></a>
+      <a href="../"><div class="brand">PyDrive2 documentation</div></a>
     </div>
     <div class="header-right">
       <div class="theme-toggle-container theme-toggle-header">
@@ -182,7 +182,7 @@
       
       <div class="sidebar-sticky"><a class="sidebar-brand" href="../">
   
-  <span class="sidebar-brand-text">PyDrive2 1.19.0 documentation</span>
+  <span class="sidebar-brand-text">PyDrive2 documentation</span>
   
 </a><form class="sidebar-search-container" method="get" action="../search/" role="search">
   <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
@@ -192,12 +192,12 @@
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
   <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../quickstart/">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../oauth/">OAuth made easy</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../oauth/">Authentication</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../filemanagement/">File management made easy</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">File listing made easy</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../fsspec/">fsspec filesystem</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">pydrive2 package</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../genindex/">Index</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../upgrading/">Upgrade to PyDrive2 2.0</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../pydrive2/">Python API reference</a></li>
 </ul>
 
 </div>
@@ -240,8 +240,8 @@
 <h1>File listing made easy<a class="headerlink" href="#file-listing-made-easy" title="Link to this heading">¶</a></h1>
 <p>PyDrive2 handles pagination and returns
 <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFile" title="pydrive2.files.GoogleDriveFile"><code class="xref py py-class docutils literal notranslate"><span class="pre">GoogleDriveFile</span></code></a> instances.</p>
-<section id="get-all-files-which-matches-the-query">
-<h2>Get all files which matches the query<a class="headerlink" href="#get-all-files-which-matches-the-query" title="Link to this heading">¶</a></h2>
+<section id="list-matching-files">
+<span id="get-all-files-which-matches-the-query"></span><h2>List matching files<a class="headerlink" href="#list-matching-files" title="Link to this heading">¶</a></h2>
 <p>Pass the <a class="reference external" href="https://developers.google.com/workspace/drive/api/reference/rest/v3/files/list#query-parameters">files.list query parameters</a> to
 <a class="reference internal" href="../pydrive2/#pydrive2.drive.GoogleDrive.ListFile" title="pydrive2.drive.GoogleDrive.ListFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ListFile()</span></code></a> as a dictionary. It returns a
 <a class="reference internal" href="../pydrive2/#pydrive2.files.GoogleDriveFileList" title="pydrive2.files.GoogleDriveFileList"><code class="xref py py-class docutils literal notranslate"><span class="pre">GoogleDriveFileList</span></code></a>.
@@ -272,8 +272,7 @@ next page token automatically so field selection preserves pagination.</p>
 <p>To process one page at a time, iterate over the result of
 <a class="reference internal" href="../pydrive2/#pydrive2.drive.GoogleDrive.ListFile" title="pydrive2.drive.GoogleDrive.ListFile"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ListFile()</span></code></a>. In this example, each page
 contains up to ten files.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Paginate file lists by specifying number of max results</span>
-<span class="k">for</span> <span class="n">file_list</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">'q'</span><span class="p">:</span> <span class="s1">'trashed=true'</span><span class="p">,</span> <span class="s1">'pageSize'</span><span class="p">:</span> <span class="mi">10</span><span class="p">}):</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">for</span> <span class="n">file_list</span> <span class="ow">in</span> <span class="n">drive</span><span class="o">.</span><span class="n">ListFile</span><span class="p">({</span><span class="s1">'q'</span><span class="p">:</span> <span class="s1">'trashed=false'</span><span class="p">,</span> <span class="s1">'pageSize'</span><span class="p">:</span> <span class="mi">10</span><span class="p">}):</span>
     <span class="nb">print</span><span class="p">(</span><span class="s1">'Received </span><span class="si">%s</span><span class="s1"> files from Files.list()'</span> <span class="o">%</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_list</span><span class="p">))</span>  <span class="c1"># &lt;= 10</span>
     <span class="k">for</span> <span class="n">file1</span> <span class="ow">in</span> <span class="n">file_list</span><span class="p">:</span>
         <span class="nb">print</span><span class="p">(</span><span class="s1">'name: </span><span class="si">%s</span><span class="s1">, id: </span><span class="si">%s</span><span class="s1">'</span> <span class="o">%</span> <span class="p">(</span><span class="n">file1</span><span class="p">[</span><span class="s1">'name'</span><span class="p">],</span> <span class="n">file1</span><span class="p">[</span><span class="s1">'id'</span><span class="p">]))</span>
@@ -338,7 +337,7 @@ contains up to ten files.</p>
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">File listing made easy</a><ul>
-<li><a class="reference internal" href="#get-all-files-which-matches-the-query">Get all files which matches the query</a></li>
+<li><a class="reference internal" href="#list-matching-files">List matching files</a></li>
 <li><a class="reference internal" href="#paginate-and-iterate-through-files">Paginate and iterate through files</a></li>
 </ul>
 </li>
@@ -351,7 +350,7 @@ contains up to ten files.</p>
       
     </aside>
   </div>
-</div><script src="../_static/documentation_options.js?v=947f95a7"></script>
+</div><script src="../_static/documentation_options.js?v=813c3733"></script>
     <script src="../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
