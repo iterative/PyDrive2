@@ -453,6 +453,70 @@ def test_ls_deduplicates_a_file_shared_across_parent_batches(mock_drive):
     ] == [parents[:50], parents[50:]]
 
 
+@pytest.mark.parametrize(
+    ("count", "moved"), [(2, False), (51, False), (51, True)]
+)
+def test_find_remembers_file_collisions_under_every_reported_parent(
+    mock_drive, count, moved
+):
+    parents = [folder(f"dir{i}", f"P{i}") for i in range(count)]
+    last = parents[-1]
+    file = {
+        "id": "A",
+        "name": "item",
+        "mimeType": "text/plain",
+        "parents": ["P0", last["id"]],
+    }
+    directory = dict(folder("item", "Z"), parents=[last["id"]])
+    drive, requests = mock_drive(
+        listing(*parents),
+        *(
+            [listing(dict(file, parents=["P0"]) if moved else file)]
+            if count > 50
+            else []
+        ),
+        listing(
+            dict(file, parents=[last["id"]]) if moved else file, directory
+        ),
+        listing(file, directory),
+        ({"status": "200", "content-length": "1"}, b"x"),
+    )
+    fs = filesystem(drive)
+    assert fs.find("root", maxdepth=2) == ["root/dir0/item"]
+    with fs.open(f"root/{last['name']}/item", "rb") as stream:
+        assert stream.read() == b"x"
+    assert urlsplit(requests[-1][0]).path.endswith("/files/A")
+
+
+@pytest.mark.parametrize("mount", ["root", "root/data", "root/data/sub"])
+def test_warm_file_lookup_and_upload_through_a_same_name_folder(
+    mock_drive, mount
+):
+    data = folder("data", "D")
+    file = {"id": "A", "name": "data", "mimeType": "text/plain"}
+    sub = folder("sub", "S")
+    note = dict(file, id="N", name="note")
+    drive, requests = mock_drive(
+        listing(data, file),
+        listing(sub),
+        listing(note),
+        listing(note),
+        ({"status": "200", "location": "https://example.test/upload"}, ""),
+        response({"id": "uploaded"}),
+    )
+    fs = filesystem(drive, mount)
+    assert fs.exists("root/data/sub/note")
+    before = len(requests)
+    fs.makedirs("root/data/sub", exist_ok=True)
+    assert len(requests) == before
+    assert fs.exists("root/data/sub/note")
+    assert [query(req)["q"] for req in requests[before:]] == [
+        ["('S' in parents) and trashed=false and name='note'"]
+    ]
+    fs.touch("root/data/uploaded")
+    assert [req[1] for req in requests[before + 1 :]] == ["POST", "PUT"]
+
+
 def test_ls_finishes_listing_parents_resolved_before_a_rename(mock_drive):
     parents = [folder("dir", f"id-{i}") for i in range(51)]
     renamed = dict(parents[-1], name="renamed")
@@ -749,6 +813,61 @@ def test_find_locates_unattributed_child_of_a_batched_parent(mock_drive):
         ["A"],
         ["B"],
     ]
+    assert all("name='note'" in query(r)["q"][0] for r in requests[2:])
+
+
+def test_find_probes_only_the_remaining_names_and_matches_ids(mock_drive):
+    a, b = folder("a", "A"), folder("b", "B")
+    one = {"id": "1", "name": "one", "mimeType": "text/plain"}
+    two = dict(one, id="2", name="two")
+    drive, requests = mock_drive(
+        listing(a, b),
+        listing(one, two),
+        listing(one, dict(two, id="unrelated")),
+        listing(two),
+    )
+    assert filesystem(drive).find("root") == ["root/a/one", "root/b/two"]
+    assert [query(r)["q"][0] for r in requests[2:]] == [
+        "('A' in parents) and trashed=false and (name='one' or name='two')",
+        "('B' in parents) and trashed=false and name='two'",
+    ]
+
+
+def test_find_bounds_the_query_when_many_items_omit_their_parents(mock_drive):
+    items = [
+        {"id": str(i), "name": f"file-{i}", "mimeType": "text/plain"}
+        for i in range(51)
+    ]
+    drive, requests = mock_drive(
+        listing(folder("a", "A"), folder("b", "B")),
+        listing(*items),
+        listing(*items),
+    )
+    assert filesystem(drive).find("root") == sorted(
+        f"root/a/{item['name']}" for item in items
+    )
+    assert len(requests) == 3
+    assert query(requests[-1])["q"] == ["('A' in parents) and trashed=false"]
+
+
+def test_unplaced_item_cannot_evict_a_cached_folder(mock_drive):
+    a, b = (dict(folder(n, n.upper()), parents=["root"]) for n in ("a", "b"))
+    item = folder("renamed", "C")
+    drive, requests = mock_drive(
+        listing(a, b),
+        listing(folder("old", "C")),
+        listing(a, b, item),
+        listing(),
+        listing(),
+        listing(),
+    )
+    fs = filesystem(drive)
+    fs.ls("root")
+    assert fs.exists("root/a/old")
+    assert fs.find("root", maxdepth=2) == []
+    before = len(requests)
+    assert fs.exists("root/a/old")
+    assert len(requests) == before
 
 
 def test_ls_started_before_invalidation_cannot_evict_a_new_lookup(mock_drive):

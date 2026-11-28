@@ -27,7 +27,14 @@ class FolderListing:
                 item["id"]
             )
         else:
-            self.files.add((parent, item["name"]))
+            name = item["name"]
+            self.files.add((parent, name))
+            # Keep all reported collisions even though the listing emits an ID once.
+            parents = item.get("parents", ())
+            if len(parents) > 1:
+                self.files.update(
+                    (p, name) for p in parents if p in self.folders
+                )
 
 
 class DirectoryCache:
@@ -43,40 +50,53 @@ class DirectoryCache:
         self.generation = 0
         self._pending: dict[FolderListing, None] = {}
         self.children: dict[str, dict[str, tuple[str, ...]]] = {}
+        # For each ID in children[parent][name], parents[ID] is (parent, name).
         self.parents: dict[str, tuple[str, str]] = {}
-        # Names shared with files (or changed by a mutation) need a fresh lookup.
+        # A mutation can leave the set of matching folders uncertain.
         self.incomplete: set[tuple[str, str]] = set()
 
-    def _folders(self, parents, name):
+        # A file with this name matters only when selecting the final item ID.
+        self.file_collisions: set[tuple[str, str]] = set()
+
+    def _folders(self, parents, name, *, folders_only):
         result: list[str] = []
         for parent in parents:
             ids = self.children.get(parent, {}).get(name)
-            if ids is None or (parent, name) in self.incomplete:
+            edge = (parent, name)
+            if (
+                ids is None
+                or edge in self.incomplete
+                or (not folders_only and edge in self.file_collisions)
+            ):
                 return None
             result.extend(ids)
         return result or None
 
-    def lookup(self, parents, name, generation):
+    def lookup(self, parents, name, generation, *, folders_only):
         with self.lock:
             if generation == self.generation:
-                return self._folders(parents, name)
+                return self._folders(parents, name, folders_only=folders_only)
             return None
 
-    def prefix(self, path, generation):
+    def prefix(self, path, generation, *, folders_only=False):
         parts = path.split("/") if path else []
         folders = [self.root]
         with self.lock:
             if generation != self.generation:
                 return "", folders, parts
             for i, name in enumerate(parts):
-                found = self._folders(folders, name)
+                found = self._folders(
+                    folders,
+                    name,
+                    folders_only=folders_only or i < len(parts) - 1,
+                )
                 if not found:
                     return "/".join(parts[:i]), folders, parts[i:]
                 folders = found
         return path, folders, []
 
     def contains(self, path, generation):
-        return not self.prefix(path, generation)[2]
+        return not self.prefix(path, generation, folders_only=True)[2]
 
     def warm_parents(self, roots, maxdepth, generation):
         """Include only parents whose contents can contribute to this walk."""
@@ -100,6 +120,7 @@ class DirectoryCache:
 
     def _remove_name(self, parent, name):
         self.incomplete.discard((parent, name))
+        self.file_collisions.discard((parent, name))
         names = self.children.get(parent)
         if not names:
             return ()
@@ -123,6 +144,7 @@ class DirectoryCache:
             self.parents.pop(parent, None)
             for name, ids in self.children.pop(parent, {}).items():
                 self.incomplete.discard((parent, name))
+                self.file_collisions.discard((parent, name))
                 pending.extend(ids)
 
     def _known_folder_ids(self, path, *, verified=False) -> tuple[str, ...]:
@@ -168,6 +190,7 @@ class DirectoryCache:
                 self.children.clear()
                 self.parents.clear()
                 self.incomplete.clear()
+                self.file_collisions.clear()
                 return
             parents, name = self._parents_of_path(path)
             for parent in parents:
@@ -243,7 +266,7 @@ class DirectoryCache:
             self._supersede(parents, name)
             for parent in parents:
                 if name in self.children.get(parent, {}):
-                    self.incomplete.add((parent, name))
+                    self.file_collisions.add((parent, name))
 
     @contextmanager
     def listing(self, generation, parents, *, name=None):
@@ -285,7 +308,9 @@ class DirectoryCache:
                     ids = before
                 if before is not None and (
                     before != ids
-                    or (edge in self.incomplete) != (edge in listing.files)
+                    or edge in self.incomplete
+                    or (edge in self.file_collisions)
+                    != (edge in listing.files)
                 ):
                     changed = True
                 if before and before != ids:
@@ -296,10 +321,11 @@ class DirectoryCache:
                     self.children.setdefault(parent, {})[key] = ids
                     for item_id in ids:
                         self.parents[item_id] = edge
+                    self.incomplete.discard(edge)
                     if edge in listing.files:
-                        self.incomplete.add(edge)
+                        self.file_collisions.add(edge)
                     else:
-                        self.incomplete.discard(edge)
+                        self.file_collisions.discard(edge)
                 else:
                     self._remove_name(parent, key)
         self._drop_subtrees(retired)

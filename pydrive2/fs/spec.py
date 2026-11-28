@@ -13,11 +13,7 @@ from weakref import WeakValueDictionary
 
 import appdirs
 from fsspec.spec import AbstractFileSystem
-from funcy import (
-    chunks,
-    distinct,
-    retry,
-)
+from funcy import chunks, retry
 from google.oauth2 import service_account
 from tqdm.utils import CallbackIOWrapper
 
@@ -32,7 +28,7 @@ _INFO_FIELDS = "mimeType,size,md5Checksum"
 _LIST_FIELDS = (
     f"nextPageToken,incompleteSearch,files(id,name,parents,{_INFO_FIELDS})"
 )
-_PARENT_QUERY_BATCH_SIZE = 50
+_MAX_QUERY_TERMS = 50
 _DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
 _LIST_ALL_SCOPES = {
     _DRIVE_SCOPE + suffix
@@ -451,22 +447,26 @@ class GDriveFileSystem(AbstractFileSystem):
                 raise OSError(errno.EIO, "Incomplete Drive listing")
             yield from page
 
-    def _list_children(self, query_ids, *, name=None, require_parent=False):
-        filters = "trashed=false"
-        if name is not None:
-            filters += f" and name={_quote_query_value(name)}"
-        # Drive can reject large parent queries. Query each parent only once.
+    def _query_children(self, parents, names=()):
+        parent_query = " or ".join(
+            f"{_quote_query_value(p)} in parents" for p in parents
+        )
+        query = f"({parent_query}) and trashed=false"
+        if names:
+            terms = " or ".join(f"name={_quote_query_value(n)}" for n in names)
+            query += f" and {terms}" if len(names) == 1 else f" and ({terms})"
+        return self._gdrive_list(query)
+
+    def _list_children(self, listing, *, require_parent=False):
+        names = (listing.name,) if listing.name is not None else ()
         seen_ids = set()
-        for batch in chunks(_PARENT_QUERY_BATCH_SIZE, distinct(query_ids)):
-            parents = " or ".join(
-                f"{_quote_query_value(parent)} in parents" for parent in batch
-            )
+        for batch in chunks(_MAX_QUERY_TERMS, listing.folders):
             batch_ids = set(batch)
-            unplaced = set()
-            for item in self._gdrive_list(f"({parents}) and {filters}"):
+            unplaced = {}
+            for item in self._query_children(batch, names):
+                if names and item["name"] != listing.name:
+                    continue  # Drive matches case-insensitively.
                 file_id = item["id"]
-                if file_id in seen_ids:
-                    continue
                 parent = next(
                     (p for p in item.get("parents", ()) if p in batch_ids),
                     None,
@@ -482,49 +482,83 @@ class GDriveFileSystem(AbstractFileSystem):
                         # Drive can return the canonical ID of the root alias.
                         parent = self.root
                 if parent is None and require_parent:
-                    unplaced.add(file_id)
-                else:
-                    unplaced.discard(file_id)
-                    seen_ids.add(file_id)
-                    yield parent, item
-            # If a batched result omits its parents, find needs to establish
-            # the path. Probe only that batch, and only for the unplaced IDs.
-            if unplaced:
-                for parent_id in batch:
-                    for _, item in self._list_children([parent_id], name=name):
-                        if item["id"] in unplaced:
-                            unplaced.remove(item["id"])
-                            seen_ids.add(item["id"])
-                            yield parent_id, item
-                    if not unplaced:
-                        break
+                    if file_id not in seen_ids:
+                        unplaced[file_id] = item["name"]
+                    continue
+                unplaced.pop(file_id, None)
+                if file_id in seen_ids:
+                    # A file may have moved between two parent queries.
+                    if item["mimeType"] != FOLDER_MIME_TYPE:
+                        listing.add(parent, item)
+                    continue
+                listing.add(parent, item)
+                seen_ids.add(file_id)
+                yield parent, item
 
-    def _match_child(self, generation, parent_ids, path, name, mount=None):
+            # Some responses omit parents. Resolve only the missing IDs, using
+            # their names to avoid paging through unrelated siblings.
+            for parent_id in batch:
+                if not unplaced:
+                    break
+                probes = dict.fromkeys(unplaced.values())
+                # Bound the OR expression for unusually large sets of names.
+                if len(probes) > _MAX_QUERY_TERMS:
+                    probes.clear()
+                for item in self._query_children([parent_id], probes):
+                    file_id = item["id"]
+                    if file_id in unplaced:
+                        del unplaced[file_id]
+                        listing.add(parent_id, item)
+                        seen_ids.add(file_id)
+                        yield parent_id, item
+            if unplaced:
+                # An item can change during the probes. This batch cannot
+                # establish which cached folders have disappeared.
+                listing.complete = False
+
+    def _match_child(
+        self,
+        generation,
+        parent_ids,
+        path,
+        name,
+        mount=None,
+        *,
+        folders_only=False,
+    ):
         if path == self.base and mount is not None:
             return mount, generation
-        folders = self._dirs.lookup(parent_ids, name, generation)
+        folders = self._dirs.lookup(
+            parent_ids, name, generation, folders_only=folders_only
+        )
         if folders:
             return _PathMatch(folders), generation
         match = _PathMatch([])
         with self._dirs.listing(generation, parent_ids, name=name) as listing:
-            for parent, item in self._list_children(parent_ids, name=name):
-                if item["name"] != name:  # Drive matches case-insensitively.
-                    continue
-                listing.add(parent, item)
+            for _, item in self._list_children(listing):
                 if item["mimeType"] == FOLDER_MIME_TYPE:
                     match.folders.append(item["id"])
                 else:
                     match.files.append(item)
         return match, listing.generation
 
-    def _resolve_prefix(self, path, generation, mount=None):
+    def _resolve_prefix(
+        self, path, generation, mount=None, *, folders_only=False
+    ):
         """Return the deepest existing component, its matches and lookup generation."""
-        parent, folders, remaining = self._dirs.prefix(path, generation)
+        parent, folders, remaining = self._dirs.prefix(
+            path, generation, folders_only=folders_only
+        )
         match = _PathMatch(folders)
         for name in remaining:
             child = posixpath.join(parent, name)
             found, generation = self._match_child(
-                generation, match.folders, child, name, mount
+                generation,
+                match.folders,
+                child,
+                name,
+                mount,
+                folders_only=folders_only or child != path,
             )
             if not found.folders and not found.files:
                 break
@@ -540,7 +574,9 @@ class GDriveFileSystem(AbstractFileSystem):
         return (match if prefix == path else _PathMatch([])), generation
 
     def _ensure_dirs(self, path, generation, mount=None):
-        parent, folders, remaining = self._dirs.prefix(path, generation)
+        parent, folders, remaining = self._dirs.prefix(
+            path, generation, folders_only=True
+        )
         for name in remaining:
             parent = posixpath.join(parent, name)
             match, generation = self._get_or_create_child(
@@ -595,7 +631,7 @@ class GDriveFileSystem(AbstractFileSystem):
         with lock:
             # Check Drive under the same name lock as the create on a cache miss.
             match, generation = self._match_child(
-                generation, parents, path, name, mount
+                generation, parents, path, name, mount, folders_only=True
             )
             if match.folders or match.files:
                 if not exist_ok:
@@ -639,7 +675,7 @@ class GDriveFileSystem(AbstractFileSystem):
             folders, generation = self._ensure_dirs(parent, generation, mount)
         else:
             prefix, match, generation = self._resolve_prefix(
-                parent, generation, mount
+                parent, generation, mount, folders_only=True
             )
             if not match.folders:
                 raise NotADirectoryError(posixpath.join(root, prefix))
@@ -701,11 +737,10 @@ class GDriveFileSystem(AbstractFileSystem):
         root_path = posixpath.join(bucket, base)
         contents = []
         with self._dirs.listing(generation, dir_ids) as listing:
-            for parent, item in self._list_children(dir_ids):
+            for _, item in self._list_children(listing):
                 contents.append(
                     _file_entry(posixpath.join(root_path, item["name"]), item)
                 )
-                listing.add(parent, item)
         if detail:
             return contents
         return [entry["name"] for entry in contents]
@@ -722,10 +757,9 @@ class GDriveFileSystem(AbstractFileSystem):
                 with self._dirs.listing(generation, to_list) as listing:
                     children.update((parent, []) for parent in to_list)
                     for parent, item in self._list_children(
-                        to_list, require_parent=True
+                        listing, require_parent=True
                     ):
                         children[parent].append(item)
-                        listing.add(parent, item)
                 generation = listing.generation
 
             visited.update(frontier)

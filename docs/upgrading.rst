@@ -23,6 +23,14 @@ Service accounts use their configured JSON or PKCS12 signing key. Keep the
 key available to the application. Deployments that relied solely on a
 saved service-account token need to provision the signing key.
 
+Filesystem directory lookups
+----------------------------
+
+The :doc:`fsspec filesystem <fsspec>` now caches folders returned by
+``ls()``. Later calls such as ``exists("root/data")`` can reuse those IDs.
+If another client moves or removes a folder, list its parent again or
+call ``fs.invalidate_cache("root/data")`` before checking the old path.
+
 Drive API fields and requests
 -----------------------------
 
