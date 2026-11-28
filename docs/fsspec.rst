@@ -66,7 +66,10 @@ argument specifies traversal depth. Directory names returned by ``ls()``
 and ``info()`` end in a slash. ``find(withdirs=True)`` returns directory
 paths without a trailing slash, like fsspec's other traversal methods.
 
-Named directory lookups reuse cached Drive IDs. If another client moves,
+Named directory lookups reuse cached Drive IDs. Listing a parent refreshes
+the folders seen under that parent. If a listing discovers a folder under
+a new name, its cached children follow the folder's Drive ID.
+If another client moves,
 trashes, or deletes a folder, call ``fs.invalidate_cache("root/empty")``
 before looking up its old path again. The next lookup checks Drive for all
 folders with that name, including any same-name folder that still exists.

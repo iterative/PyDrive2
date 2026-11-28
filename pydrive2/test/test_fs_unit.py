@@ -524,17 +524,207 @@ def test_ls_evicts_the_old_path_after_a_folder_rename(mock_drive):
         listing(folder("child", "C")),
         listing(folder("new", "D"), folder("new", "other")),
         listing(),
-        listing(folder("new", "D"), folder("new", "other")),
         listing({"id": "note", "name": "note", "mimeType": "text/plain"}),
     )
     fs = filesystem(drive)
     assert fs.exists("root/old/child")
     assert fs.ls("root") == ["root/new/", "root/new/"]
     assert not fs.exists("root/old/child")
+    before = len(requests)
     assert fs.ls("root/new") == ["root/new/note"]
+    assert len(requests) == before + 1
     assert set(
         re.findall(r"'([^']+)' in parents", query(requests[-1])["q"][0])
     ) == {"D", "other"}
+
+
+@pytest.mark.parametrize("duplicate_parents", [False, True])
+def test_warm_read_keeps_same_name_file_and_folder_distinct(
+    mock_drive, duplicate_parents
+):
+    parents = [folder("dup", "P"), folder("dup", "Q")]
+    file = {"id": "A", "name": "item", "mimeType": "text/plain"}
+    directory = folder("item", "Z")
+    if duplicate_parents:
+        file["parents"] = ["P"]
+        directory["parents"] = ["Q"]
+    found = listing(file, directory)
+    media = ({"status": "200", "content-length": "1"}, b"x")
+    drive, requests = mock_drive(
+        *([listing(*parents)] if duplicate_parents else []),
+        found,
+        media,
+        found,
+        media,
+    )
+    fs = filesystem(drive)
+    path = "root/dup/item" if duplicate_parents else "root/item"
+    for _ in range(2):
+        with fs.open(path, "rb") as stream:
+            assert stream.read() == b"x"
+        assert urlsplit(requests[-1][0]).path.endswith("/files/A")
+
+
+@pytest.mark.parametrize("operation", ["ls", "find"])
+def test_fresh_listing_forgets_only_the_disappeared_folder(
+    mock_drive, operation
+):
+    keep, gone = folder("keep", "K"), folder("gone", "G")
+    drive, requests = mock_drive(
+        listing(gone), listing(keep), listing(keep), listing()
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/gone")
+    assert fs.exists("root/keep")
+    if operation == "find":
+        assert fs.find("root", maxdepth=1, withdirs=True) == [
+            "root",
+            "root/keep",
+        ]
+    else:
+        assert fs.ls("root") == ["root/keep/"]
+    assert fs.exists("root/keep")
+    assert not fs.exists("root/gone")
+    assert len(requests) == 4
+    assert "name='gone'" in query(requests[-1])["q"][0]
+
+
+def test_local_rename_preserves_cached_child(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("child", "C")),
+        listing(),
+        response(folder("new", "D")),
+        listing(folder("new", "D")),
+        listing(),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    fs.mv("root/old", "root/new")
+    before = len(requests)
+    assert fs.exists("root/new/child")
+    assert len(requests) == before + 1
+    assert "name='new'" in query(requests[-1])["q"][0]
+    assert not fs.exists("root/old/child")
+
+
+def test_old_lookup_cannot_restore_folder_after_empty_listing(mock_drive):
+    def list_after_lookup_starts(request):
+        if "name='gone'" in query(request)["q"][0] and not requests:
+            assert fs.ls("root") == []
+
+    drive, requests = mock_drive(
+        listing(),
+        listing(folder("gone", "D")),
+        listing(),
+        on_request=list_after_lookup_starts,
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/gone")
+    assert not fs.exists("root/gone")
+    assert len(requests) == 3
+
+
+@pytest.mark.parametrize("operation", ["touch", "cp_file", "mv"])
+def test_file_written_beside_cached_folder_can_be_read(mock_drive, operation):
+    directory = folder("item", "Z")
+    file = {"name": "item", "id": "A", "mimeType": "text/plain"}
+    src = dict(file, name="item" if operation == "mv" else "source")
+    dest = folder("dest", "P")
+    if operation == "touch":
+        write = [
+            ({"status": "200", "location": "https://example.test/upload"}, ""),
+            response(file),
+        ]
+    elif operation == "cp_file":
+        write = [listing(src), response(file)]
+    else:
+        write = [listing(src), response({"parents": ["root"]}), response(file)]
+    drive, requests = mock_drive(
+        listing(dest),
+        listing(directory),
+        *write,
+        listing(file, directory),
+        ({"status": "200", "content-length": "1"}, b"x"),
+    )
+    fs = filesystem(drive)
+    path = "root/dest/item"
+    assert fs.exists(path)
+    if operation == "touch":
+        fs.touch(path)
+    elif operation == "cp_file":
+        fs.cp_file("root/source", path)
+    else:
+        fs.mv("root/item", "root/dest")
+    with fs.open(path, "rb") as stream:
+        assert stream.read() == b"x"
+    assert urlsplit(requests[-1][0]).path.endswith("/files/A")
+
+
+def test_renamed_duplicate_keeps_each_parents_children_warm(mock_drive):
+    left, right = folder("dup", "P"), folder("dup", "Q")
+    child = dict(folder("left", "L"), parents=["P"])
+    sibling = dict(folder("right", "R"), parents=["Q"])
+    drive, requests = mock_drive(
+        listing(left, right),
+        listing(child, sibling),
+        listing(dict(left, name="new"), right),
+        listing(),
+    )
+    fs = filesystem(drive)
+    assert fs.find("root", maxdepth=2) == []
+    assert fs.exists("root/dup/left")
+    fs.makedirs("root/dup/right", exist_ok=True)
+    assert len(requests) == 2
+    fs.ls("root")
+    assert fs.exists("root/new/left")
+    assert fs.exists("root/dup/right")
+    assert len(requests) == 3
+    assert not fs.exists("root/dup/left")
+    assert query(requests[-1])["q"] == [
+        "('Q' in parents) and trashed=false and name='left'"
+    ]
+
+
+@pytest.mark.parametrize("operation", ["exists", "ls", "find"])
+def test_failed_later_page_does_not_cache_partial_duplicate_matches(
+    mock_drive, operation
+):
+    a, b = folder("dup", "A"), folder("dup", "B")
+    drive, requests = mock_drive(
+        response({"files": [a], "nextPageToken": "page2"}),
+        response({"files": [], "incompleteSearch": True}),
+        listing(a, b),
+        listing(),
+    )
+    fs = filesystem(drive)
+    with pytest.raises(OSError, match="Incomplete Drive listing"):
+        if operation == "exists":
+            fs.exists("root/dup")
+        else:
+            getattr(fs, operation)("root")
+    assert fs.ls("root/dup") == []
+    assert len(requests) == 4
+    assert query(requests[1])["pageToken"] == ["page2"]
+    assert "'A' in parents or 'B' in parents" in query(requests[-1])["q"][0]
+
+
+def test_find_locates_unattributed_child_of_a_batched_parent(mock_drive):
+    a, b = folder("a", "A"), folder("b", "B")
+    item = {"id": "F", "name": "note", "mimeType": "text/plain"}
+    drive, requests = mock_drive(
+        listing(a, b), listing(item), listing(), listing(item)
+    )
+    fs = filesystem(drive)
+    assert fs.find("root") == ["root/b/note"]
+    assert [
+        re.findall(r"'([^']+)' in parents", query(r)["q"][0]) for r in requests
+    ] == [
+        ["root"],
+        ["A", "B"],
+        ["A"],
+        ["B"],
+    ]
 
 
 def test_ls_started_before_invalidation_cannot_evict_a_new_lookup(mock_drive):
@@ -830,6 +1020,9 @@ def test_unrelated_folder_creates_can_overlap(mock_drive, other_instance):
         finally:
             release.set()
         pending.result(timeout=5)
+
+    assert first.exists("root/one")
+    assert (other if other_instance else first).exists("root/two")
 
 
 @pytest.mark.parametrize("trash_only", [True, False])
@@ -1152,8 +1345,9 @@ def test_rmdir_checks_emptiness_again_after_transient_failure(mock_drive):
     assert [r[1] for r in requests] == ["GET", "GET", "DELETE", "GET"]
 
 
-def test_concurrent_copies_share_a_folder_after_unrelated_invalidation(
-    mock_drive,
+@pytest.mark.parametrize("invalidate", [False, True])
+def test_concurrent_copies_create_their_shared_folder_once(
+    mock_drive, invalidate
 ):
     creating, release = Event(), Event()
     second_started, second_lookup = Event(), Event()
@@ -1180,7 +1374,7 @@ def test_concurrent_copies_share_a_folder_after_unrelated_invalidation(
     )
     second, second_requests = mock_drive(
         listing(source),
-        listing(folder("ab", "AB")),
+        *([listing(folder("ab", "AB"))] if invalidate else []),
         response({"id": "second-copy"}),
         on_request=observe_lookup,
     )
@@ -1194,7 +1388,8 @@ def test_concurrent_copies_share_a_folder_after_unrelated_invalidation(
         one = pool.submit(copy, first.auth.thread_local.http, "one")
         try:
             assert creating.wait(5)
-            fs.invalidate_cache("root/ef")
+            if invalidate:
+                fs.invalidate_cache("root/ef")
             two = pool.submit(copy, second.auth.thread_local.http, "two")
             assert second_started.wait(5)
             # Drive cannot return the new folder until the first create finishes.
@@ -1207,7 +1402,9 @@ def test_concurrent_copies_share_a_folder_after_unrelated_invalidation(
     for requests in (first_requests, second_requests):
         assert json.loads(requests[-1][2])["parents"] == ["AB"]
     assert [r[1] for r in first_requests] == ["GET", "GET", "POST", "POST"]
-    assert [r[1] for r in second_requests] == ["GET", "GET", "POST"]
+    assert [r[1] for r in second_requests] == (
+        ["GET", "GET", "POST"] if invalidate else ["GET", "POST"]
+    )
 
 
 def test_invalidating_an_unopened_mount_needs_no_drive_request(mock_drive):
