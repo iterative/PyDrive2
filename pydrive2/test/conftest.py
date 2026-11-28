@@ -21,10 +21,13 @@ class DriveHttpMock(HttpMockSequence):
 
 @pytest.fixture
 def mock_drive():
-    def build(*responses, on_request=None):
+    def build(*responses, on_request=None, credentials=None):
         http = DriveHttpMock(responses, on_request)
         auth = GoogleAuth(settings_file=None)
-        auth.credentials = Credentials("test-token")
+        auth.credentials = credentials or Credentials(
+            "test-token",
+            granted_scopes=["https://www.googleapis.com/auth/drive"],
+        )
         auth.Authorize()
         auth.thread_local.http = http
         return GoogleDrive(auth), http.request_sequence

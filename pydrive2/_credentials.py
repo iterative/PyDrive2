@@ -67,6 +67,7 @@ class CredentialStore:
                 info.setdefault("client_id", None)
                 info.setdefault("client_secret", None)
             credentials = StoredUserCredentials.from_authorized_user_info(info)
+            credentials._granted_scopes = info.get("_pydrive2_granted_scopes")
             if not info.get("expiry") and not credentials.refresh_token:
                 credentials.expiry = None
             credentials._session_id = info.get(
@@ -91,13 +92,14 @@ class CredentialStore:
         if isinstance(self.destination, Path):
             self.destination.parent.mkdir(parents=True, exist_ok=True)
         with self.lock:
-            serialized = credentials.to_json()
+            info = json.loads(credentials.to_json())
+            if credentials.granted_scopes is not None:
+                info["_pydrive2_granted_scopes"] = credentials.granted_scopes
             session = getattr(credentials, "_session_id", None)
             if session and session != _token_identity(credentials):
                 # Keep the grant identifiable when its refresh token rotates.
-                info = json.loads(serialized)
                 info["_pydrive2_session"] = session
-                serialized = json.dumps(info)
+            serialized = json.dumps(info)
             if isinstance(self.destination, Path):
                 _write_file(self.destination, serialized)
             else:

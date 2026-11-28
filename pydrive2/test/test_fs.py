@@ -1,3 +1,4 @@
+import errno
 import os
 import posixpath
 import secrets
@@ -160,6 +161,18 @@ def test_invalidating_parent_reloads_replaced_mount(fs, remote_dir):
     fs.touch(mount + "/after")
     reader.invalidate_cache(remote_dir)
     assert reader.ls(mount) == [mount + "/after"]
+
+
+def test_rmdir_only_removes_empty_folders(fs, fs_factory, remote_dir):
+    path = remote_dir + "/empty"
+    fs.makedirs(path)
+    with pytest.raises(OSError) as error:
+        fs.rmdir(remote_dir)
+    assert error.value.errno == errno.ENOTEMPTY
+    fs.rmdir(path)
+    reader, _ = fs_factory()
+    assert reader.exists(remote_dir)
+    assert not reader.exists(path)
 
 
 def test_rm(fs, remote_dir):

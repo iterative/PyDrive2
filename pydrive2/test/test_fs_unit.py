@@ -1,3 +1,4 @@
+import errno
 import json
 import re
 import tempfile
@@ -7,6 +8,8 @@ from urllib.parse import urlsplit
 
 import pytest
 from fsspec.callbacks import Callback
+from google.oauth2 import service_account
+from google.oauth2.credentials import Credentials
 from googleapiclient.http import DEFAULT_CHUNK_SIZE
 
 from pydrive2.fs import GDriveFileSystem
@@ -69,9 +72,11 @@ def test_find_mount_with_only_subdirectories_skips_stat(mock_drive, withdirs):
         )
         assert all(name == item["name"] for name, item in found.items())
     scope, *lists = requests
+    assert len(lists) == 2
     assert set(query(scope)["fields"][0].split(",")) == {
         "driveId",
         "mimeType",
+        "spaces",
         "trashed",
     }
     assert all("'FolderID' in parents" in query(r)["q"][0] for r in lists)
@@ -827,6 +832,326 @@ def test_unrelated_folder_creates_can_overlap(mock_drive, other_instance):
         pending.result(timeout=5)
 
 
+@pytest.mark.parametrize("trash_only", [True, False])
+def test_rmdir_after_external_rename_forgets_the_old_path(
+    mock_drive, trash_only
+):
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("child", "C")),
+        listing(folder("new", "D")),
+        listing(),
+        response({}),
+        listing(),
+    )
+    fs = filesystem(drive, trash_only=trash_only)
+    assert fs.exists("root/old/child")
+    fs.rmdir("root/new")
+    assert not fs.exists("root/old/child")
+    assert "name='old'" in query(requests[-1])["q"][0]
+
+
+@pytest.mark.parametrize("trash_only", [True, False])
+def test_rmdir_removes_only_a_freshly_resolved_empty_folder(
+    mock_drive, trash_only
+):
+    drive, requests = mock_drive(
+        listing(folder("dir", "old")),
+        listing(folder("dir", "current")),
+        listing(),
+        response({}),
+        listing(),
+    )
+    fs = filesystem(drive, trash_only=trash_only)
+    assert fs.exists("root/dir")
+    fs.rmdir("root/dir")
+    assert not fs.exists("root/dir")
+    _, resolve, children, remove, _ = requests
+    assert "name='dir'" in query(resolve)["q"][0]
+    assert query(children)["pageSize"] == ["1"]
+    q = query(children)["q"][0]
+    assert "'current' in parents" in q and ("trashed=false" in q) == trash_only
+    assert urlsplit(remove[0]).path.endswith("/files/current")
+    assert remove[1] == ("PATCH" if trash_only else "DELETE")
+
+
+@pytest.mark.parametrize(
+    "items,error",
+    [
+        ([], FileNotFoundError),
+        (
+            [{"name": "dir", "id": "F", "mimeType": "text/plain"}],
+            NotADirectoryError,
+        ),
+        ([folder("dir", "A"), folder("dir", "B")], FileExistsError),
+        (
+            [
+                folder("dir", "A"),
+                {"name": "dir", "id": "F", "mimeType": "text/plain"},
+            ],
+            FileExistsError,
+        ),
+    ],
+)
+def test_rmdir_refuses_missing_files_and_ambiguous_names(
+    mock_drive, items, error
+):
+    drive, requests = mock_drive(listing(*items))
+    with pytest.raises(error):
+        filesystem(drive).rmdir("root/dir")
+    assert [req[1] for req in requests] == ["GET"]
+
+
+@pytest.mark.parametrize(
+    "pages",
+    [
+        [response({"files": [folder("dir", "D")], "incompleteSearch": True})],
+        [
+            response({"files": [folder("dir", "D")], "nextPageToken": "next"}),
+            response({"files": [], "incompleteSearch": True}),
+        ],
+    ],
+    ids=["first-page", "later-page"],
+)
+def test_rmdir_leaves_folder_alone_when_name_search_is_incomplete(
+    mock_drive, pages
+):
+    drive, requests = mock_drive(*pages, listing(), response({}))
+    with pytest.raises(OSError) as error:
+        filesystem(drive, trash_only=False).rmdir("root/dir")
+    assert error.value.errno == errno.EIO
+    assert [req[1] for req in requests] == ["GET"] * len(pages)
+    for req in requests:
+        assert "incompleteSearch" in query(req)["fields"][0].split(",")
+
+
+@pytest.mark.parametrize("root", ["root", "appDataFolder"])
+def test_rmdir_protects_root_aliases(mock_drive, root):
+    drive, requests = mock_drive()
+    with pytest.raises(PermissionError):
+        filesystem(drive, root).rmdir(root)
+    assert not requests
+
+
+@pytest.mark.parametrize(
+    "page,code",
+    [
+        (listing({"id": "child"}), errno.ENOTEMPTY),
+        (response({"files": [], "incompleteSearch": True}), errno.EIO),
+    ],
+)
+def test_rmdir_checks_later_pages_before_removing_by_id(
+    mock_drive, page, code
+):
+    drive, requests = mock_drive(
+        response({"mimeType": FOLDER_MIME_TYPE}),
+        response({"files": [], "nextPageToken": "next"}),
+        page,
+    )
+    with pytest.raises(OSError) as error:
+        filesystem(drive, "FolderID").rmdir("FolderID")
+    assert error.value.errno == code
+    assert [r[1] for r in requests] == ["GET"] * 3
+    assert query(requests[-1])["pageToken"] == ["next"]
+
+
+@pytest.mark.parametrize(
+    "missing", [True, False], ids=["missing", "now-a-file"]
+)
+def test_rmdir_evicts_a_stale_parent_and_its_children(mock_drive, missing):
+    stale = (
+        []
+        if missing
+        else [{"id": "F", "name": "old", "mimeType": "text/plain"}]
+    )
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("child", "C")),
+        listing(*stale),
+        listing(*stale),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old/child")
+    with pytest.raises(
+        FileNotFoundError if missing else NotADirectoryError
+    ) as error:
+        fs.rmdir("root/old/child")
+    assert error.value.errno == (errno.ENOENT if missing else errno.ENOTDIR)
+    assert not fs.exists("root/old/child")
+    assert len(requests) == 4
+    assert "name='old'" in query(requests[-1])["q"][0]
+
+
+@pytest.mark.parametrize("warm", [False, True])
+def test_rmdir_checks_configured_mount_before_a_sibling(mock_drive, warm):
+    drive, requests = mock_drive(
+        *([listing(folder("mount", "M"))] if warm else []), listing()
+    )
+    fs = filesystem(drive, "root/mount")
+    if warm:
+        assert fs.exists("root/mount")
+    with pytest.raises(FileNotFoundError):
+        fs.rmdir("root/sibling")
+    assert len(requests) == (2 if warm else 1)
+    assert all("name='mount'" in query(req)["q"][0] for req in requests)
+
+
+def test_rmdir_by_id_lists_app_data_children_in_their_own_space(mock_drive):
+    drive, requests = mock_drive(
+        response({"mimeType": FOLDER_MIME_TYPE, "spaces": ["appDataFolder"]}),
+        listing({"id": "child"}),
+        credentials=Credentials(
+            "token",
+            granted_scopes=["https://www.googleapis.com/auth/drive.appdata"],
+        ),
+    )
+    with pytest.raises(OSError) as error:
+        filesystem(drive, "FolderID", trash_only=False).rmdir("FolderID")
+    assert error.value.errno == errno.ENOTEMPTY
+    stat, children = requests
+    assert "spaces" in query(stat)["fields"][0].split(",")
+    assert query(children)["spaces"] == ["appDataFolder"]
+    assert [req[1] for req in requests] == ["GET", "GET"]
+
+
+@pytest.mark.parametrize("trash_only", [True, False])
+@pytest.mark.parametrize(
+    "granted",
+    [None, ["https://www.googleapis.com/auth/drive.file"]],
+    ids=["unknown", "per-file"],
+)
+def test_rmdir_requires_granted_access_to_list_children(
+    mock_drive, trash_only, granted
+):
+    credentials = Credentials(
+        "token",
+        scopes=["https://www.googleapis.com/auth/drive"],
+        granted_scopes=granted,
+    )
+    drive, requests = mock_drive(
+        listing(folder("dir", "D")), listing(), credentials=credentials
+    )
+    with pytest.raises(PermissionError) as error:
+        filesystem(drive, trash_only=trash_only).rmdir("root/dir")
+    assert error.value.errno == errno.EACCES
+    assert [req[1] for req in requests] == ["GET", "GET"]
+
+
+@pytest.mark.parametrize(
+    "metadata,error",
+    [
+        ({"mimeType": FOLDER_MIME_TYPE, "trashed": True}, FileNotFoundError),
+        ({"mimeType": "text/plain"}, NotADirectoryError),
+        (
+            {"mimeType": FOLDER_MIME_TYPE, "driveId": "FolderID"},
+            PermissionError,
+        ),
+    ],
+)
+def test_rmdir_refuses_protected_or_invalid_folder_ids(
+    mock_drive, metadata, error
+):
+    drive, requests = mock_drive(response(metadata))
+    with pytest.raises(error):
+        filesystem(drive, "FolderID").rmdir("FolderID")
+    (stat,) = requests
+    assert stat[1] == "GET"
+
+
+@pytest.mark.parametrize("trash_only", [True, False])
+@pytest.mark.parametrize(
+    "deleted_elsewhere", [True, False], ids=["gone-before-delete", "success"]
+)
+def test_rmdir_by_id_rechecks_cached_children_after_removal(
+    mock_drive,
+    trash_only,
+    deleted_elsewhere,
+):
+    metadata = response({"mimeType": FOLDER_MIME_TYPE, "spaces": ["drive"]})
+    drive, requests = mock_drive(
+        metadata,
+        listing(folder("child", "C")),
+        metadata,
+        listing(),
+        error_response(404, "notFound") if deleted_elsewhere else response({}),
+        error_response(404, "notFound"),
+    )
+    fs = filesystem(drive, "FolderID", trash_only=trash_only)
+    fs.makedirs("FolderID/child", exist_ok=True)
+    if deleted_elsewhere:
+        with pytest.raises(FileNotFoundError) as error:
+            fs.rmdir("FolderID")
+        assert error.value.errno == errno.ENOENT
+    else:
+        fs.rmdir("FolderID")
+    with pytest.raises(FileNotFoundError):
+        fs.makedirs("FolderID/child", exist_ok=True)
+    assert [req[1] for req in requests] == [
+        "GET",
+        "GET",
+        "GET",
+        "GET",
+        "PATCH" if trash_only else "DELETE",
+        "GET",
+    ]
+    assert urlsplit(requests[-2][0]).path.endswith("/files/FolderID")
+    assert "q" not in query(requests[-1])
+
+
+def test_rmdir_after_a_delete_404_forgets_the_old_name(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("old", "D")),
+        listing(folder("new", "D")),
+        listing(),
+        error_response(404, "notFound"),
+        listing(),
+        listing(),
+    )
+    fs = filesystem(drive)
+    assert fs.exists("root/old")
+    with pytest.raises(FileNotFoundError):
+        fs.rmdir("root/new")
+    assert not fs.exists("root/old")
+    assert not fs.exists("root/new")
+    assert len(requests) == 6
+
+
+@pytest.mark.parametrize("space", ["drive", "appDataFolder"])
+def test_rmdir_accepts_service_account_scopes_for_the_target_space(
+    mock_drive, space
+):
+    scope = "https://www.googleapis.com/auth/drive"
+    scope += ".appdata" if space == "appDataFolder" else ""
+    credentials = service_account.Credentials(
+        None,
+        "service@example.test",
+        "https://oauth2.googleapis.com/token",
+        scopes=[scope],
+    )
+    credentials.token = "token"
+    drive, requests = mock_drive(
+        response({"mimeType": FOLDER_MIME_TYPE, "spaces": [space]}),
+        listing(),
+        response({}),
+        credentials=credentials,
+    )
+    filesystem(drive, "FolderID", trash_only=False).rmdir("FolderID")
+    assert [req[1] for req in requests] == ["GET", "GET", "DELETE"]
+
+
+def test_rmdir_checks_emptiness_again_after_transient_failure(mock_drive):
+    drive, requests = mock_drive(
+        listing(folder("dir", "D")),
+        listing(),
+        error_response(503, "backendError"),
+        listing({"id": "new-child"}),
+    )
+    with pytest.raises(OSError) as error:
+        filesystem(drive, trash_only=False).rmdir("root/dir")
+    assert error.value.errno == errno.ENOTEMPTY
+    assert [r[1] for r in requests] == ["GET", "GET", "DELETE", "GET"]
+
+
 def test_concurrent_copies_share_a_folder_after_unrelated_invalidation(
     mock_drive,
 ):
@@ -1157,7 +1482,7 @@ def test_info_and_listing_request_only_required_fields(mock_drive):
     }
     lookup, get = requests
     assert query(lookup)["fields"] == [
-        "nextPageToken,files(id,name,parents,mimeType,size,md5Checksum)"
+        "nextPageToken,incompleteSearch,files(id,name,parents,mimeType,size,md5Checksum)"
     ]
     assert query(get)["fields"] == ["mimeType,size,md5Checksum"]
 

@@ -9,7 +9,6 @@ import threading
 import warnings
 from contextlib import contextmanager
 from dataclasses import dataclass, field
-from itertools import chain
 from weakref import WeakValueDictionary
 
 import appdirs
@@ -19,6 +18,7 @@ from funcy import (
     distinct,
     retry,
 )
+from google.oauth2 import service_account
 from tqdm.utils import CallbackIOWrapper
 
 from pydrive2.auth import GoogleAuth, InvalidCredentialsError
@@ -29,8 +29,16 @@ logger = logging.getLogger(__name__)
 
 FOLDER_MIME_TYPE = "application/vnd.google-apps.folder"
 _INFO_FIELDS = "mimeType,size,md5Checksum"
-_LIST_FIELDS = f"nextPageToken,files(id,name,parents,{_INFO_FIELDS})"
+_LIST_FIELDS = (
+    f"nextPageToken,incompleteSearch,files(id,name,parents,{_INFO_FIELDS})"
+)
 _PARENT_QUERY_BATCH_SIZE = 50
+_DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"
+_LIST_ALL_SCOPES = {
+    _DRIVE_SCOPE + suffix
+    for suffix in ("", ".readonly", ".metadata", ".metadata.readonly")
+}
+_APP_DATA_SCOPES = {_DRIVE_SCOPE + ".appdata", _DRIVE_SCOPE + ".appfolder"}
 
 COMMON_SETTINGS = {
     "get_refresh_token": True,
@@ -442,11 +450,13 @@ class GDriveFileSystem(AbstractFileSystem):
             params["spaces"] = "appDataFolder"
         elif self.root != "root":
             try:
-                drive_id = self._get_root_metadata().get("driveId")
+                metadata = self._get_root_metadata()
             except FileNotFoundError as exc:
                 raise PermissionError from exc
-            if drive_id:
-                params.update(driveId=drive_id, corpora="drive")
+            if "appDataFolder" in metadata.get("spaces", ()):
+                params["spaces"] = "appDataFolder"
+            elif metadata.get("driveId"):
+                params.update(driveId=metadata["driveId"], corpora="drive")
         return params
 
     @_gdrive_retry
@@ -463,7 +473,7 @@ class GDriveFileSystem(AbstractFileSystem):
             item = self.client.CreateFile({"id": self.root})
             try:
                 with _translate_not_found(self.root):
-                    item.FetchMetadata(fields)
+                    item.FetchMetadata(f"{fields},spaces")
             except FileNotFoundError:
                 with self._cache_lock:
                     if self._root_metadata is cached:
@@ -475,6 +485,7 @@ class GDriveFileSystem(AbstractFileSystem):
                         self.invalidate_cache(self.root)
                     else:
                         self._root_metadata = {
+                            "spaces": item.get("spaces", ()),
                             "driveId": item.get("driveId"),
                             "mimeType": item.get("mimeType"),
                         }
@@ -489,11 +500,11 @@ class GDriveFileSystem(AbstractFileSystem):
         param.update(self._list_params)
         file_list = self.client.ListFile(param)
 
-        # Isolate and decorate fetching of remote drive items in pages.
         get_list = _gdrive_retry(lambda: next(file_list, None))
-
-        # Fetch pages until None is received, lazily flatten the thing.
-        return chain.from_iterable(iter(get_list, None))
+        for page in iter(get_list, None):
+            if file_list.metadata.get("incompleteSearch"):
+                raise OSError(errno.EIO, "Incomplete Drive listing")
+            yield from page
 
     def _gdrive_list_ids(self, query_ids, *, name=None):
         filters = "trashed=false"
@@ -1003,6 +1014,106 @@ class GDriveFileSystem(AbstractFileSystem):
         )
         return IterStream(iter(fd))
 
+    def _fresh_folder_match(self, base):
+        # A cached folder ID cannot establish whether the name is still unique.
+        prefix, match, _ = self._resolve_prefix(base, _DirectoryCache())
+        if not match.folders:
+            blocked = posixpath.join(self.root, prefix)
+            self.invalidate_cache(blocked)
+            raise NotADirectoryError(
+                errno.ENOTDIR, os.strerror(errno.ENOTDIR), blocked
+            )
+        if prefix != base:
+            missing = base.removeprefix(prefix).lstrip("/").partition("/")[0]
+            path = posixpath.join(self.root, prefix, missing)
+            self.invalidate_cache(path)
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), path
+            )
+        return match
+
+    def rmdir(self, path):
+        """Remove one empty Drive folder, honoring the trash_only setting."""
+        root, base = self._split_mounted_path(path)
+        if base:
+            # Walking the target also checks the mount when it is an ancestor.
+            if not _in_subtrees(base, (self.base,)):
+                self._fresh_folder_match(self.base)
+            match = self._fresh_folder_match(base)
+            if len(match.ids) != 1:
+                raise FileExistsError(
+                    errno.EEXIST,
+                    "Ambiguous Drive path; use the folder ID",
+                    path,
+                )
+            item_id = match.folders[0]
+        else:
+            if root in {"root", "appDataFolder"}:
+                raise PermissionError(
+                    errno.EPERM, "Cannot remove a Drive root", path
+                )
+            item = self._get_root_metadata(fresh=True)
+            if item.get("trashed"):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), path
+                )
+            if item.get("mimeType") != FOLDER_MIME_TYPE:
+                raise NotADirectoryError(
+                    errno.ENOTDIR, os.strerror(errno.ENOTDIR), path
+                )
+            if item.get("driveId") == root:
+                raise PermissionError(
+                    errno.EPERM, "Cannot remove a Drive root", path
+                )
+            item_id = root
+
+        try:
+            with _translate_not_found(path):
+                self._gdrive_delete_file(item_id, empty_directory=path)
+        except FileNotFoundError:
+            self._invalidate_folder(item_id, path, known_folder=True)
+            raise
+        self._invalidate_folder(item_id, path, known_folder=True)
+
+    def _check_empty_folder(self, item_id, path):
+        query = f"{_quote_query_value(item_id)} in parents"
+        if self._trash_only:
+            query += " and trashed=false"
+        params = self._list_params
+        pages = self.client.ListFile(
+            dict(
+                params,
+                q=query,
+                pageSize=1,
+                fields="nextPageToken,incompleteSearch,files(id)",
+            )
+        )
+        for page in pages:
+            if page:
+                raise OSError(
+                    errno.ENOTEMPTY, os.strerror(errno.ENOTEMPTY), path
+                )
+            if pages.metadata.get("incompleteSearch"):
+                raise OSError(errno.EIO, "Incomplete Drive listing", path)
+
+        # drive.file can return an empty, complete page while hiding children.
+        credentials = self.client.auth.credentials
+        if isinstance(credentials, service_account.Credentials):
+            scopes = credentials.scopes
+        else:
+            scopes = getattr(credentials, "granted_scopes", None)
+        required = (
+            _APP_DATA_SCOPES
+            if params.get("spaces") == "appDataFolder"
+            else _LIST_ALL_SCOPES
+        )
+        if required.isdisjoint(scopes or ()):
+            raise PermissionError(
+                errno.EACCES,
+                "Cannot verify folder emptiness with these OAuth scopes",
+                path,
+            )
+
     def rm_file(self, path):
         _, base = self._split_mounted_path(path)
         match, _ = self._lookup_path(base)
@@ -1012,7 +1123,7 @@ class GDriveFileSystem(AbstractFileSystem):
         self._invalidate_folder(item_id, path, known_folder=known_folder)
 
     @_gdrive_retry
-    def _gdrive_delete_file(self, item_id):
+    def _gdrive_delete_file(self, item_id, *, empty_directory=None):
         from pydrive2.files import ApiRequestError
 
         param = {"id": item_id}
@@ -1020,6 +1131,8 @@ class GDriveFileSystem(AbstractFileSystem):
         item = self.client.CreateFile(param)
 
         try:
+            if empty_directory is not None:
+                self._check_empty_folder(item_id, empty_directory)
             item.Trash() if self._trash_only else item.Delete()
         except ApiRequestError as exc:
             http_error_code = exc.error.get("code", 0)

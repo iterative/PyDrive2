@@ -489,6 +489,21 @@ def test_credentials_file_rejects_symlinks(tmp_path):
     assert target.read_text() == "original"
 
 
+def test_credential_cache_preserves_granted_scopes_separately_from_requested(
+    tmp_path,
+):
+    auth = GoogleAuth(settings_file=None)
+    full = "https://www.googleapis.com/auth/drive"
+    auth.credentials = Credentials(
+        "token", scopes=[full], granted_scopes=[full + ".file"]
+    )
+    path = tmp_path / "user.json"
+    auth.SaveCredentialsFile(path)
+    auth.LoadCredentialsFile(path)
+    assert auth.credentials.scopes == [full]
+    assert auth.credentials.granted_scopes == [full + ".file"]
+
+
 def test_save_waits_for_open_credential_reader(tmp_path, monkeypatch):
     path = tmp_path / "user.json"
     writer = CredentialStore(path)
