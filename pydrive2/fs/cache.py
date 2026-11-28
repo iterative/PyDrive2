@@ -149,7 +149,13 @@ class DirectoryCache:
         with self.lock:
             if mount and not self._known_folder_ids(mount, verified=True):
                 return False
-            return bool(self._known_folder_ids(path, verified=True))
+            parent_path, _, name = path.rpartition("/")
+            parents = self._known_folder_ids(parent_path, verified=True)
+            return any(
+                (parent, name) not in self.incomplete
+                and self.children.get(parent, {}).get(name)
+                for parent in parents
+            )
 
     def _parents_of_path(self, path):
         parent, _, name = path.rpartition("/")
