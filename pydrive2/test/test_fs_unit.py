@@ -1033,6 +1033,34 @@ def test_directory_mutation_evicts_descendants_only(mock_drive, operation):
     assert len(requests) == before
 
 
+def test_move_into_a_folder_that_shares_its_name_with_a_file(mock_drive):
+    dest = folder("dest", "Z")
+    file = {"id": "A", "name": "dest", "mimeType": "text/plain"}
+    source = dict(file, id="source", name="source", parents=["root"])
+    drive, requests = mock_drive(
+        listing(file, dest),
+        listing(source),
+        response({"parents": ["root"]}),
+        response(source),
+    )
+    fs = filesystem(drive)
+    fs.ls("root")
+    fs.mv("root/source", "root/dest")
+    update = requests[-1]
+    assert update[1] == "PATCH"
+    assert query(update)["addParents"] == ["Z"]
+    assert len(requests) == 4
+
+
+def test_move_rejects_a_file_as_the_destination_parent(mock_drive):
+    file = {"id": "A", "name": "dest", "mimeType": "text/plain"}
+    source = dict(file, id="source", name="source")
+    drive, requests = mock_drive(listing(file), listing(source), listing(file))
+    with pytest.raises(NotADirectoryError):
+        filesystem(drive).mv("root/source", "root/dest")
+    assert all(r[1] == "GET" for r in requests)
+
+
 def test_move_directory_to_implicit_root(mock_drive):
     moved = folder("dir", "dir-id")
     drive, requests = mock_drive(

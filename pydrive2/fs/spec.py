@@ -587,9 +587,11 @@ class GDriveFileSystem(AbstractFileSystem):
                 break
         return parent, match, generation
 
-    def _resolve_path(self, path, generation, mount=None):
+    def _resolve_path(
+        self, path, generation, mount=None, *, folders_only=False
+    ):
         prefix, match, generation = self._resolve_prefix(
-            path, generation, mount
+            path, generation, mount, folders_only=folders_only
         )
         return (match if prefix == path else _PathMatch([])), generation
 
@@ -607,12 +609,14 @@ class GDriveFileSystem(AbstractFileSystem):
             folders = match.folders
         return folders, generation
 
-    def _lookup_path(self, path):
+    def _lookup_path(self, path, *, folders_only=False):
         if not path:
             with self._cache_lock:
                 return _PathMatch([self.root]), self._dirs.generation
         generation, mount = self._resolve_mount()
-        return self._resolve_path(path, generation, mount)
+        return self._resolve_path(
+            path, generation, mount, folders_only=folders_only
+        )
 
     def _path_to_item_ids(self, path, create=False):
         if create and path:
@@ -934,7 +938,13 @@ class GDriveFileSystem(AbstractFileSystem):
 
         destination_parent = None
         if src_parent != dst_parent:
-            destination_parent = self._get_item_id(dst_parent)
+            _, parent_path = self._split_mounted_path(dst_parent)
+            parent_match, _ = self._lookup_path(parent_path, folders_only=True)
+            if parent_match.files and not parent_match.folders:
+                raise NotADirectoryError(dst_parent)
+            destination_parent = _select_item_id(
+                dst_parent, parent_match.folders
+            )
             file1["parents"] = [destination_parent]
 
         file1.Upload()
