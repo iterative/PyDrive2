@@ -686,6 +686,30 @@ def test_renamed_duplicate_keeps_each_parents_children_warm(mock_drive):
     ]
 
 
+def test_file_rename_rechecks_folder_discovered_during_the_move(mock_drive):
+    def list_destination(request):
+        if request[1] == "PATCH":
+            assert fs.ls("root") == ["root/new/"]
+
+    old = {"id": "A", "name": "old", "mimeType": "text/plain"}
+    new = dict(old, name="new")
+    directory = folder("new", "Z")
+    drive, requests = mock_drive(
+        listing(),
+        listing(old),
+        listing(directory),
+        response(new),
+        listing(new, directory),
+        ({"status": "200", "content-length": "1"}, b"x"),
+        on_request=list_destination,
+    )
+    fs = filesystem(drive)
+    fs.mv("root/old", "root/new")
+    with fs.open("root/new", "rb") as stream:
+        assert stream.read() == b"x"
+    assert urlsplit(requests[-1][0]).path.endswith("/files/A")
+
+
 @pytest.mark.parametrize("operation", ["exists", "ls", "find"])
 def test_failed_later_page_does_not_cache_partial_duplicate_matches(
     mock_drive, operation

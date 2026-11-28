@@ -900,8 +900,11 @@ class GDriveFileSystem(AbstractFileSystem):
                 self._invalidate_folder(
                     file1_id, path1, destination, known_folder=True
                 )
-        elif destination_parent is not None:
-            self._dirs.file_added(destination_parent, dst_name)
+        else:
+            _, parent_path = self._split_mounted_path(dst_parent)
+            self._dirs.file_added(
+                destination_parent, dst_name, parent_path=parent_path
+            )
 
     def get_file(self, rpath, lpath, callback=None, block_size=None, **kwargs):
         with _translate_not_found(rpath):

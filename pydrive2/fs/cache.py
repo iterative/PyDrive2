@@ -231,11 +231,19 @@ class DirectoryCache:
             if same_name and not pending.folders.keys().isdisjoint(parents):
                 pending.generation = None
 
-    def file_added(self, parent, name):
+    def file_added(self, parent_id, name, *, parent_path=None):
         with self.lock:
-            self._supersede((parent,), name)
-            if name in self.children.get(parent, {}):
-                self.incomplete.add((parent, name))
+            # A rename can leave the physical parent unchanged without ever
+            # requesting its ID. Recheck the name under each possible parent.
+            parents = (
+                self._known_folder_ids(parent_path)
+                if parent_id is None
+                else (parent_id,)
+            )
+            self._supersede(parents, name)
+            for parent in parents:
+                if name in self.children.get(parent, {}):
+                    self.incomplete.add((parent, name))
 
     @contextmanager
     def listing(self, generation, parents, *, name=None):
